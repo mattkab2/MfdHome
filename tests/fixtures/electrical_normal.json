@@ -1,0 +1,8 @@
+[
+  {"entity_id": "sensor.solar_power", "state": "3200", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.battery_soc", "state": "82", "attributes": {"unit_of_measurement": "%"}},
+  {"entity_id": "sensor.battery_power", "state": "-1500", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.grid_power", "state": "300", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.load_power", "state": "2000", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "switch.main_breaker", "state": "on", "attributes": {}}
+]
