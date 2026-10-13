@@ -92,7 +92,7 @@ poetry run mypy src                 # type check
 
 Before considering a task done: tests pass, ruff is clean, mypy is clean.
 
-- Target Python 3.12+.
+- Target Python 3.14+.
 - Add dependencies with `poetry add <pkg>` (or `poetry add --group dev <pkg>` for
   dev tools). Do not edit dependency lists in `pyproject.toml` by hand, and do not
   use pip directly.
