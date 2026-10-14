@@ -40,6 +40,8 @@ from mfdhome.model.page import (
     Element,
     FlowSpec,
     LineElement,
+    LineLook,
+    LineStyle,
     Name,
     NodeElement,
     Orientation,
@@ -54,6 +56,7 @@ from mfdhome.render.format import FORMATS, is_valid_format
 from mfdhome.symbols.geometry import port_point
 from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
 from mfdhome.symbols.tile import TILE_HEIGHT, TILE_WIDTH
+from mfdhome.themes.builtin import THEMES
 
 
 @dataclass(frozen=True)
@@ -62,17 +65,17 @@ class Defs:
 
     thresholds: Mapping[str, Thresholds] = field(default_factory=lambda: MappingProxyType({}))
     conditions: Mapping[str, AnyOf] = field(default_factory=lambda: MappingProxyType({}))
+    line_styles: Mapping[str, LineStyle] = field(default_factory=lambda: MappingProxyType({}))
 
     def merge(self, other: Defs) -> tuple[Defs, list[str]]:
         """Combine two sets of defs; returns the result and any duplicated names."""
+        kinds = ("thresholds", "conditions", "line_styles")
         dupes = sorted(
-            {f"thresholds.{k}" for k in self.thresholds.keys() & other.thresholds.keys()}
-            | {f"conditions.{k}" for k in self.conditions.keys() & other.conditions.keys()}
+            f"{kind}.{name}"
+            for kind in kinds
+            for name in getattr(self, kind).keys() & getattr(other, kind).keys()
         )
-        merged = Defs(
-            MappingProxyType({**self.thresholds, **other.thresholds}),
-            MappingProxyType({**self.conditions, **other.conditions}),
-        )
+        merged = Defs(*(MappingProxyType({**getattr(self, k), **getattr(other, k)}) for k in kinds))
         return merged, dupes
 
 
@@ -219,7 +222,21 @@ def build_defs(
         name: exprs.use(name, (*prefix, "conditions", name), issues) for name in model.conditions
     }
     thresholds = {name: _thresholds(t) for name, t in model.thresholds.items()}
-    return Defs(MappingProxyType(thresholds), MappingProxyType(conditions))
+    styles = {}
+    for name, style in model.line_styles.items():
+        for theme in style.themes:
+            if theme not in THEMES:
+                issues.add(
+                    (*prefix, "line_styles", name, "themes", theme),
+                    f"unknown theme {theme!r}; expected: {', '.join(THEMES)}",
+                )
+        variants = {t: LineLook(v.weight, v.casing) for t, v in style.themes.items()}
+        styles[name] = LineStyle(
+            name, LineLook(style.weight, style.casing), MappingProxyType(variants)
+        )
+    return Defs(
+        MappingProxyType(thresholds), MappingProxyType(conditions), MappingProxyType(styles)
+    )
 
 
 # --- elements ---------------------------------------------------------------------------------
@@ -386,7 +403,19 @@ class _ElementBuilder:
             status=self.status(model.status, LINE_PRIMARY, bound, (*loc, "status")),
             readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
             flow=flow,
+            style=self.line_style(model.style, (*loc, "style")),
+            look=LineLook(model.weight, model.casing),
         )
+
+    def line_style(self, name: str | None, loc: Loc) -> LineStyle:
+        if name is None:
+            return LineStyle()
+        style = self.defs.line_styles.get(name)
+        if style is None:
+            known = ", ".join(self.defs.line_styles) or "none defined"
+            self.issues.add(loc, f"unknown line style {name!r}; expected: {known}")
+            return LineStyle()
+        return style
 
     def tile_grid(self, model: TileGridModel, loc: Loc) -> list[Element]:
         centers = grid_centers(

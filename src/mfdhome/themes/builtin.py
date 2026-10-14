@@ -56,6 +56,9 @@ MIRROR = Theme(
     label_font_size=20.0,
     attention=Attention(AttentionKind.PULSE, period=2.5, low_opacity=0.35),
     tile_fill=MappingProxyType({}),
+    casing_width=6.0,
+    casing_wall=1.5,
+    max_line_weight=2.0,
 )
 
 _BLACK = "#000000"

@@ -7,3 +7,10 @@ conditions:
   grid_lost:
     when:
       - {entity: sensor.grid_power, unavailable: true}
+
+# Connection styles: relative weight and casing (hollow pipe, the default).
+# Color and pattern always come from status. Variants are keyed by theme name.
+line_styles:
+  feeder: {weight: 1}
+  bus: {weight: 1.5, themes: {mirror: {weight: 1.25}}}
+  signal: {weight: 0.5, casing: false}

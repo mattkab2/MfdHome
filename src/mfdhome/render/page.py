@@ -34,6 +34,7 @@ from mfdhome.model.page import (
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
 from mfdhome.render.format import format_value
+from mfdhome.render.lines import resolve_look
 from mfdhome.render.status import element_status
 from mfdhome.symbols import svg
 from mfdhome.symbols.line import Flow, line
@@ -159,7 +160,8 @@ def _flow(element: LineElement, ctx: EvalContext) -> Flow | None:
 
 def _render_line(
     element: LineElement, state: StateSnapshot, theme: Theme, alerts: AlertView
-) -> str:
+) -> tuple[str, str]:
+    """The line's casing layer and its body (inner stroke, arrow, labels)."""
     ctx = EvalContext(state, element.bind)
     values = {channel: ctx.value(ChannelRef(channel)) for channel in LINE_CHANNELS}
     status = element_status(
@@ -172,7 +174,8 @@ def _render_line(
     flow = _flow(element, ctx)
     if flow is not None and status is Status.NORMAL:
         status = Status.ACTIVE
-    body = line(element.points, status, flow, theme)
+    look = resolve_look(element, theme)
+    parts = line(element.points, status, flow, theme, look.weight, look.casing)
 
     def default_anchor(along: float) -> Anchor:
         return default_line_anchor(point_along(element.points, along)[1])
@@ -183,7 +186,12 @@ def _render_line(
     labels = _collect_labels(
         element.name, element.readouts, values, status, theme, default_anchor, default_anchor
     )
-    return body + "".join(_draw_labels(labels, box_at, LINE_GAP, theme))
+    gap = max(LINE_GAP, parts.half_width + LABEL_CLEARANCE)
+    return parts.casing, parts.body + "".join(_draw_labels(labels, box_at, gap, theme))
+
+
+#: Minimum space between a line's edge and its labels.
+LABEL_CLEARANCE = 8.0
 
 
 def _render_tile(
@@ -204,12 +212,23 @@ def _render_tile(
 def render_element(
     element: Element, state: StateSnapshot, theme: Theme, alerts: AlertView = NO_ALERTS
 ) -> str:
-    """Render one element to an SVG group tagged with its id."""
+    """Render one element on its own: any underlay (line casing), then its group."""
+    underlay, group = _render_layers(element, state, theme, alerts)
+    return underlay + group
+
+
+def _render_layers(
+    element: Element, state: StateSnapshot, theme: Theme, alerts: AlertView
+) -> tuple[str, str]:
+    """An element's underlay (tagged with ``data-for``) and its group (tagged with its id)."""
+    underlay = ""
     match element:
         case SymbolElement():
             body = _render_symbol(element, state, theme, alerts)
         case LineElement():
-            body = _render_line(element, state, theme, alerts) if len(element.points) >= 2 else ""
+            casing, body = _render_line(element, state, theme, alerts)
+            if casing:
+                underlay = svg.element("g", {"data-for": element.id}, [casing])
         case TextElement():
             body = _text(
                 Placement(element.at[0], element.at[1], element.align, None),
@@ -222,7 +241,7 @@ def render_element(
             body = _render_tile(element, state, theme, alerts)
         case NodeElement():
             body = _render_node(element, theme)
-    return svg.element("g", {"id": element.id}, [body])
+    return underlay, svg.element("g", {"id": element.id}, [body])
 
 
 #: Junction dot radius as a multiple of the theme's line width.
@@ -276,16 +295,18 @@ def render_page(
     attribute order.
     """
     logger.debug("rendering page %s for target %s", page.id, target.name)
+    # Nodes last, so junction dots sit on top of the lines that meet there.
+    ordered = sorted(page.elements, key=lambda e: isinstance(e, NodeElement))
+    layers = [_render_layers(element, state, theme, alerts) for element in ordered]
+    underlays = [underlay for underlay, _ in layers if underlay]
     children = [
         svg.element(
             "rect",
             {"x": 0, "y": 0, "width": page.width, "height": page.height, "fill": theme.background},
         ),
-        # Nodes last, so junction dots sit on top of the lines that meet there.
-        *(
-            render_element(element, state, theme, alerts)
-            for element in sorted(page.elements, key=lambda e: isinstance(e, NodeElement))
-        ),
+        # Every line's casing beneath every line's body, so hollow pipes merge at joints.
+        *([svg.element("g", {"id": "casings"}, underlays)] if underlays else []),
+        *(group for _, group in layers),
     ]
     shown = alerts.banner()
     if shown is not None:

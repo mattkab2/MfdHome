@@ -207,6 +207,25 @@ class SymbolModel(_Bound):
     params: dict[str, Any] = {}
 
 
+Weight = Annotated[float, Field(gt=0)]
+
+
+class LineLookModel(Strict):
+    """Line appearance overrides: relative ``weight`` and ``casing``.
+
+    Color and pattern are not settable: they carry status.
+    """
+
+    weight: Weight | None = None
+    casing: bool | None = None
+
+
+class LineStyleModel(LineLookModel):
+    """A named line style with optional per-theme variants."""
+
+    themes: dict[str, LineLookModel] = {}
+
+
 Endpoint = Coord | str
 
 
@@ -222,6 +241,9 @@ class LineModel(_Bound):
     to: Endpoint | None = None
     via: list[Coord] = []
     flow: FlowModel | None = None
+    style: Ident | None = None
+    weight: Weight | None = None
+    casing: bool | None = None
 
     @model_validator(mode="after")
     def _one_geometry(self) -> Self:
@@ -288,10 +310,11 @@ class TileGridModel(Strict):
 
 
 class DefsModel(Strict):
-    """Shared definitions: named thresholds and named conditions."""
+    """Shared definitions: named thresholds, conditions and line styles."""
 
     thresholds: dict[Ident, ThresholdsModel] = {}
     conditions: dict[Ident, ExprModel] = {}
+    line_styles: dict[Ident, LineStyleModel] = {}
 
 
 class SystemModel(Strict):
@@ -357,6 +380,8 @@ MODEL_NAMES = frozenset(
         "TextModel",
         "TileModel",
         "NodeModel",
+        "LineLookModel",
+        "LineStyleModel",
         "TileGridModel",
         "SystemModel",
         "AlertModel",

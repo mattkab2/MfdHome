@@ -60,6 +60,10 @@ class Theme:
     ``status_weight`` multiplies stroke widths per status, giving a non-color
     severity cue on palettes that cannot show color (missing entries are 1).
     ``dim`` draws things that are present but inactive (unlit tiles).
+    Line policy: ``casing_allowed`` (``False`` draws every line solid),
+    ``casing_width`` (outer width of a cased line at weight 1), ``casing_wall``
+    (wall thickness) and ``max_line_weight`` (cap on any line's weight). These
+    are applied after page styles, so a theme's limits always hold.
     ``unavailable_dots`` is the dash array for the no-data pattern; drawn with
     round caps, a zero-length dash ("0 6") gives round dots.
     """
@@ -78,6 +82,10 @@ class Theme:
     attention: Attention
     tile_fill: Mapping[Status, TileFill]
     status_weight: Mapping[Status, float] = field(default_factory=_ones)
+    casing_allowed: bool = True
+    casing_width: float = 8.0
+    casing_wall: float = 2.0
+    max_line_weight: float = 3.0
 
     def color(self, status: Status) -> str:
         """Return the palette color for ``status``."""

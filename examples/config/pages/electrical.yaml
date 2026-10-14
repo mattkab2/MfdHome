@@ -12,6 +12,7 @@ elements:
 
   - id: solar
     type: line
+    style: feeder
     from: [500, 80]
     to: bus
     bind: {power: sensor.solar_power}
@@ -34,13 +35,14 @@ elements:
   # Battery power: positive = charging (bus -> battery), negative = discharging.
   - id: battery_feed
     type: line
+    style: feeder
     from: bus
     to: battery.right
     bind: {power: sensor.battery_power}
     flow: true
     readouts: [{value: power, format: power, abs: true}]
 
-  - {id: bus_tie, type: line, from: bus, to: main_breaker.in}
+  - {id: bus_tie, type: line, style: bus, from: bus, to: main_breaker.in}
 
   - id: main_breaker
     type: breaker
@@ -61,6 +63,7 @@ elements:
   # Positive grid power = import (grid -> house); negative = export.
   - id: grid
     type: line
+    style: feeder
     from: [880, 300]
     to: main_breaker.out
     bind: {power: sensor.grid_power}
@@ -70,6 +73,7 @@ elements:
 
   - id: loads
     type: line
+    style: feeder
     from: bus
     to: [500, 500]
     bind: {power: sensor.load_power}
