@@ -1,0 +1,3 @@
+# Shared definitions: named thresholds and conditions usable from any page.
+thresholds:
+  battery_soc: {warning_low: 10, caution_low: 25}

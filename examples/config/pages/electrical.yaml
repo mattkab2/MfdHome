@@ -1,0 +1,63 @@
+# Minimal Electrical page: solar and battery feed a bus; the bus feeds loads
+# and ties to the grid through the main breaker. Generic entity ids only.
+page: electrical
+title: Electrical
+canvas: {width: 1000, height: 600}
+
+elements:
+  - {id: title, type: text, at: [80, 40], text: ELEC}
+
+  - {id: solar_label, type: text, at: [500, 60], text: SOLAR}
+  - id: solar
+    type: line
+    points: [[500, 80], [500, 300]]
+    bind: {power: sensor.solar_power}
+    flow: true
+    readouts: [{value: power, format: power, abs: true}]
+
+  - {id: battery_label, type: text, at: [200, 225], text: BATT}
+  - id: battery
+    type: battery
+    at: [200, 300]
+    bind:
+      level: sensor.battery_soc
+      power: sensor.battery_power
+    status: {thresholds: battery_soc}
+    readouts:
+      - {value: level, format: percent}
+      - {value: power, format: power}
+
+  # Positive battery power = discharging into the bus.
+  - id: battery_feed
+    type: line
+    points: [[230, 300], [500, 300]]
+    bind: {power: sensor.battery_power}
+    flow: true
+    readouts: [{value: power, format: power, abs: true}]
+
+  - {id: bus_tie, type: line, points: [[500, 300], [630, 300]]}
+
+  - id: main_breaker
+    type: breaker
+    at: [650, 300]
+    bind: {state: switch.main_breaker}
+    status:
+      map: {on: normal, closed: normal}
+      default: caution
+
+  # Positive grid power = import (grid -> house); negative = export.
+  - id: grid
+    type: line
+    points: [[880, 300], [670, 300]]
+    bind: {power: sensor.grid_power}
+    flow: true
+    readouts: [{value: power, format: power, abs: true}]
+  - {id: grid_label, type: text, at: [930, 307], text: GRID}
+
+  - id: loads
+    type: line
+    points: [[500, 300], [500, 500]]
+    bind: {power: sensor.load_power}
+    flow: true
+    readouts: [{value: power, format: power, abs: true}]
+  - {id: loads_label, type: text, at: [500, 530], text: LOADS}
