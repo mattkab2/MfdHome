@@ -59,7 +59,9 @@ def _polyline(pts: Sequence[Point], attrs: dict[str, svg.AttrValue]) -> str:
 
 
 def _arrow(pts: Sequence[Point], flow: Flow, size: float, color: str) -> str:
-    (mx, my), (dx, dy) = point_along(pts, 0.5)
+    """A chevron at the middle of the longest segment, so it never sits on a bend."""
+    a, b = max(pairwise(pts), key=lambda seg: math.dist(*seg))
+    (mx, my), (dx, dy) = point_along((a, b), 0.5)
     if flow is Flow.REVERSE:
         dx, dy = -dx, -dy
     tip = (mx + dx * size, my + dy * size)

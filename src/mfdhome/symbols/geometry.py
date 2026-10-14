@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from mfdhome.layout.anchors import Anchor, Box, box_point, parse_anchor
 from mfdhome.layout.path import Point
+from mfdhome.layout.route import Port
 from mfdhome.model.page import Element, GroupElement, NodeElement, SymbolElement, TileElement
 from mfdhome.symbols.registry import get_symbol
 from mfdhome.symbols.tile import tile_box
@@ -35,16 +36,21 @@ def port_names(element: Element) -> list[str]:
 
 
 def port_point(element: Element, port: str | None) -> Point:
-    """Where a line attaches to ``element`` at ``port``.
+    """Where a line attaches to ``element`` at ``port`` (see :func:`find_port`)."""
+    return find_port(element, port).point
 
-    Nodes take no port. Other boxed elements accept their type's named ports
-    and the box's edge midpoints and corners (anchor names, minus ``center``).
-    Raises ``ValueError`` with a message listing valid ports.
+
+def find_port(element: Element, port: str | None) -> Port:
+    """The connection point and outward direction of ``port`` on ``element``.
+
+    Nodes take no port and have no direction. Other boxed elements accept their
+    type's named ports and the box's edge midpoints (pointing outward) and
+    corners (no direction). Raises ``ValueError`` listing valid ports.
     """
     if isinstance(element, NodeElement):
         if port is not None:
             raise ValueError(f"node {element.id!r} has no ports; connect to {element.id!r}")
-        return element.at
+        return Port(element.at)
     box = element_box(element)
     if box is None:
         raise ValueError(f"{element.id!r} cannot be connected to")
@@ -65,7 +71,17 @@ def port_point(element: Element, port: str | None) -> Point:
     # Edge midpoints sit on the element's own axis, not the box center: a box can
     # be asymmetric (the battery's terminal nub makes its box taller on top).
     cx, cy = element_center(element)
-    return (cx if anchor.column == "center" else x, cy if anchor.row == "center" else y)
+    point = (cx if anchor.column == "center" else x, cy if anchor.row == "center" else y)
+    return Port(point, _OUTWARD.get(anchor))
+
+
+#: Outward directions of edge-midpoint ports; corners have none.
+_OUTWARD: dict[Anchor, Point] = {
+    Anchor.CENTER_LEFT: (-1.0, 0.0),
+    Anchor.CENTER_RIGHT: (1.0, 0.0),
+    Anchor.TOP_CENTER: (0.0, -1.0),
+    Anchor.BOTTOM_CENTER: (0.0, 1.0),
+}
 
 
 def element_center(element: Element) -> Point:

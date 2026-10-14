@@ -13,6 +13,7 @@ from types import MappingProxyType
 from mfdhome.conditions.values import Value
 from mfdhome.layout.anchors import Box
 from mfdhome.layout.path import Point
+from mfdhome.layout.route import Port
 from mfdhome.model.binding import Status
 from mfdhome.model.page import Orientation
 from mfdhome.symbols.battery import battery, battery_box
@@ -61,7 +62,7 @@ class SymbolSpec:
     numeric: frozenset[str]
     box: Callable[[Point, Orientation], Box]
     draw: Callable[[SymbolInput, Theme], str]
-    ports: Mapping[str, Callable[[Point, Orientation], Point]] = field(
+    ports: Mapping[str, Callable[[Point, Orientation], Port]] = field(
         default_factory=lambda: MappingProxyType({})
     )
     params: Callable[[Mapping[str, object]], Mapping[str, object]] = field(default=_no_params)
@@ -86,14 +87,18 @@ def _breaker_params(raw: Mapping[str, object]) -> Mapping[str, object]:
     return MappingProxyType({"closed": frozenset(str(s).strip().lower() for s in closed)})
 
 
-def _breaker_in(at: Point, orientation: Orientation) -> Point:
+def _breaker_in(at: Point, orientation: Orientation) -> Port:
     half = breaker_box(*at).right - at[0]
-    return (at[0], at[1] - half) if orientation is Orientation.VERTICAL else (at[0] - half, at[1])
+    if orientation is Orientation.VERTICAL:
+        return Port((at[0], at[1] - half), (0.0, -1.0))
+    return Port((at[0] - half, at[1]), (-1.0, 0.0))
 
 
-def _breaker_out(at: Point, orientation: Orientation) -> Point:
+def _breaker_out(at: Point, orientation: Orientation) -> Port:
     half = breaker_box(*at).right - at[0]
-    return (at[0], at[1] + half) if orientation is Orientation.VERTICAL else (at[0] + half, at[1])
+    if orientation is Orientation.VERTICAL:
+        return Port((at[0], at[1] + half), (0.0, 1.0))
+    return Port((at[0] + half, at[1]), (1.0, 0.0))
 
 
 def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:

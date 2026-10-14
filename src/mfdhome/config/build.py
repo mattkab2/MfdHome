@@ -36,6 +36,7 @@ from mfdhome.config.schema import (
 from mfdhome.layout.anchors import Anchor, anchor_names, parse_anchor
 from mfdhome.layout.grid import grid_centers
 from mfdhome.layout.path import Point
+from mfdhome.layout.route import Elbow, Port, route
 from mfdhome.model.alert import AlertDef, Severity, System
 from mfdhome.model.binding import ElementRef, EntityRef, Status
 from mfdhome.model.page import (
@@ -60,7 +61,7 @@ from mfdhome.model.page import (
     TileElement,
 )
 from mfdhome.render.format import FORMATS, is_valid_format
-from mfdhome.symbols.geometry import element_box, port_point
+from mfdhome.symbols.geometry import element_box, find_port
 from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
 from mfdhome.themes.builtin import THEMES
 
@@ -270,6 +271,8 @@ class _PendingLine:
     via: tuple[Point, ...]
     end: Endpoint
     loc: Loc
+    straight: bool = False
+    elbow: Elbow | None = None
 
 
 class _ElementBuilder:
@@ -401,7 +404,15 @@ class _ElementBuilder:
         if model.points is None:
             assert model.from_ is not None and model.to is not None
             self.pending.append(
-                _PendingLine(model.id, model.from_, tuple(model.via), model.to, loc)
+                _PendingLine(
+                    model.id,
+                    model.from_,
+                    tuple(model.via),
+                    model.to,
+                    loc,
+                    straight=model.route == "straight",
+                    elbow=Elbow(model.elbow) if model.elbow else None,
+                )
             )
         return LineElement(
             id=model.id,
@@ -627,9 +638,9 @@ JUNCTION_DEGREE = 3
 
 def _endpoint(
     end: Endpoint, by_id: Mapping[str, Element], loc: Loc, issues: Issues, degree: Counter[str]
-) -> Point | None:
+) -> Port | None:
     if not isinstance(end, str):
-        return end
+        return Port(end)
     owner = _item_owner(end, by_id)
     if owner is not None:
         issues.add(
@@ -647,13 +658,13 @@ def _endpoint(
             return None
         target, port = by_id[element_id], port_name
     try:
-        point = port_point(target, port)
+        found = find_port(target, port)
     except ValueError as exc:
         issues.add(loc, str(exc))
         return None
     if isinstance(target, NodeElement):
         degree[target.id] += 1
-    return point
+    return found
 
 
 def _item_ids(group: GroupElement) -> Iterator[str]:
@@ -728,8 +739,12 @@ def _connect(
     for line in pending:
         start = _endpoint(line.start, by_id, (*line.loc, "from"), issues, degree)
         end = _endpoint(line.end, by_id, (*line.loc, "to"), issues, degree)
-        if start is not None and end is not None:
-            points[line.id] = (start, *line.via, end)
+        if start is None or end is None:
+            continue
+        if line.via or line.straight:
+            points[line.id] = (start.point, *line.via, end.point)
+        else:
+            points[line.id] = route(start, end, line.elbow)
     out: list[Element] = []
     for e in elements:
         if isinstance(e, (LineElement, SymbolElement)):

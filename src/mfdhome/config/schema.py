@@ -240,6 +240,8 @@ class LineModel(_Bound):
     from_: Endpoint | None = Field(default=None, alias="from")
     to: Endpoint | None = None
     via: list[Coord] = []
+    route: Literal["auto", "straight"] = "auto"
+    elbow: Literal["horizontal-first", "vertical-first"] | None = None
     flow: FlowModel | None = None
     style: Ident | None = None
     weight: Weight | None = None
@@ -253,6 +255,8 @@ class LineModel(_Bound):
                 raise ValueError("give either 'points' or 'from'/'to' (with optional 'via')")
         elif ends != (True, True):
             raise ValueError("a line needs 'points', or both 'from' and 'to'")
+        if self.elbow is not None and (self.via or self.route == "straight" or self.points):
+            raise ValueError("'elbow' only applies to auto-routed 'from'/'to' lines (no 'via')")
         return self
 
     @field_validator("flow", mode="before")
