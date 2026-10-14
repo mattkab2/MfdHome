@@ -19,6 +19,8 @@ from mfdhome.model.page import Orientation
 from mfdhome.symbols.battery import battery, battery_box
 from mfdhome.symbols.breaker import breaker, breaker_box
 from mfdhome.symbols.panel import panel_box, solar_panel
+from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
+from mfdhome.symbols.transfer import panel_box as load_panel_box
 from mfdhome.themes.theme import Theme
 
 #: Channels accepted by line elements; ``power`` is primary and numeric.
@@ -77,16 +79,6 @@ def _draw_battery(inp: SymbolInput, theme: Theme) -> str:
 DEFAULT_CLOSED_STATES = frozenset({"on", "closed"})
 
 
-def _breaker_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"closed"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
-    closed = raw.get("closed", DEFAULT_CLOSED_STATES)
-    if isinstance(closed, str) or not isinstance(closed, (list, tuple, frozenset, set)):
-        raise ValueError("'closed' must be a list of state strings")
-    return MappingProxyType({"closed": frozenset(str(s).strip().lower() for s in closed)})
-
-
 def _breaker_in(at: Point, orientation: Orientation) -> Port:
     half = breaker_box(*at).right - at[0]
     if orientation is Orientation.VERTICAL:
@@ -109,12 +101,79 @@ def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:
     return breaker(inp.at[0], inp.at[1], closed, inp.status, inp.orientation, theme)
 
 
+DEFAULT_CONNECTED_STATES = frozenset({"on", "connected", "grid", "closed"})
+
+
+type ParamsValidator = Callable[[Mapping[str, object]], Mapping[str, object]]
+
+
+def _state_list_params(name: str, default: frozenset[str]) -> ParamsValidator:
+    """Params with one optional entry: ``name``, a list of state strings (lowercased)."""
+
+    def validate(raw: Mapping[str, object]) -> Mapping[str, object]:
+        unknown = set(raw) - {name}
+        if unknown:
+            raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+        states = raw.get(name, default)
+        if isinstance(states, str) or not isinstance(states, (list, tuple, frozenset, set)):
+            raise ValueError(f"{name!r} must be a list of state strings")
+        return MappingProxyType({name: frozenset(str(s).strip().lower() for s in states)})
+
+    return validate
+
+
+def _draw_ats(inp: SymbolInput, theme: Theme) -> str:
+    state = inp.values["state"]
+    connected_states = inp.params.get("connected", DEFAULT_CONNECTED_STATES)
+    assert isinstance(connected_states, frozenset)
+    connected = None if state.raw is None else str(state.raw).strip().lower() in connected_states
+    return transfer_switch(inp.at[0], inp.at[1], connected, inp.status, inp.orientation, theme)
+
+
+def _ats_port(side: float) -> Callable[[Point, Orientation], Port]:
+    """The grid (side -1) or load (side +1) port; it follows orientation."""
+
+    def port(at: Point, orientation: Orientation) -> Port:
+        box = ats_box(*at, orientation)
+        if orientation is Orientation.VERTICAL:
+            y = box.top if side < 0 else box.bottom
+            return Port((at[0], y), (0.0, side))
+        x = box.left if side < 0 else box.right
+        return Port((x, at[1]), (side, 0.0))
+
+    return port
+
+
+def _draw_load_panel(inp: SymbolInput, theme: Theme) -> str:
+    return load_panel(inp.at[0], inp.at[1], inp.status, theme)
+
+
 def _draw_panel(inp: SymbolInput, theme: Theme) -> str:
     return solar_panel(inp.at[0], inp.at[1], inp.status, theme)
 
 
 REGISTRY: Mapping[str, SymbolSpec] = MappingProxyType(
     {
+        "transfer_switch": SymbolSpec(
+            type="transfer_switch",
+            channels=("state",),
+            required=frozenset({"state"}),
+            primary="state",
+            numeric=frozenset(),
+            box=lambda at, orientation: ats_box(*at, orientation),
+            draw=_draw_ats,
+            params=_state_list_params("connected", DEFAULT_CONNECTED_STATES),
+            ports=MappingProxyType({"grid": _ats_port(-1.0), "load": _ats_port(1.0)}),
+        ),
+        "load_panel": SymbolSpec(
+            type="load_panel",
+            channels=("power",),
+            required=frozenset(),
+            primary="power",
+            numeric=frozenset({"power"}),
+            box=lambda at, _orientation: load_panel_box(*at),
+            draw=_draw_load_panel,
+        ),
         "solar_panel": SymbolSpec(
             type="solar_panel",
             channels=("power",),
@@ -141,7 +200,7 @@ REGISTRY: Mapping[str, SymbolSpec] = MappingProxyType(
             numeric=frozenset(),
             box=lambda at, _orientation: breaker_box(*at),
             draw=_draw_breaker,
-            params=_breaker_params,
+            params=_state_list_params("closed", DEFAULT_CLOSED_STATES),
             ports=MappingProxyType({"in": _breaker_in, "out": _breaker_out}),
         ),
     }
