@@ -1,5 +1,6 @@
 """Status/annunciator page and the alert banner, end to end through mfd.alerts."""
 
+import re
 from datetime import UTC, datetime
 
 import pytest
@@ -9,12 +10,12 @@ from mfdhome.mfd import EMPTY_BOARD, Phase, most_urgent
 from mfdhome.model import Status
 from mfdhome.render import render_page
 from mfdhome.render.controls import Controls
-from mfdhome.themes import EINK_MONO, LCD, MIRROR, Target, Theme
+from mfdhome.themes import EINK_COLOR, EINK_MONO, LCD, MIRROR, Target, Theme
 from tests.support import board_from, config_page, fixture_state, load_test_config, view
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 TABLET = Target("tablet", 1280, 768)
-THEMES = [LCD, MIRROR, EINK_MONO]
+THEMES = [LCD, MIRROR, EINK_MONO, EINK_COLOR]
 CONFIG = load_test_config()
 ALERTS = CONFIG.alerts.alerts
 
@@ -90,3 +91,20 @@ def test_soft_keys_snapshot(theme: Theme, svg_snapshot: SnapshotAssertion) -> No
         Controls(Status.WARNING, locked=False),
     )
     assert svg == svg_snapshot
+
+
+def test_eink_color_never_draws_yellow_text() -> None:
+    """Yellow is too pale for text on paper: caution text is black on every surface."""
+    pages = [
+        render_page(config_page("status"), {}, EINK_COLOR, TABLET, view(MIXED)),
+        render_page(
+            config_page("electrical"),
+            fixture_state("electrical_islanded"),
+            EINK_COLOR,
+            TABLET,
+            view(board_from("electrical_islanded")),
+        ),
+    ]
+    for svg in pages:
+        assert re.search(r'<text[^>]*fill="#ffff00"', svg) is None
+        assert 'fill="#ffff00"' in svg  # caution is still shown, as a fill

@@ -90,14 +90,14 @@ def panel(
         parts.append(
             svg.element("rect", {**rect, "fill": color, "stroke": color, "stroke-width": width})
         )
-        text_color = theme.background
+        text_color = theme.filled_text.get(look.status, theme.background)
     else:
         parts.append(
             svg.element(
                 "rect", {**rect, "fill": background, "stroke": color, "stroke-width": width}
             )
         )
-        text_color = color
+        text_color = theme.text_in(look.status)
     if ring and look.attention and theme.attention.kind is AttentionKind.RING:
         parts.append(_ring(box, color, theme))
     return parts, text_color

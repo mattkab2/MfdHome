@@ -108,7 +108,9 @@ def _collect_labels(
     for r in readouts:
         text = format_value(values[r.channel], r.format, r.unit, r.absolute)
         anchor = r.anchor or default_readout(r.along)
-        labels.append(_Label(text, theme.font_size, theme.color(status), anchor, r.along, r.offset))
+        labels.append(
+            _Label(text, theme.font_size, theme.text_in(status), anchor, r.along, r.offset)
+        )
     return labels
 
 

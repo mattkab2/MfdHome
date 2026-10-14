@@ -8,7 +8,7 @@ from PIL import Image
 
 from mfdhome.render.panels import GRAY4, MONO, PANELS, SPECTRA6, PanelProfile, hex_rgb
 from mfdhome.render.raster import encode_png, image_colors, quantize
-from mfdhome.themes.builtin import EINK_MONO, LCD
+from mfdhome.themes.builtin import EINK_COLOR, EINK_MONO, LCD
 
 
 def _noise(size: int = 48, seed: int = 7) -> Image.Image:
@@ -67,6 +67,8 @@ def test_theme_support() -> None:
     assert SPECTRA6.unsupported(EINK_MONO) == frozenset()
     assert LCD.palette() & MONO.unsupported(LCD) == MONO.unsupported(LCD)
     assert MONO.unsupported(LCD)
+    assert SPECTRA6.unsupported(EINK_COLOR) == frozenset()
+    assert MONO.unsupported(EINK_COLOR) == {"#ff0000", "#ffff00", "#0000ff", "#00ff00"}
 
 
 def test_hex_rgb() -> None:

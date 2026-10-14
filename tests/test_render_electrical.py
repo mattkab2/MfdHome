@@ -7,7 +7,7 @@ from syrupy.assertion import SnapshotAssertion
 
 from mfdhome.model import Status
 from mfdhome.render import render_page
-from mfdhome.themes import EINK_MONO, LCD, MIRROR, Target, Theme
+from mfdhome.themes import EINK_COLOR, EINK_MONO, LCD, MIRROR, Target, Theme
 from tests.support import config_page, fixture_state
 
 TABLET = Target("tablet", 1280, 768)
@@ -17,7 +17,7 @@ FIXTURES = [
     "electrical_unavailable",
     "electrical_islanded",
 ]
-THEMES = [LCD, MIRROR, EINK_MONO]
+THEMES = [LCD, MIRROR, EINK_MONO, EINK_COLOR]
 
 
 @pytest.mark.parametrize("theme", THEMES, ids=lambda t: t.name)

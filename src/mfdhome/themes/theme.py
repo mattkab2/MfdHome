@@ -62,6 +62,10 @@ class Theme:
     ``hatch_spacing`` is the stripe period of a warning line's hatching.
     ``core_inset`` is the gap between a flowing cased line's walls and its
     solid core.
+    ``filled_text`` is the text color on a filled tile per status (default:
+    the background); ``faint`` lists statuses too pale for text on the
+    background, so text that would be drawn in their color (outlined tiles,
+    readouts) uses ``text_color`` instead.
     ``unavailable_dots`` is the dash array for the no-data pattern; drawn with
     round caps, a zero-length dash ("0 6") gives round dots.
     """
@@ -80,6 +84,8 @@ class Theme:
     attention: Attention
     tile_fill: Mapping[Status, TileFill]
     status_weight: Mapping[Status, float] = field(default_factory=dict)
+    filled_text: Mapping[Status, str] = field(default_factory=dict)
+    faint: frozenset[Status] = frozenset()
     casing_allowed: bool = True
     casing_width: float = 10.0
     casing_wall: float = 2.0
@@ -91,10 +97,22 @@ class Theme:
         """Return the palette color for ``status``."""
         return self.colors[status]
 
+    def text_in(self, status: Status) -> str:
+        """Color for text drawn in ``status``'s color on the background."""
+        return self.text_color if status in self.faint else self.colors[status]
+
     def weight(self, status: Status) -> float:
         """Stroke width multiplier for ``status``."""
         return self.status_weight.get(status, 1.0)
 
     def palette(self) -> frozenset[str]:
         """All colors this theme may emit."""
-        return frozenset({self.background, self.text_color, self.dim, *self.colors.values()})
+        return frozenset(
+            {
+                self.background,
+                self.text_color,
+                self.dim,
+                *self.colors.values(),
+                *self.filled_text.values(),
+            }
+        )

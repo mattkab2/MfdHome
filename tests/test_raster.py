@@ -7,20 +7,20 @@ from PIL import Image
 from syrupy.assertion import SnapshotAssertion
 
 from mfdhome.render import render_page
-from mfdhome.render.panels import GRAY16, MONO, PANELS, PanelProfile
+from mfdhome.render.panels import GRAY16, MONO, PANELS, SPECTRA6, PanelProfile
 from mfdhome.render.raster import image_colors, rasterize
-from mfdhome.themes import EINK_MONO, Target
+from mfdhome.themes import EINK_COLOR, EINK_MONO, Target, Theme
 from tests.support import board_from, config_page, fixture_state, view
 
 #: A common 7.5" panel.
 PANEL_800 = Target("eink", 800, 480)
 
 
-def _electrical(target: Target = PANEL_800) -> str:
+def _electrical(target: Target = PANEL_800, theme: Theme = EINK_MONO) -> str:
     """Islanded, with the alerts that brings: hatching, a dashed core and the banner."""
     board = board_from("electrical_islanded")
     state = fixture_state("electrical_islanded")
-    return render_page(config_page("electrical"), state, EINK_MONO, target, view(board))
+    return render_page(config_page("electrical"), state, theme, target, view(board))
 
 
 def _image(png: bytes) -> Image.Image:
@@ -30,6 +30,12 @@ def _image(png: bytes) -> Image.Image:
 @pytest.mark.parametrize("panel", [MONO, GRAY16], ids=lambda p: p.name)
 def test_electrical_png_snapshot(panel: PanelProfile, png_snapshot: SnapshotAssertion) -> None:
     assert rasterize(_electrical(), panel, EINK_MONO.background) == png_snapshot
+
+
+def test_color_png_snapshot(png_snapshot: SnapshotAssertion) -> None:
+    png = rasterize(_electrical(theme=EINK_COLOR), SPECTRA6, EINK_COLOR.background)
+    assert png == png_snapshot
+    assert image_colors(_image(png)) <= set(SPECTRA6.colors)
 
 
 @pytest.mark.parametrize("panel", PANELS.values(), ids=lambda p: p.name)

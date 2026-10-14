@@ -53,7 +53,10 @@ class TestDisplays:
         with pytest.raises(ConfigError) as info:
             load_displays(path, {"status"})
         msgs = [f"{i.loc}: {i.message}" for i in info.value.issues]
-        assert "displays.a.theme: unknown theme 'plasma'; expected: lcd, mirror, eink_mono" in msgs
+        assert (
+            "displays.a.theme: unknown theme 'plasma'; expected: lcd, mirror, eink_mono, eink_color"
+            in msgs
+        )
         assert "displays.a.home: unknown page 'nowhere'" in msgs
         assert "displays.a.pages[1]: unknown page 'gone'" in msgs
 

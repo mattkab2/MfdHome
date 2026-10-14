@@ -22,7 +22,7 @@ from mfdhome.model import (
 from mfdhome.render import render_element, render_page
 from mfdhome.render.alerts import AlertView, SystemView
 from mfdhome.render.page import attention_css
-from mfdhome.themes import EINK_MONO, LCD, MIRROR, Target, Theme
+from mfdhome.themes import EINK_COLOR, EINK_MONO, LCD, MIRROR, Target, Theme
 from tests.support import ha_state
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
@@ -169,7 +169,7 @@ class TestTiles:
         assert ">BATTERY SYS<" in render_element(tile, LIVE, LCD, view())
         assert ">BATTERY<" in render_element(TileElement("t", (0, 0), "BATT"), LIVE, LCD, view())
 
-    @pytest.mark.parametrize("theme", [LCD, MIRROR, EINK_MONO], ids=lambda t: t.name)
+    @pytest.mark.parametrize("theme", [LCD, MIRROR, EINK_MONO, EINK_COLOR], ids=lambda t: t.name)
     def test_every_state_renders_distinctly(self, theme: Theme) -> None:
         states = [
             tile_svg(theme),

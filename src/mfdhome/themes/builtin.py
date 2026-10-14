@@ -81,4 +81,44 @@ EINK_MONO = Theme(
     status_weight={Status.CAUTION: 2.0, Status.WARNING: 3.0},
 )
 
-THEMES = {t.name: t for t in (LCD, MIRROR, EINK_MONO)}
+#: Spectra 6 inks, by their nominal colors (what the panel controller expects).
+_INK_RED = "#ff0000"
+_INK_YELLOW = "#ffff00"
+_INK_BLUE = "#0000ff"
+_INK_GREEN = "#00ff00"
+
+#: Six-color e-paper (Spectra 6): the Gruvbox roles drawn in the panel's own
+#: inks on white, so nothing depends on nearest-color quantization. There is
+#: no gray ink: unavailable is black, told apart by its dotted pattern.
+#: Yellow is too pale for text on paper: filled caution tiles carry black
+#: text, and outlined (cleared) caution tiles use black text.
+EINK_COLOR = Theme(
+    name="eink_color",
+    background=_WHITE,
+    colors={
+        Status.NORMAL: _INK_GREEN,
+        Status.CAUTION: _INK_YELLOW,
+        Status.WARNING: _INK_RED,
+        Status.ACTIVE: _INK_BLUE,
+        Status.UNAVAILABLE: _BLACK,
+    },
+    text_color=_BLACK,
+    dim=_WHITE,
+    line_width=3.0,
+    symbol_stroke_width=2.0,
+    unavailable_dots="0 6",
+    font_family=_FONT,
+    font_size=16.0,
+    label_font_size=20.0,
+    attention=Attention(AttentionKind.RING),
+    tile_fill={
+        Status.WARNING: TileFill.FILLED,
+        Status.CAUTION: TileFill.FILLED,
+        Status.ACTIVE: TileFill.FILLED,
+    },
+    status_weight={Status.CAUTION: 1.5, Status.WARNING: 1.5},
+    filled_text={Status.CAUTION: _BLACK},
+    faint=frozenset({Status.CAUTION}),
+)
+
+THEMES = {t.name: t for t in (LCD, MIRROR, EINK_MONO, EINK_COLOR)}
