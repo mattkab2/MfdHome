@@ -89,3 +89,12 @@ def test_point_along() -> None:
     assert point_along(pts, 0) == ((0, 0), (1, 0))
     assert point_along(pts, 1) == ((100, 100), (0, 1))
     assert point_along(((5.0, 5.0), (5.0, 5.0)), 0.5) == ((5, 5), (1, 0))
+
+
+def test_grid_centers() -> None:
+    from mfdhome.layout import grid_centers
+
+    centers = grid_centers((10, 20), 5, 2, (100, 50), (10, 5))
+    assert centers == [(60, 45), (170, 45), (60, 100), (170, 100), (60, 155)]
+    with pytest.raises(ValueError):
+        grid_centers((0, 0), 1, 0, (1, 1))

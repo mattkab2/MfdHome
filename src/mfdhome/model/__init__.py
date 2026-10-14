@@ -13,6 +13,7 @@ from mfdhome.model.page import (
     StatusSpec,
     SymbolElement,
     TextElement,
+    TileElement,
 )
 from mfdhome.model.state import EntityState, StateSnapshot, snapshot_from_ha_states
 
@@ -34,5 +35,6 @@ __all__ = [
     "SymbolElement",
     "System",
     "TextElement",
+    "TileElement",
     "snapshot_from_ha_states",
 ]

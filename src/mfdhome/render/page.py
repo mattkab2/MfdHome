@@ -28,8 +28,10 @@ from mfdhome.model.page import (
     Readout,
     SymbolElement,
     TextElement,
+    TileElement,
 )
 from mfdhome.model.state import StateSnapshot
+from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
 from mfdhome.render.format import format_value
 from mfdhome.render.status import element_status
 from mfdhome.symbols import svg
@@ -42,8 +44,9 @@ from mfdhome.symbols.registry import (
     get_symbol,
 )
 from mfdhome.symbols.style import font
+from mfdhome.symbols.tile import ATTENTION_CLASS, TileLook, banner, tile
 from mfdhome.themes.target import Target
-from mfdhome.themes.theme import Theme
+from mfdhome.themes.theme import AttentionKind, Theme
 
 logger = logging.getLogger(__name__)
 
@@ -115,11 +118,19 @@ def _draw_labels(
     return parts
 
 
-def _render_symbol(element: SymbolElement, state: StateSnapshot, theme: Theme) -> str:
+def _render_symbol(
+    element: SymbolElement, state: StateSnapshot, theme: Theme, alerts: AlertView
+) -> str:
     spec = get_symbol(element.type)
     ctx = EvalContext(state, element.bind)
     values = {channel: ctx.value(ChannelRef(channel)) for channel in spec.channels}
-    status = element_status(element.status, ctx, spec.primary, spec.primary in spec.numeric)
+    status = element_status(
+        element.status,
+        ctx,
+        spec.primary,
+        spec.primary in spec.numeric,
+        alerts.active_status(element.status.systems, element.status.alerts),
+    )
     body = spec.draw(
         SymbolInput(element.at, element.orientation, status, values, element.params), theme
     )
@@ -145,10 +156,18 @@ def _flow(element: LineElement, ctx: EvalContext) -> Flow | None:
     return Flow.FORWARD if power > 0 else Flow.REVERSE
 
 
-def _render_line(element: LineElement, state: StateSnapshot, theme: Theme) -> str:
+def _render_line(
+    element: LineElement, state: StateSnapshot, theme: Theme, alerts: AlertView
+) -> str:
     ctx = EvalContext(state, element.bind)
     values = {channel: ctx.value(ChannelRef(channel)) for channel in LINE_CHANNELS}
-    status = element_status(element.status, ctx, LINE_PRIMARY, LINE_PRIMARY in LINE_NUMERIC)
+    status = element_status(
+        element.status,
+        ctx,
+        LINE_PRIMARY,
+        LINE_PRIMARY in LINE_NUMERIC,
+        alerts.active_status(element.status.systems, element.status.alerts),
+    )
     flow = _flow(element, ctx)
     if flow is not None and status is Status.NORMAL:
         status = Status.ACTIVE
@@ -166,13 +185,30 @@ def _render_line(element: LineElement, state: StateSnapshot, theme: Theme) -> st
     return body + "".join(_draw_labels(labels, box_at, LINE_GAP, theme))
 
 
-def render_element(element: Element, state: StateSnapshot, theme: Theme) -> str:
+def _render_tile(
+    element: TileElement, state: StateSnapshot, theme: Theme, alerts: AlertView
+) -> str:
+    view = alerts.system(element.system, state)
+    system = alerts.systems.get(element.system)
+    label = element.label or (system.label if system else element.system)
+    look = TileLook(
+        status=None if view.severity is None else SEVERITY_STATUS[view.severity],
+        cleared=view.cleared,
+        attention=view.unacknowledged,
+        unavailable=view.unavailable,
+    )
+    return tile(element.at[0], element.at[1], label, look, theme)
+
+
+def render_element(
+    element: Element, state: StateSnapshot, theme: Theme, alerts: AlertView = NO_ALERTS
+) -> str:
     """Render one element to an SVG group tagged with its id."""
     match element:
         case SymbolElement():
-            body = _render_symbol(element, state, theme)
+            body = _render_symbol(element, state, theme, alerts)
         case LineElement():
-            body = _render_line(element, state, theme) if len(element.points) >= 2 else ""
+            body = _render_line(element, state, theme, alerts) if len(element.points) >= 2 else ""
         case TextElement():
             body = _text(
                 Placement(element.at[0], element.at[1], element.align, None),
@@ -181,11 +217,39 @@ def render_element(element: Element, state: StateSnapshot, theme: Theme) -> str:
                 theme.text_color,
                 theme,
             )
+        case TileElement():
+            body = _render_tile(element, state, theme, alerts)
     return svg.element("g", {"id": element.id}, [body])
 
 
-def render_page(page: Page, state: StateSnapshot, theme: Theme, target: Target) -> str:
+def attention_css(theme: Theme) -> str:
+    """CSS for the theme's animated attention cue (flash or pulse); empty otherwise.
+
+    The browser keeps time, so render stays pure. Every attention element shares
+    one animation, so they stay in phase.
+    """
+    attention = theme.attention
+    if not attention.animated:
+        return ""
+    timing = "step-end" if attention.kind is AttentionKind.FLASH else "ease-in-out"
+    return (
+        f".{ATTENTION_CLASS}{{animation:mfd-attn {svg.fmt(attention.period)}s {timing} infinite}}"
+        f"@keyframes mfd-attn{{50%{{opacity:{svg.fmt(attention.low_opacity)}}}}}"
+    )
+
+
+def render_page(
+    page: Page,
+    state: StateSnapshot,
+    theme: Theme,
+    target: Target,
+    alerts: AlertView = NO_ALERTS,
+) -> str:
     """Render ``page`` with ``state`` for ``target`` as a standalone SVG document.
+
+    ``alerts`` supplies alert definitions and the shared board for tiles,
+    alert-driven element status and (if ``alerts.show_banner``) the annunciator
+    banner along the bottom of the canvas.
 
     Output is deterministic: no clock, randomness or I/O, and fixed element and
     attribute order.
@@ -196,8 +260,21 @@ def render_page(page: Page, state: StateSnapshot, theme: Theme, target: Target) 
             "rect",
             {"x": 0, "y": 0, "width": page.width, "height": page.height, "fill": theme.background},
         ),
-        *(render_element(element, state, theme) for element in page.elements),
+        *(render_element(element, state, theme, alerts) for element in page.elements),
     ]
+    shown = alerts.banner()
+    if shown is not None:
+        status = SEVERITY_STATUS[shown.alert.severity]
+        children.append(
+            svg.element(
+                "g",
+                {"id": "banner"},
+                [banner(page.width, page.height, shown.alert.message, shown.others, status, theme)],
+            )
+        )
+    css = attention_css(theme)
+    if css and f'class="{ATTENTION_CLASS}"' in "".join(children):
+        children.insert(0, svg.element("style", {}, [css]))
     return (
         svg.element(
             "svg",

@@ -60,14 +60,18 @@ MIRROR = Theme(
 
 _BLACK = "#000000"
 
+_WHITE = "#ffffff"
+
 #: Monochrome e-paper: black on white, no animation. Severity is carried by
-#: stroke weight and fill (warning tiles inverted); unacknowledged gets a ring.
+#: stroke weight and fill: dark tiles are text only (``dim`` is the paper
+#: color), advisory a thin outline, caution heavy, warning inverted.
+#: Unacknowledged gets a ring.
 EINK_MONO = Theme(
     name="eink_mono",
-    background="#ffffff",
+    background=_WHITE,
     colors=MappingProxyType(dict.fromkeys(Status, _BLACK)),
     text_color=_BLACK,
-    dim=_BLACK,
+    dim=_WHITE,
     line_width=3.0,
     symbol_stroke_width=2.0,
     unavailable_dash="8 6",

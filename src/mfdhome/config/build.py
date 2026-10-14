@@ -26,8 +26,11 @@ from mfdhome.config.schema import (
     TermModel,
     TextModel,
     ThresholdsModel,
+    TileGridModel,
+    TileModel,
 )
 from mfdhome.layout.anchors import Anchor, anchor_names, parse_anchor
+from mfdhome.layout.grid import grid_centers
 from mfdhome.model.alert import AlertDef, Severity, System
 from mfdhome.model.binding import EntityRef, Status
 from mfdhome.model.page import (
@@ -41,9 +44,11 @@ from mfdhome.model.page import (
     StatusSpec,
     SymbolElement,
     TextElement,
+    TileElement,
 )
 from mfdhome.render.format import FORMATS, is_valid_format
 from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
+from mfdhome.symbols.tile import TILE_HEIGHT, TILE_WIDTH
 
 
 @dataclass(frozen=True)
@@ -226,10 +231,17 @@ def _anchor(name: str | None, loc: Loc, issues: Issues) -> Anchor | None:
 
 
 class _ElementBuilder:
-    def __init__(self, defs: Defs, issues: Issues) -> None:
+    def __init__(self, defs: Defs, alerts: Alerts, issues: Issues) -> None:
         self.defs = defs
+        self.alerts = alerts
+        self.alert_ids = {a.id for a in alerts.alerts}
         self.issues = issues
         self.exprs = _Exprs({}, defs.conditions)
+
+    def system(self, system: str, loc: Loc) -> None:
+        if system not in self.alerts.systems:
+            known = ", ".join(self.alerts.systems) or "none defined in alerts.yaml"
+            self.issues.add(loc, f"unknown system {system!r}; expected: {known}")
 
     def bind(
         self,
@@ -281,7 +293,12 @@ class _ElementBuilder:
         for i, rule in enumerate(model.rules):
             when = self.exprs.expr(rule, (*loc, "rules", i), self.issues, bound)
             rules.append(Rule(Status(rule.level), when))
-        return StatusSpec(tuple(rules))
+        for i, system in enumerate(model.systems):
+            self.system(system, (*loc, "systems", i))
+        for i, alert_id in enumerate(model.alerts):
+            if alert_id not in self.alert_ids:
+                self.issues.add((*loc, "alerts", i), f"unknown alert {alert_id!r}")
+        return StatusSpec(tuple(rules), tuple(model.systems), tuple(model.alerts))
 
     def name(self, model: NameModel | None, loc: Loc) -> Name | None:
         if model is None:
@@ -309,7 +326,7 @@ class _ElementBuilder:
     def symbol(self, model: SymbolModel, loc: Loc) -> SymbolElement | None:
         spec = REGISTRY.get(model.type)
         if spec is None:
-            known = ", ".join(["line", "text", *sorted(REGISTRY)])
+            known = ", ".join(["line", "text", "tile", "tile_grid", *sorted(REGISTRY)])
             self.issues.add((*loc, "type"), f"unknown type {model.type!r}; expected: {known}")
             return None
         bound = self.bind(model, spec.channels, spec.required, loc)
@@ -346,40 +363,68 @@ class _ElementBuilder:
             flow=flow,
         )
 
-    def element(self, raw: dict[str, Any], loc: Loc) -> Element | None:
+    def tile_grid(self, model: TileGridModel, loc: Loc) -> list[Element]:
+        centers = grid_centers(
+            model.at, len(model.tiles), model.columns, (TILE_WIDTH, TILE_HEIGHT), model.gap
+        )
+        tiles: list[Element] = []
+        for i, (system, center) in enumerate(zip(model.tiles, centers, strict=True)):
+            self.system(system, (*loc, "tiles", i))
+            tiles.append(TileElement(f"{model.id}.{system}", center, system))
+        return tiles
+
+    def element(self, raw: dict[str, Any], loc: Loc) -> list[Element]:
+        """Build one YAML element; a ``tile_grid`` expands to several."""
         kind = raw.get("type")
         if not isinstance(kind, str):
             self.issues.add((*loc, "type"), "every element needs a 'type'")
-            return None
-        if kind == "text":
-            text = validate(TextModel, raw, loc, self.issues)
-            return None if text is None else TextElement(text.id, text.at, text.text, text.align)
-        if kind == "line":
-            line = validate(LineModel, raw, loc, self.issues)
-            return None if line is None else self.line(line, loc)
-        symbol = validate(SymbolModel, raw, loc, self.issues)
-        return None if symbol is None else self.symbol(symbol, loc)
+            return []
+        built: Element | None
+        match kind:
+            case "text":
+                text = validate(TextModel, raw, loc, self.issues)
+                built = (
+                    None if text is None else TextElement(text.id, text.at, text.text, text.align)
+                )
+            case "line":
+                line = validate(LineModel, raw, loc, self.issues)
+                built = None if line is None else self.line(line, loc)
+            case "tile":
+                t = validate(TileModel, raw, loc, self.issues)
+                if t is not None:
+                    self.system(t.system, (*loc, "system"))
+                built = None if t is None else TileElement(t.id, t.at, t.system, t.label)
+            case "tile_grid":
+                grid = validate(TileGridModel, raw, loc, self.issues)
+                return [] if grid is None else self.tile_grid(grid, loc)
+            case _:
+                symbol = validate(SymbolModel, raw, loc, self.issues)
+                built = None if symbol is None else self.symbol(symbol, loc)
+        return [] if built is None else [built]
 
 
-def build_page(model: PageModel, shared: Defs, issues: Issues) -> Page:
-    """Build a page, merging page-local ``defs`` over the shared ones (no redefinition)."""
+def build_page(
+    model: PageModel, shared: Defs, issues: Issues, alerts: Alerts | None = None
+) -> Page:
+    """Build a page, merging page-local ``defs`` over the shared ones (no redefinition).
+
+    ``alerts`` supplies the systems and alert ids that tiles and status may reference.
+    """
     defs = shared
     if model.defs is not None:
         local = build_defs(model.defs, issues, base=shared)
         defs, dupes = shared.merge(local)
         for dupe in dupes:
             issues.add(("defs", *dupe.split(".")), f"{dupe} is already defined in shared defs")
-    builder = _ElementBuilder(defs, issues)
+    builder = _ElementBuilder(defs, alerts or Alerts(), issues)
     elements: list[Element] = []
     seen: set[str] = set()
     for i, raw in enumerate(model.elements):
-        element = builder.element(raw, ("elements", i))
-        if element is None:
-            continue
-        if element.id in seen:
-            issues.add(("elements", i, "id"), f"duplicate element id {element.id!r}")
-        seen.add(element.id)
-        elements.append(element)
+        for element in builder.element(raw, ("elements", i)):
+            if element.id in seen:
+                issues.add(("elements", i, "id"), f"duplicate element id {element.id!r}")
+            seen.add(element.id)
+            elements.append(element)
     return Page(model.page, model.title, model.canvas.width, model.canvas.height, tuple(elements))
 
 

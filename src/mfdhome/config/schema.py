@@ -131,6 +131,8 @@ class StatusModel(Strict):
     map: dict[str, Level] | None = None
     default: Level | None = None
     rules: list[RuleModel] = []
+    systems: list[Ident] = []
+    alerts: list[Ident] = []
 
     @model_validator(mode="after")
     def _default_needs_map(self) -> Self:
@@ -232,6 +234,32 @@ class TextModel(Strict):
     align: Literal["start", "middle", "end"] = "middle"
 
 
+class TileModel(Strict):
+    """An annunciator tile for one system."""
+
+    id: Ident
+    type: Literal["tile"]
+    at: Coord
+    system: Ident
+    label: str | None = None
+
+
+class TileGridModel(Strict):
+    """A grid of tiles; ``at`` is the grid's top-left corner. Expanded at load time."""
+
+    id: Ident
+    type: Literal["tile_grid"]
+    at: Coord
+    columns: Annotated[int, Field(ge=1)]
+    gap: Coord = (16.0, 16.0)
+    tiles: Annotated[list[Ident], Field(min_length=1)]
+
+    @field_validator("gap", mode="before")
+    @classmethod
+    def _gap_shorthand(cls, value: Any) -> Any:
+        return [value, value] if isinstance(value, (int, float)) else value
+
+
 class DefsModel(Strict):
     """Shared definitions: named thresholds and named conditions."""
 
@@ -300,6 +328,8 @@ MODEL_NAMES = frozenset(
         "SymbolModel",
         "LineModel",
         "TextModel",
+        "TileModel",
+        "TileGridModel",
         "SystemModel",
         "AlertModel",
         "AlertsModel",

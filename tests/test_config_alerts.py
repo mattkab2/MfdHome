@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from mfdhome.conditions import EvalContext, holds
-from mfdhome.config import ConfigError, load_alerts, load_config, load_defs
+from mfdhome.config import Alerts, ConfigError, Defs, load_alerts, load_config, load_defs
 from mfdhome.model import Severity, System, snapshot_from_ha_states
 from tests.support import ha_state
 
@@ -125,3 +125,72 @@ def test_named_condition_with_channel_rejected_in_alerts(tmp_path: Path) -> None
 def test_config_without_alerts_file(tmp_path: Path) -> None:
     write(tmp_path / "pages/p.yaml", "page: p\ntitle: P\ncanvas: {width: 1, height: 1}\n")
     assert load_config(tmp_path).alerts.alerts == ()
+
+
+def page_with(tmp_path: Path, elements: str) -> Path:
+    body = "page: p\ntitle: P\ncanvas: {width: 1000, height: 600}\nelements:\n"
+    return write(tmp_path / "p.yaml", body + textwrap.indent(textwrap.dedent(elements), "  "))
+
+
+def loaded_alerts(tmp_path: Path) -> tuple[Defs, Alerts]:
+    defs = load_defs(write(tmp_path / "defs.yaml", DEFS))
+    return defs, load_alerts(write(tmp_path / "alerts.yaml", ALERTS), defs)
+
+
+def test_tiles_grid_and_alert_status(tmp_path: Path) -> None:
+    from mfdhome.config import load_page
+    from mfdhome.model import LineElement, StatusSpec, TileElement
+
+    defs, alerts = loaded_alerts(tmp_path)
+    path = page_with(
+        tmp_path,
+        """\
+        - {id: ann, type: tile_grid, at: [20, 30], columns: 1, gap: 10, tiles: [GRID, BATT]}
+        - {id: solo, type: tile, at: [500, 300], system: BATT, label: BATTERY SYS}
+        - id: feed
+          type: line
+          points: [[0, 0], [1, 0]]
+          status: {systems: [GRID], alerts: [battery_low]}
+        """,
+    )
+    page = load_page(path, defs, alerts)
+    grid_a, grid_b, solo, feed = page.elements
+    assert grid_a == TileElement("ann.GRID", (100, 62), "GRID")
+    assert grid_b == TileElement("ann.BATT", (100, 136), "BATT")
+    assert solo == TileElement("solo", (500, 300), "BATT", "BATTERY SYS")
+    assert isinstance(feed, LineElement)
+    assert feed.status == StatusSpec((), ("GRID",), ("battery_low",))
+
+
+def test_tile_reference_errors(tmp_path: Path) -> None:
+    from mfdhome.config import load_page
+
+    defs, alerts = loaded_alerts(tmp_path)
+    path = page_with(
+        tmp_path,
+        """\
+        - {id: ann, type: tile_grid, at: [0, 0], columns: 0, tiles: [GRID]}
+        - {id: ann2, type: tile_grid, at: [0, 0], columns: 2, tiles: [GRID, HVAC]}
+        - {id: t, type: tile, at: [0, 0], system: WX}
+        - id: l
+          type: line
+          points: [[0, 0], [1, 0]]
+          status: {systems: [NET], alerts: [nope]}
+        """,
+    )
+    with pytest.raises(ConfigError) as info:
+        load_page(path, defs, alerts)
+    msgs = [f"{i.line}: {i.loc}: {i.message}" for i in info.value.issues]
+    assert any(m.startswith("5: elements[0].columns: Input should be greater") for m in msgs)
+    assert "6: elements[1].tiles[1]: unknown system 'HVAC'; expected: GRID, BATT" in msgs
+    assert "7: elements[2].system: unknown system 'WX'; expected: GRID, BATT" in msgs
+    assert "11: elements[3].status.systems[0]: unknown system 'NET'; expected: GRID, BATT" in msgs
+    assert "11: elements[3].status.alerts[0]: unknown alert 'nope'" in msgs
+
+
+def test_tiles_without_alerts_file_explain_why(tmp_path: Path) -> None:
+    from mfdhome.config import load_page
+
+    path = page_with(tmp_path, "- {id: t, type: tile, at: [0, 0], system: GRID}\n")
+    with pytest.raises(ConfigError, match=r"none defined in alerts\.yaml"):
+        load_page(path)

@@ -1,10 +1,11 @@
 """Page and element definitions, positioned on a logical canvas.
 
-There are three geometry kinds:
+There are four element kinds:
 
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
 - ``LineElement``: a power/flow line along a polyline;
-- ``TextElement``: a static label.
+- ``TextElement``: a static label;
+- ``TileElement``: an annunciator tile showing one system's alerts.
 
 Symbols and lines bind HA entities to named *channels* declared by their type.
 Status rules, flow and readouts refer to channel names, not entity ids.
@@ -74,9 +75,17 @@ class Readout:
 
 @dataclass(frozen=True)
 class StatusSpec:
-    """How an element's status is derived. The most severe matching rule wins."""
+    """How an element's status is derived; the most severe source wins.
+
+    Sources are ``rules``, plus any *active* alerts listed in ``alerts`` or
+    belonging to ``systems``. Latched (cleared but unacknowledged) alerts do not
+    affect elements: the element shows the equipment's current state, and the
+    latch is shown on the annunciator.
+    """
 
     rules: tuple[Rule, ...] = ()
+    systems: tuple[str, ...] = ()
+    alerts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -129,7 +138,20 @@ class TextElement:
     align: str = "middle"
 
 
-type Element = SymbolElement | LineElement | TextElement
+@dataclass(frozen=True)
+class TileElement:
+    """An annunciator tile for one system, centered at ``at``.
+
+    ``label`` overrides the system's label.
+    """
+
+    id: str
+    at: Point
+    system: str
+    label: str | None = None
+
+
+type Element = SymbolElement | LineElement | TextElement | TileElement
 
 
 @dataclass(frozen=True)

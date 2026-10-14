@@ -1,4 +1,4 @@
-"""Positioning helpers: anchors for attached text and polyline geometry."""
+"""Positioning helpers: anchors for attached text, polyline geometry and grids."""
 
 from mfdhome.layout.anchors import (
     LINE_GAP,
@@ -10,6 +10,7 @@ from mfdhome.layout.anchors import (
     parse_anchor,
     place_stack,
 )
+from mfdhome.layout.grid import grid_centers
 from mfdhome.layout.path import point_along
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "Box",
     "Placement",
     "default_line_anchor",
+    "grid_centers",
     "parse_anchor",
     "place_stack",
     "point_along",

@@ -97,15 +97,15 @@ def load_alerts(
     return alerts
 
 
-def load_page(path: str | Path, defs: Defs | None = None) -> Page:
-    """Load and validate one page file against shared ``defs``."""
+def load_page(path: str | Path, defs: Defs | None = None, alerts: Alerts | None = None) -> Page:
+    """Load and validate one page file against shared ``defs`` and ``alerts``."""
     path = Path(path)
     tree = _read(path)
     issues = Issues(path, tree)
     model = validate(PageModel, _plain(tree) or {}, (), issues)
     issues.raise_if_any()
     assert model is not None
-    page = build_page(model, defs or Defs(), issues)
+    page = build_page(model, defs or Defs(), issues, alerts)
     issues.raise_if_any()
     logger.debug("loaded page %s from %s", page.id, path)
     return page
@@ -127,7 +127,7 @@ def load_config(directory: str | Path) -> Config:
     problems: list[Issue] = []
     for path in sorted((directory / PAGES_DIR).glob("*.yaml")):
         try:
-            page = load_page(path, defs)
+            page = load_page(path, defs, alerts)
         except ConfigError as exc:
             problems.extend(exc.issues)
             continue
