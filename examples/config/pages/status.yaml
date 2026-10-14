@@ -1,0 +1,15 @@
+# Status / annunciator page: the home page. One fixed-size tile per system.
+# Keep the bottom 40 units clear for the annunciator banner.
+page: status
+title: Status
+canvas: {width: 1000, height: 600}
+
+elements:
+  - {id: title, type: text, at: [80, 40], text: STATUS}
+  # 4 x 160 tiles + 3 x 24 gaps = 712 wide, centered: (1000 - 712) / 2 = 144
+  - id: annunciator
+    type: tile_grid
+    at: [144, 200]
+    columns: 4
+    gap: 24
+    tiles: [GRID, BATT, WATER, LEAK, HVAC, NET, SEC, WX]

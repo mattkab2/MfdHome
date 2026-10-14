@@ -1,0 +1,13 @@
+[
+  {"entity_id": "sensor.grid_power", "state": "300", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.battery_soc", "state": "80", "attributes": {"unit_of_measurement": "%"}},
+  {"entity_id": "valve.main_water", "state": "open", "attributes": {}},
+  {"entity_id": "sensor.water_pressure", "state": "55", "attributes": {"unit_of_measurement": "psi"}},
+  {"entity_id": "binary_sensor.leak_kitchen", "state": "off", "attributes": {}},
+  {"entity_id": "binary_sensor.leak_basement", "state": "off", "attributes": {}},
+  {"entity_id": "binary_sensor.hvac_fault", "state": "off", "attributes": {}},
+  {"entity_id": "binary_sensor.wan_online", "state": "on", "attributes": {}},
+  {"entity_id": "alarm_control_panel.house", "state": "armed_home", "attributes": {}},
+  {"entity_id": "binary_sensor.front_door", "state": "off", "attributes": {}},
+  {"entity_id": "sensor.wind_speed", "state": "12", "attributes": {"unit_of_measurement": "km/h"}}
+]
