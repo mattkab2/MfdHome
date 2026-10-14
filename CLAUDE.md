@@ -32,12 +32,15 @@ src/mfdhome/
                # shorthands), shared by element status and alerts
   symbols/     # I&C symbol primitives: pipe, valve, pump, breaker, battery, meter,
                # node, link, tank, sensor badge. Each returns SVG fragments.
-               # registry.py declares each type's channels, box and params.
-  layout/      # Positioning helpers: anchors, polyline geometry, (later) grids
+               # registry.py declares each type's channels, box, ports and params;
+               # geometry.py gives element boxes and port points.
+  layout/      # Positioning helpers: anchors, polyline geometry, grids
+               # (adaptive group layouts later)
   themes/      # Gruvbox palette and built-in themes (lcd, mirror, eink_mono):
                # palette, stroke weights, tile fill, attention style, fonts
-  render/      # Pure render functions: (page, state, theme, target) -> SVG string
-               # plus rasterization to PNG for e-ink (quantize to panel palette)
+  render/      # Pure render functions: (page, state, theme, target) -> SVG string;
+               # resolve.py resolves status/derived channels bottom-up through
+               # groups. Later: rasterization to PNG for e-ink (quantize to panel)
   sources/     # State providers: HA websocket/REST client, static fixture source
   mfd/         # MFD behavior: alert latching, house-wide acknowledgement and
                # preemption order (pure, caller supplies the clock); later page
@@ -77,7 +80,11 @@ examples/
    (on every element: lines, symbol outlines, tiles).
    Keep symbol shapes identical across themes; palette, stroke weights, tile
    fill and attention style vary by theme. Never rely on color alone where a
-   palette can't show it: monochrome themes carry severity in weight and fill.
+   palette can't show it: symbols carry severity in weight and fill on
+   monochrome themes, and **lines carry it in pattern on every theme** (solid =
+   normal/flowing, dashed = caution, hatched = warning, dotted = unavailable).
+   Patterns are therefore reserved for status: styles and group frames can't
+   use them, and line weight is purely structural.
 
 ### MFD behavior
 
@@ -174,67 +181,33 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   format as status rules but entity references only.
 - **Annunciator tiles have a fixed size** (160 x 64) and are positioned
   manually or with `tile_grid`. Manual placement must always remain possible.
-
-## Next milestone
-
-- **Battery sign convention: negative battery power means discharging**
-  (positive = charging). The example and test configs currently assume the
-  opposite: flip the `battery_feed` line (or its points) so discharge flows
-  battery → bus, fix the comments in `electrical.yaml`, and update the
-  `sensor.battery_power` values in the state fixtures so each scenario keeps
-  its meaning (e.g. islanded = discharging). Snapshot changes should be limited
-  to the battery readout sign.
-- **Line severity is shown by pattern, plus color where the palette has it:**
-  solid = normal, dashed = caution, angle-striped (hatched) = warning,
-  dotted = unavailable. Lines only; symbols keep weight/fill and tiles keep
-  fill/ring. Constraints:
-  - Stripes fill the casing interior; a warning line needs a minimum rendered
-    width (force casing on if a style turned it off).
-  - Rotate the hatch per segment so stripes always cross the line (a fixed
-    45° pattern vanishes on 45° lines).
-  - Hatch spacing is a theme value, to be tuned against panel pixels in the
-    rasterization milestone.
-  - Flow arrows stay solid on top of any pattern. No "marching dashes" flow
-    animation (it would read as caution); animate chevrons if anything.
-  - E-ink stops using stroke weight for *line* severity (`status_weight`
-    applies to symbols only), so weight on lines is purely structural.
-- **Connection styles:** named, relative line styles in `defs.yaml`: weight
-  multiplier, casing, junction dots. Never color, and never a pattern (solid,
-  dashed, hatched and dotted all carry status). **Casing is the default**;
-  `casing: false` opts out. Per-element `weight` override. Resolution, last
-  wins except where noted:
-  1. the style's base properties;
-  2. the style's per-theme variant in `defs.yaml`, keyed by theme name
-     (`themes: {mirror: {weight: 1.5}}`): house-level YAML, usable now;
-  3. later, per-display overrides by style name, when display configurations
-     arrive with the server milestone;
-  4. theme policies applied last and always honored: generic limits on
-     properties, never on style names (e.g. `max_weight`, `casing: never`),
-     so library themes stay independent of house configs.
-- **Attach lines to symbols:** ports declared per symbol type in the registry,
-  a `node` element for junctions (auto junction dots where 3+ lines meet),
-  line endpoints as coordinates or `element.port`, `via` bend points.
-- **Groups (containers):** a `group` element whose `layout` (grid now,
-  adaptive modes later) positions `items`; children have no lines and connect
-  implicitly to the group, which exposes ports like a symbol. Groups nest,
-  keep their hierarchy through render (bottom-up: children, then derived
-  channels such as `sum`/`count`, then frame/status/readouts), and frames are
-  solid/dim/none only (patterns carry status). `tile_grid` becomes shorthand
-  for a frameless group of tiles (status snapshots must stay identical). Lines
-  may bind to another element's channel (e.g. `array.power`). Decided:
-  - Child ids are scoped to their group and addressed as a path (`array.p3`).
-  - Repetition is explicit: `item_defaults` plus a listed `items` entry per
-    child. No range/template shorthand.
-  - Lines may never connect to a child (e.g. `array.p3.right` is a load
-    error); only the group's own ports are connectable.
-  - Default group status (when the group has no rules): the worst caution or
-    warning among its children; unavailable only if every child is
-    unavailable. Rules on derived channels (e.g. `offline >= 2`) can raise it.
+- **Battery power: negative = discharging**, positive = charging.
+- **Lines attach to elements** by `element.port` (edge/corner ports named like
+  anchors, plus type-specific ports such as a breaker's `in`/`out`) or to
+  `node` elements; nodes with 3+ attached lines get a junction dot. Endpoints
+  resolve at load time.
+- **Connection styles** are named and relative (`defs.yaml` `line_styles`:
+  weight, casing; never color or pattern). Casing (hollow pipe) is the
+  default. Resolution: defaults → style → style's per-theme variant →
+  element's own weight/casing → theme policy (`max_line_weight`,
+  `casing_allowed`), which always wins. Per-display overrides will slot in
+  before theme policy once display configurations exist (server milestone).
+- **Groups** contain items (symbols, tiles, nested groups) laid out by a grid;
+  items have no connections of their own and connect through the group's
+  ports. Item ids are scoped paths (`array.p3`); repetition is explicit
+  (`item_defaults` + listed `items`); connecting to an item is a load error.
+  Groups derive channels (`sum`/`min`/`max`/`count`) and default to their
+  items' worst caution/warning, unavailable only when every item is.
+  `tile_grid` is shorthand for a frameless group of tiles. Elements can bind
+  to another element's channel (`array.power`), without chains.
 
 ## Future work (not yet scheduled)
 
-- Adaptive layout for annunciator tiles, so large alert sets don't need manual
-  layout (in addition to, not replacing, manual positioning).
+- Adaptive group layouts (e.g. "flow" to wrap at a width, "fit" to fill a
+  box), so large alert sets and arrays don't need manual layout. In addition
+  to, not replacing, manual positioning and the fixed grid.
+- Flow animation, if wanted: animate chevrons only, never "marching dashes"
+  (dashes mean caution).
 - Page rotation and dwell timers (server milestone; needs a clock loop).
 
 ## Open decisions (ask before settling)
@@ -244,6 +217,7 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - **Panel profiles** (deferred to the rasterization milestone): the exact colors
   a panel can show and its dithering policy, used by rasterization to quantize.
   The color e-ink theme (Gruvbox light, mapped onto the panel's colors) and the
-  choice of e-ink panel type (1-bit, grayscale or 6-color) come with it.
+  choice of e-ink panel type (1-bit, grayscale or 6-color) come with it, as
+  does tuning `hatch_spacing` and dot spacing against the panel's pixels.
 - How e-ink devices fetch images (pull a PNG URL vs push) and which firmware.
 - Whether house-specific page configs live in this repo or a separate one.

@@ -4,7 +4,7 @@ Pages are YAML files. A config directory looks like this:
 
 ```
 config/
-  defs.yaml        # optional: shared thresholds and named conditions
+  defs.yaml        # optional: shared thresholds, named conditions, line styles
   alerts.yaml      # optional: systems and alerts (see "Alerts" below)
   pages/
     electrical.yaml
@@ -35,8 +35,8 @@ Page-local `defs` may not redefine a name from the shared `defs.yaml`.
 
 ## Elements
 
-Every element has an `id` (unique on the page) and a `type`. There are four
-kinds: symbols, lines, text and annunciator tiles.
+Every element has an `id` (unique on the page) and a `type`. The kinds are
+symbols, lines, nodes, text, annunciator tiles and groups.
 
 ### Symbols
 
@@ -60,17 +60,28 @@ Any registered symbol type, centered at `at`:
 |---|---|---|---|
 | `battery` | `level` (numeric, sets fill), `power` (numeric) | `level` | none |
 | `breaker` | `state` | `state` | `closed`: states that mean closed, default `[on, closed]` |
+| `solar_panel` | `power` (numeric) | `power` | none |
 
 The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is
 drawn gray and dotted.
+
+A channel can also bind to another element's channel by naming it
+`element.channel`, for example `power: array.power` (a group's derived sum).
+The part before the last dot must be a top-level symbol or group on the page.
+Chains aren't allowed: the target channel can't itself be bound to an element.
 
 ### Lines
 
 ```yaml
 - id: grid
   type: line
-  points: [[880, 300], [670, 300]]
+  from: [880, 300]           # a coordinate, a node id, or element.port
+  to: main_breaker.out
+  via: [[700, 250]]          # optional bend points
+  style: feeder              # a named style from defs.yaml (see "Line styles")
+  weight: 1.5                # optional: multiplies the style's weight
+  casing: false              # optional: overrides the style's casing
   bind: {power: sensor.grid_power}
   flow: true                 # or {from: power, threshold: 10}
   name: {text: GRID, along: 0, anchor: right}
@@ -78,10 +89,49 @@ drawn gray and dotted.
   readouts: [{value: power, format: power, abs: true}]
 ```
 
+Instead of `from`/`to`/`via`, a line can give explicit `points: [[x, y], ...]`.
+
 Lines have one channel, `power` (numeric, primary). With `flow`, a chevron is
 drawn when `|power| > threshold`: positive flows from the first point toward the
 last, negative flows backward (e.g. grid export). A flowing line with normal
 status is drawn in the active color (Gruvbox blue).
+
+#### Ports
+
+An endpoint `element.port` attaches the line to an element:
+
+- Every symbol, tile and group has edge and corner ports named like anchors:
+  `top`, `bottom`, `left`, `right` and the corners (`top-left`, and so on).
+  Edge midpoints sit on the element's own axis.
+- Breakers add `in` and `out`, which follow the breaker's orientation.
+- Nodes take no port: `to: bus`.
+- Items inside a group can't be connected to; use the group's ports.
+
+Endpoints resolve when the page loads, so a line can refer to elements defined
+later in the file.
+
+#### Severity patterns
+
+A line shows its status by pattern as well as color, so it reads on displays
+without color:
+
+| Status | Pattern |
+|---|---|
+| normal / flowing | solid |
+| caution | dashed walls (or a dashed stroke if uncased) |
+| warning | hatched: stripes fill the hollow, rotated to cross each segment; casing is forced on |
+| unavailable | dotted |
+
+### Nodes
+
+A connection point that isn't equipment, such as a bus junction:
+
+```yaml
+- {id: bus, type: node, at: [500, 300]}
+```
+
+When three or more lines attach to a node, a junction dot is drawn on top of
+them.
 
 ### Text
 
@@ -98,8 +148,8 @@ size (160 x 64) and are centered at `at`:
 - {id: grid_tile, type: tile, at: [224, 232], system: GRID, label: GRID TIE}   # label optional
 ```
 
-`tile_grid` lays out several tiles row by row from its top-left corner `at`.
-It expands into tiles with ids `<grid id>.<system>`:
+`tile_grid` is shorthand for a frameless, unpadded group of tiles laid out row
+by row from its top-left corner `at`. Tile ids are `<grid id>.<system>`:
 
 ```yaml
 - id: annunciator
@@ -119,6 +169,44 @@ What a tile shows:
 | CLR | Every lit alert at that severity has cleared but is unacknowledged. |
 | Attention cue | Shown while a caution or warning is unacknowledged: flash, pulse or ring, depending on the theme. |
 | Unavailable | Dotted: every entity the system's alerts read has no data. |
+
+### Groups
+
+A group lays out items inside itself. Items have no positions or connections of
+their own: they connect through the group, which has ports like a symbol.
+
+```yaml
+- id: array
+  type: group
+  at: [348, 30]                      # top-left of the group's box
+  layout: {grid: {columns: 6, gap: 8, padding: 12}}
+  frame: outline                     # or none
+  name: {text: SOLAR, anchor: left}
+  channels:                          # derived from the items
+    power: {sum: power}              # sum | min | max of an item channel
+    offline: {count: unavailable}    # count of items in a status
+  status:
+    rules: [{level: caution, when: [{channel: offline, ge: 2}]}]
+  readouts: [{value: power, format: power}]
+  item_defaults: {type: solar_panel}  # merged into every item
+  items:
+    - {id: p1, bind: {power: sensor.pv_p1_power}}
+    - {id: p2, bind: {power: sensor.pv_p2_power}}
+```
+
+- **Items** can be symbols, tiles or nested groups, and each one is listed
+  explicitly. Item ids are scoped to the group, so `p1` becomes `array.p1`. An
+  item can't set `at`.
+- **Layout:** cells are the size of the largest item, and each item is centered
+  in its cell. `padding` is the space between the frame and the cells.
+- **Derived channels** work in rules and readouts like any other channel. Items
+  without usable data are left out of `sum`, `min` and `max`.
+- **Status:** without rules, a group takes its items' worst caution or warning.
+  It's unavailable only when every item is unavailable. Rules on derived
+  channels can raise it, for example "caution when 2 or more panels are
+  offline".
+- **Frame:** dim when the group is normal, in the status color otherwise, and
+  dotted when unavailable.
 
 ## Names and readouts
 
@@ -263,6 +351,30 @@ A named condition used inside an AND-group is distributed back into DNF.
 Named conditions can refer to `channel:` values. Those channels are checked
 where the condition is used, so they must be bound on every element that uses
 it.
+
+## Line styles
+
+Named styles in `defs.yaml` describe the kind of connection. Each theme turns
+them into actual widths:
+
+```yaml
+line_styles:
+  feeder: {weight: 1}
+  bus:    {weight: 1.5, themes: {mirror: {weight: 1.25}}}
+  signal: {weight: 0.5, casing: false}
+```
+
+- **`weight`** is relative to the theme's base width.
+- **`casing`** draws the line as a hollow pipe and is on by default. Cased
+  lines merge cleanly where they meet.
+- **Color and pattern** can't be set by a style: they carry the line's status.
+
+A line's look is resolved in this order, with later steps winning:
+1. defaults: weight 1, cased
+2. the style
+3. the style's variant for the current theme
+4. the line's own `weight` (which multiplies) and `casing`
+5. the theme's limits: maximum weight, and whether casing is allowed
 
 ## Alerts
 
