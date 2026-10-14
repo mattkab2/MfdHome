@@ -1,6 +1,6 @@
 """MFD behavior: alert latching, acknowledgement and preemption.
 
-Page rotation and dwell timing come with the server milestone.
+Page selection per display comes with the server milestone.
 """
 
 from mfdhome.mfd.alerts import (

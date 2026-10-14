@@ -416,7 +416,7 @@ alerts:
   - id: grid_lost
     severity: warning          # advisory | caution | warning
     system: GRID
-    page: electrical           # shown when the alert preempts rotation
+    page: electrical           # shown when the alert preempts a display
     message: GRID POWER LOST
     when: [{use: grid_lost}]   # same any/when forms as status rules
   - id: exporting
@@ -432,7 +432,7 @@ alerts:
 - Cautions and warnings need a `page`; advisories don't.
 - Cautions and warnings **latch**: they stay raised until someone acknowledges
   them, even after the condition clears. Advisories clear on their own and never
-  preempt rotation.
+  preempt a display.
 - One acknowledgement covers the whole house.
 - `system` must be declared under `systems`, and `page` must be one of the
   loaded pages.

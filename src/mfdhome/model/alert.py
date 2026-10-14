@@ -25,7 +25,7 @@ class Severity(StrEnum):
 
     @property
     def preempts(self) -> bool:
-        """Cautions and warnings preempt page rotation; advisories never do."""
+        """Cautions and warnings preempt the selected page; advisories never do."""
         return self is not Severity.ADVISORY
 
     @property
@@ -46,7 +46,7 @@ class System:
 class AlertDef:
     """An alert: raised while ``condition`` holds.
 
-    ``page`` is shown when the alert preempts rotation (required for cautions
+    ``page`` is shown when the alert preempts a display (required for cautions
     and warnings, optional for advisories).
     """
 

@@ -17,7 +17,7 @@ rendered to several display targets with different themes and constraints:
 | Target | Theme | Hardware | Rendering | Constraints |
 |---|---|---|---|---|
 | `tablet` | `lcd` | Rugged Android tablet (workshop), kiosk browser | Live SVG/HTML, interactive | Touch targets ≥ 48px, glove-friendly |
-| `mirror` | `mirror` | Two-way mirror over a monitor, kiosk browser | Live SVG/HTML, auto-cycling | **Pure black background**, thin bright lines, no large light areas |
+| `mirror` | `mirror` | Two-way mirror over a monitor, kiosk browser | Live SVG/HTML | **Pure black background**, thin bright lines, no large light areas |
 | `eink` | `eink_mono` | 10–13" e-paper panel (main floor) | Server-side snapshot → PNG pushed to device | No animation, limited palette (1-bit / grays / 6-color), refresh every 1–5 min, bezel buttons for page select |
 
 House content (which sensors exist, where systems physically are) changes often,
@@ -43,8 +43,8 @@ src/mfdhome/
                # groups. Later: rasterization to PNG for e-ink (quantize to panel)
   sources/     # State providers: HA websocket/REST client, static fixture source
   mfd/         # MFD behavior: alert latching, house-wide acknowledgement and
-               # preemption order (pure, caller supplies the clock); later page
-               # rotation and selection
+               # attention order (pure, caller supplies the clock); page
+               # selection per display
   server/      # Web server: serves live pages to tablet/mirror, pushes updates,
                # exposes PNG endpoints for e-ink devices
   config/      # Loading + validating page definition files (YAML, see
@@ -89,21 +89,27 @@ examples/
 
 ### MFD behavior
 
-- Each display has a current page, a rotation list, and a dwell time.
+- **Pages are selected, never auto-cycled.** Each display has a home page and a
+  list of selectable pages; the viewer picks one with hardware buttons or with
+  touchscreen soft keys drawn as stylized bezel buttons around the page (MFD
+  style). The display stays on the selected page until changed.
 - Alerts have severity (`advisory`, `caution`, `warning`) and belong to a
   system (one annunciator tile each). Defined in `alerts.yaml`.
 - Cautions and warnings **latch**: they stay until acknowledged, even after
   their condition clears ("cleared, unacknowledged" is its own visible state).
-  Advisories clear on their own and never preempt.
+  Advisories clear on their own.
 - **One acknowledgement counts for the whole house** (one shared alert board);
   record who acknowledged and when.
-- An unacknowledged caution/warning preempts rotation on all displays and shows
-  its page with the annunciator banner (bottom of the canvas; keep the bottom
-  40 units of pages clear). Order: warning before caution, active before
+- **No preemption (for now):** alerts never switch a display's page. While any
+  caution/warning is unacknowledged, the annunciator banner shows over the
+  current page (bottom of the canvas; keep the bottom 40 units of pages
+  clear), naming the most urgent one: warning before caution, active before
   cleared, most recently raised first.
 - Unacknowledged cue by display type: LCD/LED panels flash (≤ 1 Hz), the mirror
   pulses slowly, e-ink draws a static outline ring.
 - The Status/annunciator page is the default/home page.
+- A mirror is configured to one page and not normally changed: it has no page
+  selection.
 
 ## Tooling and commands
 
@@ -144,7 +150,7 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - Snapshot-test rendered SVG per page × target. When a snapshot changes, explain
   why in the summary of your work.
 - Test edge cases: unavailable entities, missing attributes, extreme values
-  (negative grid power = export), alert preemption ordering.
+  (negative grid power = export), alert attention ordering.
 - E-ink rendering tests should assert palette compliance (no colors outside the
   panel palette after quantization).
 
@@ -210,18 +216,64 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   `tile_grid` is shorthand for a frameless group of tiles. Elements can bind
   to another element's channel (`array.power`), without chains.
 
+- **Server stack: aiohttp** for both the HA websocket client and the display
+  server (one runtime dependency). **Displays get live updates over a
+  WebSocket**, which also carries acknowledgements back; the client patches
+  changed top-level `<g id>` groups rather than replacing the page.
+- **The real house config lives in a separate private repo**; the server is
+  pointed at it with `--config` / `MFD_CONFIG`. Only generic examples live here.
+
+## Next milestone: live tablet slice
+
+HA → live snapshot → alert loop (persisted) → live, interactive tablet page.
+
+1. **Binding transforms and staleness.** `scale` (and an optional post-scale
+   `unit`) on bindings, applied when values are read. `stale_after` in
+   `defs.yaml` (default + per-entity); the source layer marks stale entities
+   unavailable before render, using HA's `last_reported` (falling back to
+   `last_updated`, which doesn't change on unchanged reports).
+2. **HA client** (`sources/ha.py`): websocket auth, `get_states`, subscribe to
+   `state_changed`, keep the snapshot current; reconnect with backoff; all
+   entities unavailable while disconnected. Tests use a fake websocket server.
+3. **CLI:** `mfdhome check` (config validation, plus unknown-entity report
+   against HA or a states dump) and `mfdhome dump-states` (with a scrub option).
+4. **Runtime** (`mfd/`): alert loop (evaluate → step with the real clock →
+   re-render affected displays); board persisted as JSON and reloaded at
+   startup; `displays.yaml` (id, theme, size, home page, selectable pages; a
+   mirror lists just its one page). Displays show the selected page; there is
+   no rotation, dwell or preemption. Selecting a page over the WebSocket is
+   enough for this milestone; bezel-button UI comes later. With preemption
+   gone, an alert's `page` becomes optional for every severity (kept as the
+   alert's related page, e.g. for a future "jump to page" key), and
+   `preempting()` becomes the banner's choice of most urgent alert.
+5. **Server** (`server/`): `GET /display/<id>` serves an HTML shell with the SVG
+   and a small client script; a WebSocket pushes re-rendered SVG and the client
+   replaces changed groups by id; tapping the banner acknowledges the
+   alert it names, tapping a tile acknowledges that system's alerts
+   (recorded with the display id). LAN only, optional shared display token;
+   the HA token never leaves the server. `mfdhome serve --config DIR`.
+6. **Real-house check:** a scrubbed `dump-states` fixture from the real house;
+   docs and CLAUDE.md updates.
+
+Deferred: the mirror display (same pipeline, after the tablet) and e-ink.
+
 ## Future work (not yet scheduled)
 
+- Preemption (switching displays to an alert's page) may return later, once
+  page selection and bezel buttons exist.
 - Adaptive group layouts (e.g. "flow" to wrap at a width, "fit" to fill a
   box), so large alert sets and arrays don't need manual layout. In addition
   to, not replacing, manual positioning and the fixed grid.
 - Flow animation, if wanted: animate chevrons only, never "marching dashes"
   (dashes mean caution).
-- Page rotation and dwell timers (server milestone; needs a clock loop).
+- Bezel page-select buttons: touchscreen soft keys rendered around the page
+  (tablet, and the mirror if it gets touch) and hardware button input (e-ink
+  bezel buttons, possibly the mirror). Labels come from the display's
+  selectable pages.
 
 ## Open decisions (ask before settling)
 
-- Web server framework and live-update mechanism (e.g. websocket push vs polling).
+
 - PNG rasterization library for e-ink.
 - **Panel profiles** (deferred to the rasterization milestone): the exact colors
   a panel can show and its dithering policy, used by rasterization to quantize.
@@ -229,4 +281,3 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   choice of e-ink panel type (1-bit, grayscale or 6-color) come with it, as
   does tuning `hatch_spacing` and dot spacing against the panel's pixels.
 - How e-ink devices fetch images (pull a PNG URL vs push) and which firmware.
-- Whether house-specific page configs live in this repo or a separate one.
