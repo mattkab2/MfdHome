@@ -6,7 +6,7 @@ from mfdhome.model import Orientation, Status
 from mfdhome.symbols import Flow, battery, breaker, line
 from mfdhome.symbols.line import LineParts
 from mfdhome.symbols.svg import element, fmt, text
-from mfdhome.themes import LCD
+from mfdhome.themes import EINK_MONO, LCD
 
 GRAY = LCD.color(Status.UNAVAILABLE)
 
@@ -78,3 +78,47 @@ class TestCasing:
     def test_cased_unavailable_dots_scale_with_width(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.UNAVAILABLE, None, LCD, casing=True)
         assert 'stroke-dasharray="0 16" stroke-linecap="round"' in parts.casing
+
+
+class TestSeverityPatterns:
+    def test_caution_dashes_the_walls(self) -> None:
+        parts = line(((0, 0), (100, 0)), Status.CAUTION, None, LCD, casing=True)
+        assert 'stroke-width="8" stroke-dasharray="12 8"' in parts.casing
+        assert "stroke-dasharray" not in parts.body  # the hollow stays continuous
+
+    def test_caution_dashes_an_uncased_line(self) -> None:
+        parts = line(((0, 0), (100, 0)), Status.CAUTION, None, LCD)
+        assert 'stroke-dasharray="4.5 3"' in parts.body
+
+    def test_warning_hatches_the_hollow_and_forces_casing(self) -> None:
+        parts = line(((0, 0), (100, 0)), Status.WARNING, None, LCD, line_id="g")
+        assert parts.casing  # casing forced on so the stripes have room
+        assert '<pattern id="hatch-g-0"' in parts.body
+        assert 'stroke="url(#hatch-g-0)" stroke-width="4"' in parts.body
+
+    def test_hatch_rotates_per_segment(self) -> None:
+        pts = ((0, 0), (100, 0), (100, 100), (200, 200))
+        body = line(pts, Status.WARNING, None, LCD, casing=True, line_id="g").body
+        rotations = re.findall(r'patternTransform="rotate\(([-0-9.]+)\)"', body)
+        assert rotations == ["45", "135", "90"]  # always 45 degrees off each segment
+
+    def test_patterns_distinct_on_eink(self) -> None:
+        bodies = {
+            s: "".join((p.casing, p.body))
+            for s in Status
+            for p in [line(((0, 0), (100, 0)), s, None, EINK_MONO, casing=True)]
+        }
+        assert (
+            len(
+                {
+                    bodies[s]
+                    for s in (Status.NORMAL, Status.CAUTION, Status.WARNING, Status.UNAVAILABLE)
+                }
+            )
+            == 4
+        )
+
+    def test_lines_ignore_status_weight(self) -> None:
+        normal = line(((0, 0), (100, 0)), Status.NORMAL, None, EINK_MONO, casing=True)
+        warning = line(((0, 0), (100, 0)), Status.WARNING, None, EINK_MONO, casing=True)
+        assert 'stroke-width="8"' in normal.casing and 'stroke-width="8"' in warning.casing

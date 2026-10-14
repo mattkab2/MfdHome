@@ -39,6 +39,7 @@ elements:
     from: bus
     to: battery.right
     bind: {power: sensor.battery_power}
+    status: {alerts: [battery_low, battery_critical]}
     flow: true
     readouts: [{value: power, format: power, abs: true}]
 
@@ -67,6 +68,7 @@ elements:
     from: [880, 300]
     to: main_breaker.out
     bind: {power: sensor.grid_power}
+    status: {systems: [GRID]}       # hatched red while the grid is lost
     flow: true
     name: {text: GRID, along: 0, anchor: right}
     readouts: [{value: power, format: power, abs: true}]

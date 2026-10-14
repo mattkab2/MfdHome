@@ -175,7 +175,7 @@ def _render_line(
     if flow is not None and status is Status.NORMAL:
         status = Status.ACTIVE
     look = resolve_look(element, theme)
-    parts = line(element.points, status, flow, theme, look.weight, look.casing)
+    parts = line(element.points, status, flow, theme, look.weight, look.casing, element.id)
 
     def default_anchor(along: float) -> Anchor:
         return default_line_anchor(point_along(element.points, along)[1])
