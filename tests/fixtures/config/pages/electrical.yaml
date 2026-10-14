@@ -27,10 +27,10 @@ elements:
       - {value: level, format: percent}
       - {value: power, format: power}
 
-  # Positive battery power = discharging into the bus.
+  # Battery power: positive = charging (bus -> battery), negative = discharging.
   - id: battery_feed
     type: line
-    points: [[230, 300], [500, 300]]
+    points: [[500, 300], [230, 300]]
     bind: {power: sensor.battery_power}
     flow: true
     readouts: [{value: power, format: power, abs: true}]
