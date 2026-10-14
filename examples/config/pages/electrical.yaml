@@ -7,18 +7,18 @@ canvas: {width: 1000, height: 600}
 elements:
   - {id: title, type: text, at: [80, 40], text: ELEC}
 
-  - {id: solar_label, type: text, at: [500, 60], text: SOLAR}
   - id: solar
     type: line
     points: [[500, 80], [500, 300]]
     bind: {power: sensor.solar_power}
     flow: true
+    name: {text: SOLAR, along: 0, anchor: top}
     readouts: [{value: power, format: power, abs: true}]
 
-  - {id: battery_label, type: text, at: [200, 225], text: BATT}
   - id: battery
     type: battery
     at: [200, 300]
+    name: BATT
     bind:
       level: sensor.battery_soc
       power: sensor.battery_power
@@ -44,6 +44,14 @@ elements:
     status:
       map: {on: normal, closed: normal}
       default: caution
+      rules:
+        # Open breaker with the grid gone means the house is islanded.
+        - level: warning
+          any:
+            - all:
+                - {channel: state, eq: off}
+                - {use: grid_lost}
+            - {channel: state, eq: tripped}
 
   # Positive grid power = import (grid -> house); negative = export.
   - id: grid
@@ -51,13 +59,13 @@ elements:
     points: [[880, 300], [670, 300]]
     bind: {power: sensor.grid_power}
     flow: true
+    name: {text: GRID, along: 0, anchor: right}
     readouts: [{value: power, format: power, abs: true}]
-  - {id: grid_label, type: text, at: [930, 307], text: GRID}
 
   - id: loads
     type: line
     points: [[500, 300], [500, 500]]
     bind: {power: sensor.load_power}
     flow: true
+    name: {text: LOADS, along: 1, anchor: bottom}
     readouts: [{value: power, format: power, abs: true}]
-  - {id: loads_label, type: text, at: [500, 530], text: LOADS}

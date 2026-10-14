@@ -14,7 +14,8 @@ TABLET = Target("tablet", 1280, 768)
 
 
 @pytest.mark.parametrize(
-    "fixture", ["electrical_normal", "electrical_export", "electrical_unavailable"]
+    "fixture",
+    ["electrical_normal", "electrical_export", "electrical_unavailable", "electrical_islanded"],
 )
 def test_electrical_dark_snapshot(fixture: str, svg_snapshot: SnapshotAssertion) -> None:
     svg = render_page(config_page("electrical"), fixture_state(fixture), DARK, TABLET)
@@ -45,6 +46,27 @@ def test_target_sets_pixel_size_and_canvas_sets_viewbox() -> None:
 
 
 def test_only_theme_palette_colors_are_emitted() -> None:
-    for fixture in ("electrical_normal", "electrical_export", "electrical_unavailable"):
+    for fixture in (
+        "electrical_normal",
+        "electrical_export",
+        "electrical_unavailable",
+        "electrical_islanded",
+    ):
         svg = render_page(config_page("electrical"), fixture_state(fixture), DARK, TABLET)
         assert set(re.findall(r"#[0-9a-fA-F]{6}", svg)) <= DARK.palette()
+
+
+def _group(svg: str, element_id: str) -> str:
+    start = svg.index(f'<g id="{element_id}">')
+    return svg[start : svg.index('<g id="', start + 1)]
+
+
+def test_open_breaker_with_grid_lost_is_warning() -> None:
+    page = config_page("electrical")
+    islanded = render_page(page, fixture_state("electrical_islanded"), DARK, TABLET)
+    assert DARK.color(Status.WARNING) in _group(islanded, "main_breaker")
+    # Breaker off but grid still reporting: only the map's caution applies.
+    state = dict(fixture_state("electrical_normal"))
+    state["switch.main_breaker"] = fixture_state("electrical_islanded")["switch.main_breaker"]
+    opened = render_page(page, state, DARK, TABLET)
+    assert DARK.color(Status.CAUTION) in _group(opened, "main_breaker")

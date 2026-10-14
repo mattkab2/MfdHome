@@ -13,7 +13,8 @@ EXAMPLES = Path(__file__).parent.parent / "examples" / "config"
 
 
 @pytest.mark.parametrize(
-    "fixture", ["electrical_normal", "electrical_export", "electrical_unavailable"]
+    "fixture",
+    ["electrical_normal", "electrical_export", "electrical_unavailable", "electrical_islanded"],
 )
 def test_example_config_renders(fixture: str) -> None:
     config = load_config(EXAMPLES)

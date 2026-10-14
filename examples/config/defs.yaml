@@ -1,3 +1,9 @@
 # Shared definitions: named thresholds and conditions usable from any page.
 thresholds:
   battery_soc: {warning_low: 10, caution_low: 25}
+
+conditions:
+  # The grid feed has no data: treated as lost.
+  grid_lost:
+    when:
+      - {entity: sensor.grid_power, unavailable: true}
