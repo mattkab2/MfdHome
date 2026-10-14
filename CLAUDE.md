@@ -238,6 +238,21 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 
 ## Next milestone
 
+- **Soft keys (tablet):** four keys in the bottom 40-unit strip every page
+  already keeps clear, with the banner between them:
+  `[PREV][ALERTS]  banner  [LOCK][NEXT]` (~51 px tall on a 1280x800 tablet).
+  - PREV/NEXT step through the display's `pages` in order, wrapping.
+  - ALERTS jumps to the display's alerts page (`alerts_page`, default `home`)
+    and is lit with the theme's attention cue while a caution/warning is
+    unacknowledged. Acknowledging stays on the banner and tiles.
+  - LOCK toggles with a tap (no auto-relock). While locked, every tap except
+    LOCK is ignored, enforced by the server. Lock state is per display, in
+    memory; displays start unlocked.
+  - Rendered as SVG by `render_page` from an optional `controls` input, drawn
+    with theme colors, so existing snapshots are unchanged. `displays.yaml`
+    gains `controls: soft | none` (default `soft` with more than one page, so
+    a fixed mirror gets none) and `alerts_page`. E-ink later maps the same
+    four actions to hardware bezel buttons.
 - **Real-house check (needs the owner):** run `mfdhome dump-states --scrub`
   against the real Home Assistant, add the result as a fixture, and build the
   real Electrical page against it (in the private config repo).
@@ -251,10 +266,8 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   to, not replacing, manual positioning and the fixed grid.
 - Flow animation, if wanted: animate chevrons only, never "marching dashes"
   (dashes mean caution).
-- Bezel page-select buttons: touchscreen soft keys rendered around the page
-  (tablet, and the mirror if it gets touch) and hardware button input (e-ink
-  bezel buttons, possibly the mirror). Labels come from the display's
-  selectable pages.
+- Hardware buttons for the same four actions (e-ink bezel buttons, possibly
+  the mirror), with key labels drawn beside them.
 
 ## Open decisions (ask before settling)
 
