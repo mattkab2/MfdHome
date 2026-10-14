@@ -18,7 +18,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from mfdhome.layout.anchors import Anchor
@@ -35,10 +34,6 @@ class Orientation(StrEnum):
 
     HORIZONTAL = "horizontal"
     VERTICAL = "vertical"
-
-
-def _empty[V]() -> Mapping[str, V]:
-    return MappingProxyType({})
 
 
 @dataclass(frozen=True)
@@ -111,17 +106,13 @@ class LineLook:
     casing: bool | None = None
 
 
-def _no_variants() -> Mapping[str, LineLook]:
-    return MappingProxyType({})
-
-
 @dataclass(frozen=True)
 class LineStyle:
     """A named connection style: base look plus per-theme variants (keyed by theme name)."""
 
     name: str = "default"
     base: LineLook = LineLook()
-    themes: Mapping[str, LineLook] = field(default_factory=_no_variants)
+    themes: Mapping[str, LineLook] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -131,12 +122,12 @@ class SymbolElement:
     id: str
     type: str
     at: Point
-    bind: Mapping[str, Binding] = field(default_factory=_empty)
+    bind: Mapping[str, Binding] = field(default_factory=dict)
     name: Name | None = None
     status: StatusSpec = StatusSpec()
     readouts: tuple[Readout, ...] = ()
     orientation: Orientation = Orientation.HORIZONTAL
-    params: Mapping[str, object] = field(default_factory=_empty)
+    params: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -150,7 +141,7 @@ class LineElement:
 
     id: str
     points: tuple[Point, ...]
-    bind: Mapping[str, Binding] = field(default_factory=_empty)
+    bind: Mapping[str, Binding] = field(default_factory=dict)
     name: Name | None = None
     status: StatusSpec = StatusSpec()
     readouts: tuple[Readout, ...] = ()
@@ -250,7 +241,7 @@ class GroupElement:
     items: tuple[Element, ...] = ()
     frame: Frame = Frame.OUTLINE
     name: Name | None = None
-    channels: Mapping[str, DerivedChannel] = field(default_factory=_empty)
+    channels: Mapping[str, DerivedChannel] = field(default_factory=dict)
     status: StatusSpec = StatusSpec()
     readouts: tuple[Readout, ...] = ()
 

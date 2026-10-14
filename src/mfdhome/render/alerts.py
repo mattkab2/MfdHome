@@ -4,22 +4,19 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
-from types import MappingProxyType
 
 from mfdhome.conditions.values import read
-from mfdhome.mfd.alerts import EMPTY_BOARD, INACTIVE, Board, Phase, attention_order
+from mfdhome.mfd.alerts import INACTIVE, Board, Phase, attention_order
 from mfdhome.model.alert import AlertDef, Severity, System
 from mfdhome.model.binding import EntityRef, Status
 from mfdhome.model.state import StateSnapshot
 
 #: How each severity is colored.
-SEVERITY_STATUS: Mapping[Severity, Status] = MappingProxyType(
-    {
-        Severity.ADVISORY: Status.ACTIVE,
-        Severity.CAUTION: Status.CAUTION,
-        Severity.WARNING: Status.WARNING,
-    }
-)
+SEVERITY_STATUS: Mapping[Severity, Status] = {
+    Severity.ADVISORY: Status.ACTIVE,
+    Severity.CAUTION: Status.CAUTION,
+    Severity.WARNING: Status.WARNING,
+}
 
 
 @dataclass(frozen=True)
@@ -47,17 +44,13 @@ class Banner:
     others: int = 0
 
 
-def _empty_systems() -> Mapping[str, System]:
-    return MappingProxyType({})
-
-
 @dataclass(frozen=True)
 class AlertView:
     """Alert definitions, systems and the shared board, as one render input."""
 
     alerts: tuple[AlertDef, ...] = ()
-    systems: Mapping[str, System] = field(default_factory=_empty_systems)
-    board: Board = EMPTY_BOARD
+    systems: Mapping[str, System] = field(default_factory=dict)
+    board: Board = field(default_factory=dict)
     show_banner: bool = False
 
     def phase(self, alert_id: str) -> Phase:

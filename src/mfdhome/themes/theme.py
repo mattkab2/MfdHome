@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from types import MappingProxyType
 
 from mfdhome.model.binding import Status
 
@@ -48,10 +47,6 @@ class TileFill(StrEnum):
     OUTLINE = "outline"  # severity-colored outline and text
 
 
-def _ones() -> Mapping[Status, float]:
-    return MappingProxyType({})
-
-
 @dataclass(frozen=True)
 class Theme:
     """Palette, weights, fill and attention style for a display type.
@@ -84,7 +79,7 @@ class Theme:
     label_font_size: float
     attention: Attention
     tile_fill: Mapping[Status, TileFill]
-    status_weight: Mapping[Status, float] = field(default_factory=_ones)
+    status_weight: Mapping[Status, float] = field(default_factory=dict)
     casing_allowed: bool = True
     casing_width: float = 10.0
     casing_wall: float = 2.0

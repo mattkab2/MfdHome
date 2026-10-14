@@ -6,7 +6,6 @@ import logging
 from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import MappingProxyType
 from typing import Any
 
 from ruamel.yaml import YAML
@@ -147,4 +146,4 @@ def load_config(directory: str | Path) -> Config:
         raise ConfigError(problems)
     if alerts_path.exists():
         alerts = load_alerts(alerts_path, defs, pages.keys())
-    return Config(defs, MappingProxyType(pages), alerts)
+    return Config(defs, pages, alerts)

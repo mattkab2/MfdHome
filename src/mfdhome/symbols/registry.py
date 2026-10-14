@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from types import MappingProxyType
 
 from mfdhome.conditions.values import Value
 from mfdhome.layout.anchors import Box
@@ -43,7 +42,7 @@ class SymbolInput:
 def _no_params(raw: Mapping[str, object]) -> Mapping[str, object]:
     if raw:
         raise ValueError(f"unknown parameter {next(iter(raw))!r}")
-    return MappingProxyType({})
+    return {}
 
 
 @dataclass(frozen=True)
@@ -64,9 +63,7 @@ class SymbolSpec:
     numeric: frozenset[str]
     box: Callable[[Point, Orientation], Box]
     draw: Callable[[SymbolInput, Theme], str]
-    ports: Mapping[str, Callable[[Point, Orientation], Port]] = field(
-        default_factory=lambda: MappingProxyType({})
-    )
+    ports: Mapping[str, Callable[[Point, Orientation], Port]] = field(default_factory=lambda: {})
     params: Callable[[Mapping[str, object]], Mapping[str, object]] = field(default=_no_params)
 
 
@@ -117,7 +114,7 @@ def _state_list_params(name: str, default: frozenset[str]) -> ParamsValidator:
         states = raw.get(name, default)
         if isinstance(states, str) or not isinstance(states, (list, tuple, frozenset, set)):
             raise ValueError(f"{name!r} must be a list of state strings")
-        return MappingProxyType({name: frozenset(str(s).strip().lower() for s in states)})
+        return {name: frozenset(str(s).strip().lower() for s in states)}
 
     return validate
 
@@ -152,59 +149,57 @@ def _draw_panel(inp: SymbolInput, theme: Theme) -> str:
     return solar_panel(inp.at[0], inp.at[1], inp.status, theme)
 
 
-REGISTRY: Mapping[str, SymbolSpec] = MappingProxyType(
-    {
-        "transfer_switch": SymbolSpec(
-            type="transfer_switch",
-            channels=("state",),
-            required=frozenset({"state"}),
-            primary="state",
-            numeric=frozenset(),
-            box=lambda at, orientation: ats_box(*at, orientation),
-            draw=_draw_ats,
-            params=_state_list_params("connected", DEFAULT_CONNECTED_STATES),
-            ports=MappingProxyType({"grid": _ats_port(-1.0), "load": _ats_port(1.0)}),
-        ),
-        "load_panel": SymbolSpec(
-            type="load_panel",
-            channels=("power",),
-            required=frozenset(),
-            primary="power",
-            numeric=frozenset({"power"}),
-            box=lambda at, _orientation: load_panel_box(*at),
-            draw=_draw_load_panel,
-        ),
-        "solar_panel": SymbolSpec(
-            type="solar_panel",
-            channels=("power",),
-            required=frozenset({"power"}),
-            primary="power",
-            numeric=frozenset({"power"}),
-            box=lambda at, _orientation: panel_box(*at),
-            draw=_draw_panel,
-        ),
-        "battery": SymbolSpec(
-            type="battery",
-            channels=("level", "power"),
-            required=frozenset({"level"}),
-            primary="level",
-            numeric=frozenset({"level", "power"}),
-            box=lambda at, _orientation: battery_box(*at),
-            draw=_draw_battery,
-        ),
-        "breaker": SymbolSpec(
-            type="breaker",
-            channels=("state",),
-            required=frozenset({"state"}),
-            primary="state",
-            numeric=frozenset(),
-            box=lambda at, _orientation: breaker_box(*at),
-            draw=_draw_breaker,
-            params=_state_list_params("closed", DEFAULT_CLOSED_STATES),
-            ports=MappingProxyType({"in": _breaker_in, "out": _breaker_out}),
-        ),
-    }
-)
+REGISTRY: Mapping[str, SymbolSpec] = {
+    "transfer_switch": SymbolSpec(
+        type="transfer_switch",
+        channels=("state",),
+        required=frozenset({"state"}),
+        primary="state",
+        numeric=frozenset(),
+        box=lambda at, orientation: ats_box(*at, orientation),
+        draw=_draw_ats,
+        params=_state_list_params("connected", DEFAULT_CONNECTED_STATES),
+        ports={"grid": _ats_port(-1.0), "load": _ats_port(1.0)},
+    ),
+    "load_panel": SymbolSpec(
+        type="load_panel",
+        channels=("power",),
+        required=frozenset(),
+        primary="power",
+        numeric=frozenset({"power"}),
+        box=lambda at, _orientation: load_panel_box(*at),
+        draw=_draw_load_panel,
+    ),
+    "solar_panel": SymbolSpec(
+        type="solar_panel",
+        channels=("power",),
+        required=frozenset({"power"}),
+        primary="power",
+        numeric=frozenset({"power"}),
+        box=lambda at, _orientation: panel_box(*at),
+        draw=_draw_panel,
+    ),
+    "battery": SymbolSpec(
+        type="battery",
+        channels=("level", "power"),
+        required=frozenset({"level"}),
+        primary="level",
+        numeric=frozenset({"level", "power"}),
+        box=lambda at, _orientation: battery_box(*at),
+        draw=_draw_battery,
+    ),
+    "breaker": SymbolSpec(
+        type="breaker",
+        channels=("state",),
+        required=frozenset({"state"}),
+        primary="state",
+        numeric=frozenset(),
+        box=lambda at, _orientation: breaker_box(*at),
+        draw=_draw_breaker,
+        params=_state_list_params("closed", DEFAULT_CLOSED_STATES),
+        ports={"in": _breaker_in, "out": _breaker_out},
+    ),
+}
 
 
 def get_symbol(type_name: str) -> SymbolSpec:

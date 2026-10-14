@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
-from types import MappingProxyType
+from dataclasses import dataclass, field
 
 from mfdhome.conditions.evaluate import SEVERITY_ORDER, EvalContext
 from mfdhome.conditions.model import ChannelRef
@@ -24,7 +23,7 @@ from mfdhome.render.alerts import AlertView
 from mfdhome.render.status import element_status
 from mfdhome.symbols.registry import get_symbol
 
-_NO_VALUES: Mapping[str, Value] = MappingProxyType({})
+_NO_VALUES: Mapping[str, Value] = {}
 
 
 @dataclass(frozen=True)
@@ -32,7 +31,7 @@ class Resolved:
     """An element's status and channel values (bound or derived)."""
 
     status: Status
-    values: Mapping[str, Value] = _NO_VALUES
+    values: Mapping[str, Value] = field(default_factory=dict)
 
 
 class Resolver:
@@ -46,7 +45,7 @@ class Resolver:
         self,
         state: StateSnapshot,
         alerts: AlertView,
-        elements: Mapping[str, Mapping[str, Value]] = MappingProxyType({}),
+        elements: Mapping[str, Mapping[str, Value]] = {},
     ) -> None:
         self.state = state
         self.alerts = alerts
@@ -86,7 +85,7 @@ class Resolver:
             spec.primary in spec.numeric,
             self.alerts.active_status(element.status.systems, element.status.alerts),
         )
-        return Resolved(status, MappingProxyType(values))
+        return Resolved(status, values)
 
     def _tile(self, element: TileElement) -> Resolved:
         view = self.alerts.system(element.system, self.state)
@@ -101,7 +100,7 @@ class Resolver:
     def _group(self, element: GroupElement) -> Resolved:
         items = [r for r in (self.element(i) for i in element.items) if r is not None]
         derived = {name: derive(spec, items) for name, spec in element.channels.items()}
-        ctx = self.context(MappingProxyType({}), MappingProxyType(derived))
+        ctx = self.context({}, derived)
         own = element_status(
             element.status,
             ctx,
@@ -116,7 +115,7 @@ class Resolver:
             status = Status.UNAVAILABLE
         else:
             status = Status.NORMAL
-        return Resolved(status, MappingProxyType(derived))
+        return Resolved(status, derived)
 
 
 def _worst_item(items: Iterable[Resolved]) -> Status | None:

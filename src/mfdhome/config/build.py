@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from types import MappingProxyType
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -70,9 +69,9 @@ from mfdhome.themes.builtin import THEMES
 class Defs:
     """Resolved shared definitions."""
 
-    thresholds: Mapping[str, Thresholds] = field(default_factory=lambda: MappingProxyType({}))
-    conditions: Mapping[str, AnyOf] = field(default_factory=lambda: MappingProxyType({}))
-    line_styles: Mapping[str, LineStyle] = field(default_factory=lambda: MappingProxyType({}))
+    thresholds: Mapping[str, Thresholds] = field(default_factory=dict)
+    conditions: Mapping[str, AnyOf] = field(default_factory=dict)
+    line_styles: Mapping[str, LineStyle] = field(default_factory=dict)
 
     def merge(self, other: Defs) -> tuple[Defs, list[str]]:
         """Combine two sets of defs; returns the result and any duplicated names."""
@@ -82,7 +81,7 @@ class Defs:
             for kind in kinds
             for name in getattr(self, kind).keys() & getattr(other, kind).keys()
         )
-        merged = Defs(*(MappingProxyType({**getattr(self, k), **getattr(other, k)}) for k in kinds))
+        merged = Defs(*({**getattr(self, k), **getattr(other, k)} for k in kinds))
         return merged, dupes
 
 
@@ -114,7 +113,7 @@ def _channels(expr: AnyOf) -> Iterator[str]:
 type Bound = Mapping[str, object] | None
 
 #: ``bound`` value for contexts that have no channels at all (alerts).
-NO_CHANNELS: Mapping[str, object] = MappingProxyType({})
+NO_CHANNELS: Mapping[str, object] = {}
 
 
 class _Exprs:
@@ -238,12 +237,8 @@ def build_defs(
                     f"unknown theme {theme!r}; expected: {', '.join(THEMES)}",
                 )
         variants = {t: LineLook(v.weight, v.casing) for t, v in style.themes.items()}
-        styles[name] = LineStyle(
-            name, LineLook(style.weight, style.casing), MappingProxyType(variants)
-        )
-    return Defs(
-        MappingProxyType(thresholds), MappingProxyType(conditions), MappingProxyType(styles)
-    )
+        styles[name] = LineStyle(name, LineLook(style.weight, style.casing), variants)
+    return Defs(thresholds, conditions, styles)
 
 
 # --- elements ---------------------------------------------------------------------------------
@@ -382,12 +377,12 @@ class _ElementBuilder:
             params = spec.params(model.params)
         except ValueError as exc:
             self.issues.add((*loc, "params"), str(exc))
-            params = MappingProxyType({})
+            params = {}
         return SymbolElement(
             id=model.id,
             type=model.type,
             at=model.at,
-            bind=MappingProxyType(bound),
+            bind=bound,
             name=self.name(model.name, (*loc, "name")),
             status=self.status(model.status, spec.primary, bound, (*loc, "status")),
             readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
@@ -417,7 +412,7 @@ class _ElementBuilder:
         return LineElement(
             id=model.id,
             points=tuple(model.points or ()),
-            bind=MappingProxyType(bound),
+            bind=bound,
             name=self.name(model.name, (*loc, "name")),
             status=self.status(model.status, LINE_PRIMARY, bound, (*loc, "status")),
             readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
@@ -479,7 +474,7 @@ class _ElementBuilder:
         return replace(
             group,
             name=self.name(model.name, (*loc, "name")),
-            channels=MappingProxyType(derived),
+            channels=derived,
             status=self.status(model.status, "", bound, (*loc, "status")),
             readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
         )
@@ -749,7 +744,7 @@ def _connect(
     for e in elements:
         if isinstance(e, (LineElement, SymbolElement)):
             bind = _element_bindings(e, by_id, issues, locs.get(e.id, ()))
-            e = replace(e, bind=MappingProxyType(bind))
+            e = replace(e, bind=bind)
         if isinstance(e, LineElement) and e.id in points:
             e = replace(e, points=points[e.id])
         elif isinstance(e, NodeElement) and degree[e.id] >= JUNCTION_DEGREE:
@@ -765,12 +760,12 @@ def _connect(
 class Alerts:
     """Systems and alert definitions, in file order."""
 
-    systems: Mapping[str, System] = field(default_factory=lambda: MappingProxyType({}))
+    systems: Mapping[str, System] = field(default_factory=dict)
     alerts: tuple[AlertDef, ...] = ()
 
     def by_id(self) -> Mapping[str, AlertDef]:
         """Alerts keyed by id."""
-        return MappingProxyType({a.id: a for a in self.alerts})
+        return {a.id: a for a in self.alerts}
 
 
 def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
@@ -792,4 +787,4 @@ def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
             issues.add((*loc, "system"), f"unknown system {a.system!r}; expected: {known}")
         condition = exprs.expr(a, loc, issues, NO_CHANNELS)
         alerts.append(AlertDef(a.id, Severity(a.severity), a.system, a.message, condition, a.page))
-    return Alerts(MappingProxyType(systems), tuple(alerts))
+    return Alerts(systems, tuple(alerts))

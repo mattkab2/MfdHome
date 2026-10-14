@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import Any
 
 #: HA state strings that mean "no usable value".
@@ -16,7 +15,7 @@ class EntityState:
     """The state of a single HA entity at snapshot time."""
 
     state: str
-    attributes: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
+    attributes: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def available(self) -> bool:
@@ -42,8 +41,6 @@ def snapshot_from_ha_states(states: Iterable[Mapping[str, Any]]) -> StateSnapsho
         attributes = item.get("attributes")
         snapshot[entity_id] = EntityState(
             state=str(item.get("state", "unknown")),
-            attributes=MappingProxyType(
-                dict(attributes) if isinstance(attributes, Mapping) else {}
-            ),
+            attributes=dict(attributes) if isinstance(attributes, Mapping) else {},
         )
-    return MappingProxyType(snapshot)
+    return snapshot

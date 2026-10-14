@@ -23,7 +23,6 @@ from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
-from types import MappingProxyType
 
 from mfdhome.conditions.evaluate import EvalContext, holds
 from mfdhome.model.alert import AlertDef
@@ -66,7 +65,7 @@ INACTIVE = AlertState()
 #: alert id -> state. Missing ids are INACTIVE.
 type Board = Mapping[str, AlertState]
 
-EMPTY_BOARD: Board = MappingProxyType({})
+EMPTY_BOARD: Board = {}
 
 
 def evaluate_alerts(alerts: Iterable[AlertDef], state: StateSnapshot) -> frozenset[str]:
@@ -101,7 +100,7 @@ def step(board: Board, alerts: Iterable[AlertDef], raised: Collection[str], now:
         new = _step_one(alert, board.get(alert.id, INACTIVE), alert.id in raised, now)
         if new.phase is not Phase.INACTIVE:
             out[alert.id] = new
-    return MappingProxyType(out)
+    return out
 
 
 def acknowledge(board: Board, by: str, now: datetime, ids: Iterable[str] | None = None) -> Board:
@@ -120,7 +119,7 @@ def acknowledge(board: Board, by: str, now: datetime, ids: Iterable[str] | None 
             del out[alert_id]
         else:
             logger.debug("ignoring acknowledgement of %s in phase %s", alert_id, current.phase)
-    return MappingProxyType(out)
+    return out
 
 
 def _priority(alert: AlertDef, state: AlertState) -> tuple[int, int, float]:

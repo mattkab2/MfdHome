@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from types import MappingProxyType
 
 from mfdhome.conditions.model import AnyOf, ChannelRef, Condition, Op, Operand, Rule, ValueRef
 from mfdhome.conditions.values import MISSING, Value, as_number, read
@@ -13,10 +12,6 @@ from mfdhome.model.state import StateSnapshot
 
 #: Rule levels in increasing precedence.
 SEVERITY_ORDER = (Status.NORMAL, Status.CAUTION, Status.WARNING)
-
-
-def _empty[V]() -> Mapping[str, V]:
-    return MappingProxyType({})
 
 
 @dataclass(frozen=True)
@@ -29,9 +24,9 @@ class EvalContext:
     """
 
     state: StateSnapshot
-    channels: Mapping[str, Binding] = field(default_factory=_empty)
-    derived: Mapping[str, Value] = field(default_factory=_empty)
-    elements: Mapping[str, Mapping[str, Value]] = field(default_factory=_empty)
+    channels: Mapping[str, Binding] = field(default_factory=dict)
+    derived: Mapping[str, Value] = field(default_factory=dict)
+    elements: Mapping[str, Mapping[str, Value]] = field(default_factory=dict)
 
     def value(self, ref: ValueRef) -> Value:
         """Resolve ``ref``; an unbound channel is unavailable."""
