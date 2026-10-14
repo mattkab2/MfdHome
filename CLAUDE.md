@@ -28,9 +28,12 @@ so **page definitions are data, separate from library code**.
 ```
 src/mfdhome/
   model/       # Page, Element, Binding, Alert dataclasses (pure data, no I/O)
+  conditions/  # Pure condition logic (DNF rules, evaluation, thresholds/map
+               # shorthands), shared by element status and alerts
   symbols/     # I&C symbol primitives: pipe, valve, pump, breaker, battery, meter,
                # node, link, tank, sensor badge. Each returns SVG fragments.
-  layout/      # Positioning helpers: grid, schematic routing, annotations
+               # registry.py declares each type's channels, box and params.
+  layout/      # Positioning helpers: anchors, polyline geometry, (later) grids
   themes/      # Theme definitions (palette, stroke widths, fonts) per target
   render/      # Pure render functions: (page, state, theme, target) -> SVG string
                # plus rasterization to PNG for e-ink (quantize to panel palette)
@@ -39,13 +42,14 @@ src/mfdhome/
                # preemption, alert acknowledgement
   server/      # Web server: serves live pages to tablet/mirror, pushes updates,
                # exposes PNG endpoints for e-ink devices
-  config/      # Loading + validating page definition files (YAML)
+  config/      # Loading + validating page definition files (YAML, see
+               # docs/page-schema.md). pydantic stays inside this package.
 tests/
-  fixtures/    # Recorded HA state snapshots (JSON) used by tests
+  fixtures/    # Recorded HA state snapshots (JSON) and a test config/ directory
   snapshots/   # Expected SVG output for snapshot tests
 examples/
-  pages/       # Example page definitions (YAML), the real house config lives here
-               # or in a separate repo — do not hardcode house specifics in src/
+  config/      # Example config: defs.yaml + pages/*.yaml. Do not hardcode house
+               # specifics in src/
 ```
 
 ### Core rules
@@ -136,9 +140,18 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - When a design decision is not yet settled (see below), ask rather than choose
   silently.
 
+## Settled decisions
+
+- **Page definitions are YAML** (parsed as YAML 1.2 by ruamel.yaml, so `on`/`off`
+  stay strings), validated with pydantic. Format reference: `docs/page-schema.md`.
+- Elements are placed at absolute x/y on a logical canvas. Symbols have a fixed
+  size. Text attaches to elements via nine named anchors.
+- Elements bind entities to named channels declared by the symbol registry.
+  Status rules are in disjunctive normal form (OR of AND-groups) and may refer
+  to any entity, not just the element's own channels.
+
 ## Open decisions (ask before settling)
 
-- Page definition format details (YAML schema shape, how symbols are positioned).
 - Web server framework and live-update mechanism (e.g. websocket push vs polling).
 - PNG rasterization library for e-ink.
 - How e-ink devices fetch images (pull a PNG URL vs push) and which firmware.
