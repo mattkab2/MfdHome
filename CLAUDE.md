@@ -182,6 +182,14 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - **Annunciator tiles have a fixed size** (160 x 64) and are positioned
   manually or with `tile_grid`. Manual placement must always remain possible.
 - **Battery power: negative = discharging**, positive = charging.
+- **Whole-home backup topology:** a grid-isolating `transfer_switch` (ATS)
+  sits between the main breaker and the backup bus; battery, solar and the load
+  panel are on the house side. Islanding shows on the ATS as caution; the grid
+  loss itself is a warning on the GRID system.
+- **Connections route with at most one elbow**, following port directions,
+  unless `via` gives bends explicitly. **A flowing cased line has a solid
+  core**, using the same threshold as its flow arrow; a blank (hollow) core
+  means no flow.
 - **Lines attach to elements** by `element.port` (edge/corner ports named like
   anchors, plus type-specific ports such as a breaker's `in`/`out`) or to
   `node` elements; nodes with 3+ attached lines get a junction dot. Endpoints

@@ -61,6 +61,13 @@ Any registered symbol type, centered at `at`:
 | `battery` | `level` (numeric, sets fill), `power` (numeric) | `level` | none |
 | `breaker` | `state` | `state` | `closed`: states that mean closed, default `[on, closed]` |
 | `solar_panel` | `power` (numeric) | `power` | none |
+| `transfer_switch` | `state` | `state` | `connected`: states that mean grid-connected, default `[on, connected, grid, closed]` |
+| `load_panel` | `power` (numeric) | none | none |
+
+`transfer_switch` is a grid-isolating ATS, as used in whole-home battery
+backup. Its grid contact faces left (top when vertical) and its load contact
+right (bottom). The blade is closed to the grid when connected and swung open
+when islanded.
 
 The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is
@@ -78,7 +85,9 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
   type: line
   from: [880, 300]           # a coordinate, a node id, or element.port
   to: main_breaker.out
-  via: [[700, 250]]          # optional bend points
+  via: [[700, 250]]          # optional bend points (otherwise auto-routed)
+  elbow: vertical-first      # optional: horizontal-first | vertical-first
+  route: straight            # optional: allow a diagonal instead of an elbow
   style: feeder              # a named style from defs.yaml (see "Line styles")
   weight: 1.5                # optional: multiplies the style's weight
   casing: false              # optional: overrides the style's casing
@@ -90,6 +99,19 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
 ```
 
 Instead of `from`/`to`/`via`, a line can give explicit `points: [[x, y], ...]`.
+
+#### Routing
+
+A `from`/`to` line without `via` is routed automatically with at most one
+elbow:
+- **Aligned endpoints:** a straight line.
+- **Otherwise:** one right-angle bend. The first leg leaves along the start
+  port's outward direction; a `right` port goes horizontal first. If the start
+  has no direction (a node or a coordinate), the last leg enters the end port
+  head-on. If neither end has a direction, it goes horizontal first.
+
+`elbow` forces which leg comes first, and `route: straight` draws a diagonal
+instead. The flow arrow sits at the middle of the longest leg.
 
 Lines have one channel, `power` (numeric, primary). With `flow`, a chevron is
 drawn when `|power| > threshold`: positive flows from the first point toward the
@@ -103,7 +125,10 @@ An endpoint `element.port` attaches the line to an element:
 - Every symbol, tile and group has edge and corner ports named like anchors:
   `top`, `bottom`, `left`, `right` and the corners (`top-left`, and so on).
   Edge midpoints sit on the element's own axis.
-- Breakers add `in` and `out`, which follow the breaker's orientation.
+- Edge ports have an outward direction, which routing follows. Corners and
+  nodes have none.
+- Breakers add `in` and `out`, and transfer switches `grid` and `load`. Both
+  follow the symbol's orientation.
 - Nodes take no port: `to: bus`.
 - Items inside a group can't be connected to; use the group's ports.
 
@@ -117,7 +142,8 @@ without color:
 
 | Status | Pattern |
 |---|---|
-| normal / flowing | solid |
+| normal, no flow | solid walls, blank (hollow) core |
+| normal / caution, flowing | **solid core** in the status color while \|power\| is above the flow threshold |
 | caution | dashed walls (or a dashed stroke if uncased) |
 | warning | hatched: stripes fill the hollow, rotated to cross each segment; casing is forced on |
 | unavailable | dotted |
