@@ -171,19 +171,9 @@ class _Exprs:
                 issues.add((*loc, "channel"), f"channel {term.channel!r} is not bound")
         else:
             ref = EntityRef(str(term.entity), term.attribute)
-        [op] = term.predicates()
-        operand: Any = {
-            "eq": term.eq,
-            "ne": term.ne,
-            "in": tuple(term.in_ or ()),
-            "not_in": tuple(term.not_in or ()),
-            "lt": term.lt,
-            "le": term.le,
-            "gt": term.gt,
-            "ge": term.ge,
-            "between": term.between,
-            "unavailable": term.unavailable,
-        }[op]
+        [(op, operand)] = term.predicates().items()
+        if isinstance(operand, list):
+            operand = tuple(operand)
         return AnyOf.single(Condition(ref, Op(op), operand))
 
     def conjunction(

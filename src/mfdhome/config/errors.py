@@ -8,8 +8,6 @@ from pathlib import Path
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
-from mfdhome.config.schema import MODEL_NAMES
-
 type Loc = tuple[str | int, ...]
 
 
@@ -36,8 +34,9 @@ class ConfigError(Exception):
 
 
 def _is_union_tag(part: str | int) -> bool:
+    """Pydantic names union branches by model class (``...Model``) or type (``str``)."""
     return isinstance(part, str) and (
-        part in MODEL_NAMES
+        part.endswith("Model")
         or part in {"str", "float", "int", "bool", "dict", "list", "tuple"}
         or "[" in part
     )

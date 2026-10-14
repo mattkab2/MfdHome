@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 Level = Literal["normal", "caution", "warning"]
 Scalar = str | float
@@ -19,6 +19,17 @@ Ident = Annotated[str, Field(pattern=r"^[A-Za-z_][A-Za-z0-9_.-]*$")]
 EntityId = Annotated[str, Field(pattern=r"^[a-z_]+\.[a-z0-9_]+$")]
 
 PREDICATES = ("eq", "ne", "in", "not_in", "lt", "le", "gt", "ge", "between", "unavailable")
+#: Field names of the predicates (``in`` is a keyword, so its field is ``in_``).
+_PREDICATE_FIELDS = {p + "_" if p == "in" else p for p in PREDICATES}
+
+
+def _shorthand(key: str) -> BeforeValidator:
+    """Accept a bare string as ``{key: string}``."""
+    return BeforeValidator(lambda v: {key: v} if isinstance(v, str) else v)
+
+
+#: ``[x, y]``, or one number for both.
+Gap = Annotated[Coord, BeforeValidator(lambda v: [v, v] if isinstance(v, (int, float)) else v)]
 
 
 class Strict(BaseModel):
@@ -32,6 +43,9 @@ class BindModel(Strict):
 
     entity: EntityId
     attribute: str | None = None
+
+
+Bind = Annotated[BindModel, _shorthand("entity")]
 
 
 class TermModel(Strict):
@@ -59,21 +73,9 @@ class TermModel(Strict):
     between: Coord | None = None
     unavailable: bool | None = None
 
-    def predicates(self) -> list[str]:
-        """Names of the predicates set on this term."""
-        values = {
-            "eq": self.eq,
-            "ne": self.ne,
-            "in": self.in_,
-            "not_in": self.not_in,
-            "lt": self.lt,
-            "le": self.le,
-            "gt": self.gt,
-            "ge": self.ge,
-            "between": self.between,
-            "unavailable": self.unavailable,
-        }
-        return [name for name in PREDICATES if values[name] is not None]
+    def predicates(self) -> dict[str, Any]:
+        """The predicates set on this term, by YAML name, with their operands."""
+        return self.model_dump(by_alias=True, exclude_none=True, include=_PREDICATE_FIELDS)
 
     @model_validator(mode="after")
     def _one_form(self) -> Self:
@@ -150,6 +152,9 @@ class NameModel(Strict):
     offset: Coord = (0.0, 0.0)
 
 
+Name = Annotated[NameModel | None, _shorthand("text")]
+
+
 class ReadoutModel(Strict):
     """A displayed channel value."""
 
@@ -169,34 +174,15 @@ class FlowModel(Strict):
     threshold: Annotated[float, Field(ge=0.0)] = 10.0
 
 
-def _shorthand(key: str) -> Any:
-    def convert(value: Any) -> Any:
-        return {key: value} if isinstance(value, str) else value
-
-    return convert
-
-
 class _Bound(Strict):
     """Fields shared by symbols and lines."""
 
     id: Ident
     type: str
-    bind: dict[str, BindModel] = {}
-    name: NameModel | None = None
+    bind: dict[str, Bind] = {}
+    name: Name = None
     status: StatusModel | None = None
     readouts: list[ReadoutModel] = []
-
-    @field_validator("bind", mode="before")
-    @classmethod
-    def _bind_shorthand(cls, value: Any) -> Any:
-        if isinstance(value, dict):
-            return {k: _shorthand("entity")(v) for k, v in value.items()}
-        return value
-
-    @field_validator("name", mode="before")
-    @classmethod
-    def _name_shorthand(cls, value: Any) -> Any:
-        return _shorthand("text")(value)
 
 
 class SymbolModel(_Bound):
@@ -242,7 +228,10 @@ class LineModel(_Bound):
     via: list[Coord] = []
     route: Literal["auto", "straight"] = "auto"
     elbow: Literal["horizontal-first", "vertical-first"] | None = None
-    flow: FlowModel | None = None
+    flow: Annotated[
+        FlowModel | None,
+        BeforeValidator(lambda v: {} if v is True else None if v is False else v),
+    ] = None
     style: Ident | None = None
     weight: Weight | None = None
     casing: bool | None = None
@@ -258,15 +247,6 @@ class LineModel(_Bound):
         if self.elbow is not None and (self.via or self.route == "straight" or self.points):
             raise ValueError("'elbow' only applies to auto-routed 'from'/'to' lines (no 'via')")
         return self
-
-    @field_validator("flow", mode="before")
-    @classmethod
-    def _flow_shorthand(cls, value: Any) -> Any:
-        if value is True:
-            return {}
-        if value is False:
-            return None
-        return value
 
 
 class TextModel(Strict):
@@ -304,26 +284,16 @@ class TileGridModel(Strict):
     type: Literal["tile_grid"]
     at: Coord
     columns: Annotated[int, Field(ge=1)]
-    gap: Coord = (16.0, 16.0)
+    gap: Gap = (16.0, 16.0)
     tiles: Annotated[list[Ident], Field(min_length=1)]
-
-    @field_validator("gap", mode="before")
-    @classmethod
-    def _gap_shorthand(cls, value: Any) -> Any:
-        return [value, value] if isinstance(value, (int, float)) else value
 
 
 class GridModel(Strict):
     """Grid layout: ``columns`` per row; ``padding`` between the frame and the cells."""
 
     columns: Annotated[int, Field(ge=1)]
-    gap: Coord = (16.0, 16.0)
+    gap: Gap = (16.0, 16.0)
     padding: Annotated[float, Field(ge=0)] = 12.0
-
-    @field_validator("gap", mode="before")
-    @classmethod
-    def _gap_shorthand(cls, value: Any) -> Any:
-        return [value, value] if isinstance(value, (int, float)) else value
 
 
 class LayoutModel(Strict):
@@ -357,17 +327,12 @@ class GroupModel(Strict):
     at: Coord
     layout: LayoutModel
     frame: Literal["outline", "none"] = "outline"
-    name: NameModel | None = None
+    name: Name = None
     status: StatusModel | None = None
     readouts: list[ReadoutModel] = []
     channels: dict[Ident, dict[str, Any]] = {}  # validated one by one as DerivedModel
     item_defaults: dict[str, Any] = {}
     items: Annotated[list[dict[str, Any]], Field(min_length=1)]
-
-    @field_validator("name", mode="before")
-    @classmethod
-    def _name_shorthand(cls, value: Any) -> Any:
-        return _shorthand("text")(value)
 
 
 class DefsModel(Strict):
@@ -422,34 +387,3 @@ class PageModel(Strict):
     canvas: CanvasModel
     defs: DefsModel | None = None
     elements: list[dict[str, Any]] = []
-
-
-#: pydantic model class names, used to drop union tags from error locations.
-MODEL_NAMES = frozenset(
-    {
-        "BindModel",
-        "TermModel",
-        "ExprModel",
-        "RuleModel",
-        "ThresholdsModel",
-        "StatusModel",
-        "NameModel",
-        "ReadoutModel",
-        "FlowModel",
-        "SymbolModel",
-        "LineModel",
-        "TextModel",
-        "TileModel",
-        "NodeModel",
-        "GroupModel",
-        "GridModel",
-        "LayoutModel",
-        "DerivedModel",
-        "LineLookModel",
-        "LineStyleModel",
-        "TileGridModel",
-        "SystemModel",
-        "AlertModel",
-        "AlertsModel",
-    }
-)
