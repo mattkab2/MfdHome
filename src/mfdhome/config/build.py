@@ -123,52 +123,54 @@ class _Exprs:
     references are checked against it where they are written (or at the
     ``use`` site for named conditions). Named conditions themselves are built
     with ``bound=None``, since they may be used by several elements.
+    ``NO_CHANNELS`` marks contexts without channels (alerts).
     """
 
     def __init__(
-        self, named: Mapping[str, ExprModel], resolved: Mapping[str, AnyOf], prefix: Loc = ()
+        self,
+        named: Mapping[str, ExprModel],
+        resolved: Mapping[str, AnyOf],
+        issues: Issues,
+        prefix: Loc = (),
     ) -> None:
         self.named = named
-        self.prefix = prefix
         self.resolved = dict(resolved)
+        self.issues = issues
+        self.prefix = prefix
         self.resolving: list[str] = []
 
-    def use(self, name: str, loc: Loc, issues: Issues, bound: Bound = None) -> AnyOf:
-        expr = self._resolve(name, loc, issues)
-        if bound is not None:
-            for channel in sorted(set(_channels(expr)) - bound.keys()):
-                if bound is NO_CHANNELS:
-                    message = (
-                        f"condition {name!r} uses channel {channel!r}; alerts can only use 'entity'"
-                    )
-                else:
-                    message = f"condition {name!r} uses channel {channel!r}, which is not bound"
-                issues.add(loc, message)
+    def use(self, name: str, loc: Loc, bound: Bound = None) -> AnyOf:
+        expr = self._resolve(name, loc)
+        if bound is None:
+            return expr
+        why = "; alerts can only use 'entity'" if bound is NO_CHANNELS else ", which is not bound"
+        for channel in sorted(set(_channels(expr)) - bound.keys()):
+            self.issues.add(loc, f"condition {name!r} uses channel {channel!r}{why}")
         return expr
 
-    def _resolve(self, name: str, loc: Loc, issues: Issues) -> AnyOf:
+    def _resolve(self, name: str, loc: Loc) -> AnyOf:
         if name in self.resolved:
             return self.resolved[name]
         if name not in self.named:
-            issues.add(loc, f"unknown condition {name!r}")
+            self.issues.add(loc, f"unknown condition {name!r}")
             return AnyOf()
         if name in self.resolving:
             chain = " -> ".join([*self.resolving[self.resolving.index(name) :], name])
-            issues.add(loc, f"condition cycle: {chain}")
+            self.issues.add(loc, f"condition cycle: {chain}")
             return AnyOf()
         self.resolving.append(name)
-        expr = self.expr(self.named[name], (*self.prefix, "conditions", name), issues)
+        expr = self.expr(self.named[name], (*self.prefix, "conditions", name))
         self.resolving.pop()
         self.resolved[name] = expr
         return expr
 
-    def condition(self, term: TermModel, loc: Loc, issues: Issues, bound: Bound) -> AnyOf:
+    def condition(self, term: TermModel, loc: Loc, bound: Bound) -> AnyOf:
         if term.channel is not None:
             ref: ChannelRef | EntityRef = ChannelRef(term.channel)
             if bound is NO_CHANNELS:
-                issues.add((*loc, "channel"), "alerts have no channels; use 'entity'")
+                self.issues.add((*loc, "channel"), "alerts have no channels; use 'entity'")
             elif bound is not None and term.channel not in bound:
-                issues.add((*loc, "channel"), f"channel {term.channel!r} is not bound")
+                self.issues.add((*loc, "channel"), f"channel {term.channel!r} is not bound")
         else:
             ref = EntityRef(str(term.entity), term.attribute)
         [(op, operand)] = term.predicates().items()
@@ -176,31 +178,33 @@ class _Exprs:
             operand = tuple(operand)
         return AnyOf.single(Condition(ref, Op(op), operand))
 
-    def conjunction(
-        self, terms: list[TermModel], loc: Loc, issues: Issues, bound: Bound = None
-    ) -> AnyOf:
+    def _term(self, term: TermModel, loc: Loc, bound: Bound) -> AnyOf:
+        """One item of a ``when``/``all`` list: a condition or a ``use``."""
+        if term.use is not None:
+            return self.use(term.use, (*loc, "use"), bound)
+        return self.condition(term, loc, bound)
+
+    def conjunction(self, terms: list[TermModel], loc: Loc, bound: Bound = None) -> AnyOf:
         result = TRUE
         for i, term in enumerate(terms):
             if term.all_ is not None:
-                issues.add((*loc, i, "all"), "'all' groups are only allowed directly under 'any'")
-            elif term.use is not None:
-                result = result.and_(self.use(term.use, (*loc, i, "use"), issues, bound))
+                self.issues.add(
+                    (*loc, i, "all"), "'all' groups are only allowed directly under 'any'"
+                )
             else:
-                result = result.and_(self.condition(term, (*loc, i), issues, bound))
+                result = result.and_(self._term(term, (*loc, i), bound))
         return result
 
-    def expr(self, model: ExprModel, loc: Loc, issues: Issues, bound: Bound = None) -> AnyOf:
+    def expr(self, model: ExprModel, loc: Loc, bound: Bound = None) -> AnyOf:
         if model.when is not None:
-            return self.conjunction(model.when, (*loc, "when"), issues, bound)
+            return self.conjunction(model.when, (*loc, "when"), bound)
         result = AnyOf()
         for i, term in enumerate(model.any_ or ()):
             item = (*loc, "any", i)
             if term.all_ is not None:
-                result = result.or_(self.conjunction(term.all_, (*item, "all"), issues, bound))
-            elif term.use is not None:
-                result = result.or_(self.use(term.use, (*item, "use"), issues, bound))
+                result = result.or_(self.conjunction(term.all_, (*item, "all"), bound))
             else:
-                result = result.or_(self.condition(term, item, issues, bound))
+                result = result.or_(self._term(term, item, bound))
         return result
 
 
@@ -213,10 +217,8 @@ def build_defs(
     at the top level of a shared defs file.
     """
     base = base or Defs()
-    exprs = _Exprs(model.conditions, base.conditions, prefix)
-    conditions = {
-        name: exprs.use(name, (*prefix, "conditions", name), issues) for name in model.conditions
-    }
+    exprs = _Exprs(model.conditions, base.conditions, issues, prefix)
+    conditions = {name: exprs.use(name, (*prefix, "conditions", name)) for name in model.conditions}
     thresholds = {name: _thresholds(t) for name, t in model.thresholds.items()}
     styles = {}
     for name, style in model.line_styles.items():
@@ -267,7 +269,7 @@ class _ElementBuilder:
         self.alerts = alerts
         self.alert_ids = {a.id for a in alerts.alerts}
         self.issues = issues
-        self.exprs = _Exprs({}, defs.conditions)
+        self.exprs = _Exprs({}, defs.conditions, issues)
 
     def system(self, system: str, loc: Loc) -> None:
         if system not in self.alerts.systems:
@@ -324,7 +326,7 @@ class _ElementBuilder:
             mapping = {k.strip().lower(): Status(v) for k, v in model.map.items()}
             rules.extend(state_map_rules(ref, mapping, Status(model.default or "normal")))
         for i, rule in enumerate(model.rules):
-            when = self.exprs.expr(rule, (*loc, "rules", i), self.issues, bound)
+            when = self.exprs.expr(rule, (*loc, "rules", i), bound)
             rules.append(Rule(Status(rule.level), when))
         for i, system in enumerate(model.systems):
             self.system(system, (*loc, "systems", i))
@@ -761,7 +763,7 @@ class Alerts:
 def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
     """Build alerts; conditions may use only ``entity`` references and defs conditions."""
     systems = {sid: System(sid, s.label) for sid, s in model.systems.items()}
-    exprs = _Exprs({}, defs.conditions)
+    exprs = _Exprs({}, defs.conditions, issues)
     alerts: list[AlertDef] = []
     seen: set[str] = set()
     for i, raw in enumerate(model.alerts):
@@ -775,6 +777,6 @@ def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
         if a.system not in systems:
             known = ", ".join(systems) or "none defined"
             issues.add((*loc, "system"), f"unknown system {a.system!r}; expected: {known}")
-        condition = exprs.expr(a, loc, issues, NO_CHANNELS)
+        condition = exprs.expr(a, loc, NO_CHANNELS)
         alerts.append(AlertDef(a.id, Severity(a.severity), a.system, a.message, condition, a.page))
     return Alerts(systems, tuple(alerts))
