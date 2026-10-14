@@ -41,12 +41,15 @@ src/mfdhome/
   render/      # Pure render functions: (page, state, theme, target) -> SVG string;
                # resolve.py resolves status/derived channels bottom-up through
                # groups. Later: rasterization to PNG for e-ink (quantize to panel)
-  sources/     # State providers: HA websocket/REST client, static fixture source
+  sources/     # State providers: HA websocket client (ha.py), JSON fixtures,
+               # staleness marking
   mfd/         # MFD behavior: alert latching, house-wide acknowledgement and
                # attention order (pure, caller supplies the clock); page
                # selection per display
-  server/      # Web server: serves live pages to tablet/mirror, pushes updates,
-               # exposes PNG endpoints for e-ink devices
+  server/      # Live runtime (alert loop, persisted board, page selection) and
+               # the aiohttp display server (HTML shell + WebSocket frames,
+               # static/client.js). Later: PNG endpoints for e-ink devices.
+  cli.py       # `mfdhome check | dump-states | serve` (see docs/running.md)
   config/      # Loading + validating page definition files (YAML, see
                # docs/page-schema.md). pydantic stays inside this package.
 tests/
@@ -122,7 +125,10 @@ poetry run pytest --snapshot-update # update SVG snapshots (only when output cha
 poetry run ruff check .             # lint
 poetry run ruff format .            # format
 poetry run mypy src                 # type check
+poetry run mfdhome check examples/config   # validate a config directory
 ```
+
+Running the live server is described in `docs/running.md`.
 
 Before considering a task done: tests pass, ruff is clean, mypy is clean.
 
@@ -221,41 +227,20 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   WebSocket**, which also carries acknowledgements back; the client patches
   changed top-level `<g id>` groups rather than replacing the page.
 - **The real house config lives in a separate private repo**; the server is
-  pointed at it with `--config` / `MFD_CONFIG`. Only generic examples live here.
+  pointed at it with a path argument or `MFD_CONFIG`. Only generic examples
+  live here.
+- **Live runtime:** HA states arrive over HA's websocket API; bindings can
+  `scale` values and set a `unit`; entities unreported for longer than
+  `stale_after` count as unavailable. The alert board persists as JSON.
+  `displays.yaml` gives each display a theme, size, home page and selectable
+  pages. Browsers receive only rendered SVG; an optional `MFD_DISPLAY_TOKEN`
+  gates display URLs.
 
-## Next milestone: live tablet slice
+## Next milestone
 
-HA → live snapshot → alert loop (persisted) → live, interactive tablet page.
-
-1. **Binding transforms and staleness.** `scale` (and an optional post-scale
-   `unit`) on bindings, applied when values are read. `stale_after` in
-   `defs.yaml` (default + per-entity); the source layer marks stale entities
-   unavailable before render, using HA's `last_reported` (falling back to
-   `last_updated`, which doesn't change on unchanged reports).
-2. **HA client** (`sources/ha.py`): websocket auth, `get_states`, subscribe to
-   `state_changed`, keep the snapshot current; reconnect with backoff; all
-   entities unavailable while disconnected. Tests use a fake websocket server.
-3. **CLI:** `mfdhome check` (config validation, plus unknown-entity report
-   against HA or a states dump) and `mfdhome dump-states` (with a scrub option).
-4. **Runtime** (`mfd/`): alert loop (evaluate → step with the real clock →
-   re-render affected displays); board persisted as JSON and reloaded at
-   startup; `displays.yaml` (id, theme, size, home page, selectable pages; a
-   mirror lists just its one page). Displays show the selected page; there is
-   no rotation, dwell or preemption. Selecting a page over the WebSocket is
-   enough for this milestone; bezel-button UI comes later. With preemption
-   gone, an alert's `page` becomes optional for every severity (kept as the
-   alert's related page, e.g. for a future "jump to page" key), and
-   `preempting()` becomes the banner's choice of most urgent alert.
-5. **Server** (`server/`): `GET /display/<id>` serves an HTML shell with the SVG
-   and a small client script; a WebSocket pushes re-rendered SVG and the client
-   replaces changed groups by id; tapping the banner acknowledges the
-   alert it names, tapping a tile acknowledges that system's alerts
-   (recorded with the display id). LAN only, optional shared display token;
-   the HA token never leaves the server. `mfdhome serve --config DIR`.
-6. **Real-house check:** a scrubbed `dump-states` fixture from the real house;
-   docs and CLAUDE.md updates.
-
-Deferred: the mirror display (same pipeline, after the tablet) and e-ink.
+- **Real-house check (needs the owner):** run `mfdhome dump-states --scrub`
+  against the real Home Assistant, add the result as a fixture, and build the
+  real Electrical page against it (in the private config repo).
 
 ## Future work (not yet scheduled)
 
