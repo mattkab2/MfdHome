@@ -46,9 +46,13 @@ def read(ref: EntityRef, state: StateSnapshot) -> Value:
     entity = state.get(ref.entity_id)
     if entity is None or not entity.available:
         return MISSING
-    unit = entity.attributes.get("unit_of_measurement")
-    unit = unit if isinstance(unit, str) else None
     if ref.attribute is None:
-        return Value(entity.state, unit)
-    raw = entity.attributes.get(ref.attribute)
-    return MISSING if raw is None else Value(raw, None)
+        raw: object = entity.state
+        unit = entity.attributes.get("unit_of_measurement")
+    else:
+        raw, unit = entity.attributes.get(ref.attribute), None
+        if raw is None:
+            return MISSING
+    if ref.scale != 1.0 and (number := as_number(raw)) is not None:
+        raw = number * ref.scale
+    return Value(raw, ref.unit or (unit if isinstance(unit, str) else None))

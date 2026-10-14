@@ -24,6 +24,7 @@ from mfdhome.config.schema import (
     NodeModel,
     PageModel,
     ReadoutModel,
+    StaleModel,
     StatusModel,
     SymbolModel,
     TermModel,
@@ -59,6 +60,7 @@ from mfdhome.model.page import (
     TextElement,
     TileElement,
 )
+from mfdhome.model.state import StalePolicy
 from mfdhome.render.format import FORMATS, is_valid_format
 from mfdhome.symbols.geometry import element_box, find_port
 from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
@@ -72,6 +74,7 @@ class Defs:
     thresholds: Mapping[str, Thresholds] = field(default_factory=dict)
     conditions: Mapping[str, AnyOf] = field(default_factory=dict)
     line_styles: Mapping[str, LineStyle] = field(default_factory=dict)
+    stale_after: StalePolicy = field(default_factory=StalePolicy)
 
     def merge(self, other: Defs) -> tuple[Defs, list[str]]:
         """Combine two sets of defs; returns the result and any duplicated names."""
@@ -81,7 +84,12 @@ class Defs:
             for kind in kinds
             for name in getattr(self, kind).keys() & getattr(other, kind).keys()
         )
-        merged = Defs(*({**getattr(self, k), **getattr(other, k)} for k in kinds))
+        merged = Defs(
+            thresholds={**self.thresholds, **other.thresholds},
+            conditions={**self.conditions, **other.conditions},
+            line_styles={**self.line_styles, **other.line_styles},
+            stale_after=self.stale_after,
+        )
         return merged, dupes
 
 
@@ -230,7 +238,8 @@ def build_defs(
                 )
         variants = {t: LineLook(v.weight, v.casing) for t, v in style.themes.items()}
         styles[name] = LineStyle(name, LineLook(style.weight, style.casing), variants)
-    return Defs(thresholds, conditions, styles)
+    stale = model.stale_after or StaleModel()
+    return Defs(thresholds, conditions, styles, StalePolicy(stale.default, stale.entities))
 
 
 # --- elements ---------------------------------------------------------------------------------
@@ -291,7 +300,11 @@ class _ElementBuilder:
                 )
         for channel in sorted(required - model.bind.keys()):
             self.issues.add((*loc, "bind"), f"required channel {channel!r} is not bound")
-        return {k: EntityRef(v.entity, v.attribute) for k, v in model.bind.items() if k in allowed}
+        return {
+            k: EntityRef(v.entity, v.attribute, v.scale, v.unit)
+            for k, v in model.bind.items()
+            if k in allowed
+        }
 
     def bound_channel(self, channel: str, bound: Mapping[str, object], loc: Loc) -> bool:
         if channel not in bound:
@@ -540,6 +553,8 @@ def build_page(
     """
     defs = shared
     if model.defs is not None:
+        if model.defs.stale_after is not None:
+            issues.add(("defs", "stale_after"), "stale_after is house-wide: set it in defs.yaml")
         local = build_defs(model.defs, issues, base=shared)
         defs, dupes = shared.merge(local)
         for dupe in dupes:
@@ -700,6 +715,8 @@ def _element_bindings(
             out[name] = ref
             continue
         where = (*loc, "bind", name)
+        if ref.scale != 1.0 or ref.unit is not None:
+            issues.add(where, "'scale' and 'unit' apply to entity bindings, not element channels")
         if not isinstance(target, (SymbolElement, GroupElement)):
             issues.add(where, f"{target_id!r} has no channels to bind to")
         elif channel not in _channels_of(target):

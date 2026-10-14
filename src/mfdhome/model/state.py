@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any
 
 #: HA state strings that mean "no usable value".
@@ -12,10 +13,15 @@ UNAVAILABLE_STATES = frozenset({"unavailable", "unknown", "none", ""})
 
 @dataclass(frozen=True)
 class EntityState:
-    """The state of a single HA entity at snapshot time."""
+    """The state of a single HA entity at snapshot time.
+
+    ``reported`` is when HA last heard from the entity, even if its value did not
+    change; ``None`` when unknown (e.g. hand-written fixtures).
+    """
 
     state: str
     attributes: Mapping[str, Any] = field(default_factory=dict)
+    reported: datetime | None = None
 
     @property
     def available(self) -> bool:
@@ -31,7 +37,9 @@ def snapshot_from_ha_states(states: Iterable[Mapping[str, Any]]) -> StateSnapsho
     """Build a snapshot from the HA ``/api/states`` response shape.
 
     Each item needs ``entity_id`` and ``state``; ``attributes`` is optional.
-    Malformed items (missing ``entity_id``) are skipped.
+    The report time comes from ``last_reported`` (HA 2024.3+), falling back to
+    ``last_updated``, which HA does not bump when a value is re-reported
+    unchanged. Malformed items (missing ``entity_id``) are skipped.
     """
     snapshot: dict[str, EntityState] = {}
     for item in states:
@@ -42,5 +50,31 @@ def snapshot_from_ha_states(states: Iterable[Mapping[str, Any]]) -> StateSnapsho
         snapshot[entity_id] = EntityState(
             state=str(item.get("state", "unknown")),
             attributes=dict(attributes) if isinstance(attributes, Mapping) else {},
+            reported=_timestamp(item.get("last_reported") or item.get("last_updated")),
         )
     return snapshot
+
+
+def _timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+@dataclass(frozen=True)
+class StalePolicy:
+    """How long an entity may go unreported before its data counts as stale.
+
+    ``default`` applies to every entity (``None``: never stale); ``entities``
+    overrides it per entity id.
+    """
+
+    default: timedelta | None = None
+    entities: Mapping[str, timedelta] = field(default_factory=dict)
+
+    def limit(self, entity_id: str) -> timedelta | None:
+        """The staleness limit for ``entity_id``, or ``None`` for none."""
+        return self.entities.get(entity_id, self.default)

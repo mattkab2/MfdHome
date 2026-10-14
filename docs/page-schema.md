@@ -73,6 +73,18 @@ The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is
 drawn gray and dotted.
 
+A binding can correct an entity's numbers as they're read:
+
+```yaml
+bind:
+  power: {entity: sensor.grid_power, scale: -1}          # inverter reports export as positive
+  level: {entity: sensor.battery_kw, scale: 1000, unit: W}  # kW sensor shown in W
+```
+
+`scale` multiplies numeric values; non-numeric states pass through unchanged.
+`unit` replaces the entity's own unit after scaling. Status rules, flow arrows
+and readouts all see the corrected value.
+
 A channel can also bind to another element's channel by naming it
 `element.channel`, for example `power: array.power` (a group's derived sum).
 The part before the last dot must be a top-level symbol or group on the page.
@@ -356,6 +368,11 @@ availability.
 ## Defs
 
 ```yaml
+stale_after:                 # house-wide; only in defs.yaml, not page-local defs
+  default: 15m               # 90, "90s", "15m", "1h"
+  entities:
+    sensor.wind_speed: 1h
+
 thresholds:
   battery_soc: {warning_low: 10, caution_low: 25}
 
@@ -367,6 +384,10 @@ conditions:
       - {use: grid_lost}
       - {entity: sensor.grid_voltage, lt: 210}
 ```
+
+An entity that Home Assistant hasn't heard from for longer than its
+`stale_after` limit is treated as unavailable (dotted), so the page never shows
+an old value as if it were current. Entities without a limit never go stale.
 
 Named conditions use the same `any` and `when` forms as rules. They may `use`
 each other; cycles are errors.

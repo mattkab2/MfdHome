@@ -7,6 +7,7 @@ defs lookups, bound channels). Nothing outside ``config`` sees these classes.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
@@ -39,10 +40,22 @@ class Strict(BaseModel):
 
 
 class BindModel(Strict):
-    """``{entity, attribute}``; a bare string is shorthand for ``{entity: ...}``."""
+    """``{entity, attribute, scale, unit}``; a bare string is shorthand for ``{entity: ...}``.
+
+    ``scale`` multiplies numeric values (``-1`` flips a sign convention, ``1000``
+    turns kW into W); ``unit`` replaces the entity's unit after scaling.
+    """
 
     entity: EntityId
     attribute: str | None = None
+    scale: float = 1.0
+    unit: str | None = None
+
+    @model_validator(mode="after")
+    def _nonzero_scale(self) -> Self:
+        if self.scale == 0:
+            raise ValueError("'scale' must not be 0")
+        return self
 
 
 Bind = Annotated[BindModel, _shorthand("entity")]
@@ -335,9 +348,29 @@ class GroupModel(Strict):
     items: Annotated[list[dict[str, Any]], Field(min_length=1)]
 
 
-class DefsModel(Strict):
-    """Shared definitions: named thresholds, conditions and line styles."""
+def _duration(value: Any) -> Any:
+    """``90``, ``"90s"``, ``"15m"`` or ``"1h"`` -> seconds; other forms pass through."""
+    if isinstance(value, str) and value[:-1].replace(".", "", 1).isdigit():
+        factor = {"s": 1, "m": 60, "h": 3600}.get(value[-1])
+        if factor is not None:
+            return float(value[:-1]) * factor
+    return value
 
+
+Duration = Annotated[timedelta, BeforeValidator(_duration)]
+
+
+class StaleModel(Strict):
+    """How long entities may go unreported before their data counts as stale."""
+
+    default: Duration | None = None
+    entities: dict[EntityId, Duration] = {}
+
+
+class DefsModel(Strict):
+    """Shared definitions: thresholds, conditions, line styles and staleness limits."""
+
+    stale_after: StaleModel | None = None
     thresholds: dict[Ident, ThresholdsModel] = {}
     conditions: dict[Ident, ExprModel] = {}
     line_styles: dict[Ident, LineStyleModel] = {}
