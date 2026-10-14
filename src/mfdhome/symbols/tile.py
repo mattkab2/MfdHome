@@ -14,6 +14,8 @@ TILE_WIDTH = 160.0
 TILE_HEIGHT = 64.0
 RING_OUTSET = 6.0
 BANNER_HEIGHT = 40.0
+#: Width of the "as of" stamp at the right end of the banner's space.
+STAMP_WIDTH = 130.0
 CLEARED_MARK = "CLR"
 ATTENTION_CLASS = "attn"
 
@@ -168,3 +170,18 @@ def banner(box: Box, message: str, others: int, status: Status, theme: Theme) ->
             )
         )
     return attention_group(parts, True, theme)
+
+
+def stamp(box: Box, text: str, theme: Theme) -> str:
+    """Render a short note (such as "AS OF 14:05") centered in ``box``, on the background."""
+    return svg.element(
+        "text",
+        {
+            "x": box.cx,
+            "y": box.cy,
+            "text-anchor": "middle",
+            "dominant-baseline": "middle",
+            **font(theme, theme.font_size, theme.text_color),
+        },
+        [svg.text(text)],
+    )

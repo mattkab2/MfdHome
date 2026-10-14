@@ -45,7 +45,15 @@ from mfdhome.symbols.registry import (
     get_symbol,
 )
 from mfdhome.symbols.style import dotted, font
-from mfdhome.symbols.tile import ATTENTION_CLASS, TileLook, banner, banner_strip, tile
+from mfdhome.symbols.tile import (
+    ATTENTION_CLASS,
+    STAMP_WIDTH,
+    TileLook,
+    banner,
+    banner_strip,
+    stamp,
+    tile,
+)
 from mfdhome.themes.target import Target
 from mfdhome.themes.theme import AttentionKind, Theme
 
@@ -338,13 +346,16 @@ def render_page(
     target: Target,
     alerts: AlertView = NO_ALERTS,
     controls: Controls | None = None,
+    as_of: str | None = None,
 ) -> str:
     """Render ``page`` with ``state`` for ``target`` as a standalone SVG document.
 
     ``alerts`` supplies alert definitions and the shared board for tiles,
     alert-driven element status and (if ``alerts.show_banner``) the annunciator
     banner along the bottom of the canvas. ``controls`` adds the soft keys to
-    that strip, with the banner between them.
+    that strip, with the banner between them. ``as_of`` (a short text such as
+    "AS OF 14:05", supplied by the caller) is drawn at the right end of the
+    banner's space, which the banner then leaves free.
 
     Output is deterministic: no clock, randomness or I/O, and fixed element and
     attribute order.
@@ -365,10 +376,14 @@ def render_page(
         *(group for _, group in layers),
     ]
     strip = banner_strip(page.width, page.height)
+    box = strip if controls is None else banner_box(strip)
+    if as_of is not None:
+        note = Box(box.right - STAMP_WIDTH, box.top, box.right, box.bottom)
+        box = Box(box.left, box.top, note.left, box.bottom)
+        children.append(svg.element("g", {"id": "as-of"}, [stamp(note, as_of, theme)]))
     shown = alerts.banner()
     if shown is not None:
         status = SEVERITY_STATUS[shown.alert.severity]
-        box = strip if controls is None else banner_box(strip)
         children.append(
             svg.element(
                 "g",

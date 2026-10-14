@@ -6,7 +6,9 @@ import pytest
 from PIL import Image
 from syrupy.assertion import SnapshotAssertion
 
+from mfdhome.model import Status
 from mfdhome.render import render_page
+from mfdhome.render.controls import Controls
 from mfdhome.render.panels import GRAY16, MONO, PANELS, SPECTRA6, PanelProfile
 from mfdhome.render.raster import image_colors, rasterize
 from mfdhome.themes import EINK_COLOR, EINK_MONO, Target, Theme
@@ -17,10 +19,13 @@ PANEL_800 = Target("eink", 800, 480)
 
 
 def _electrical(target: Target = PANEL_800, theme: Theme = EINK_MONO) -> str:
-    """Islanded, with the alerts that brings: hatching, a dashed core and the banner."""
+    """An e-ink frame of the islanded house: hatching, a dashed core, the banner
+    between the key labels, and the "as of" stamp."""
     board = board_from("electrical_islanded")
     state = fixture_state("electrical_islanded")
-    return render_page(config_page("electrical"), state, theme, target, view(board))
+    keys = Controls(alerts=Status.WARNING)
+    page = config_page("electrical")
+    return render_page(page, state, theme, target, view(board), keys, as_of="AS OF 14:05")
 
 
 def _image(png: bytes) -> Image.Image:
