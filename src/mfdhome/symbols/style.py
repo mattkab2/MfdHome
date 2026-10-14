@@ -7,13 +7,15 @@ from mfdhome.symbols.svg import AttrValue
 from mfdhome.themes.theme import Theme
 
 
+def dotted(theme: Theme) -> dict[str, AttrValue]:
+    """The no-data pattern: round dots."""
+    return {"stroke-dasharray": theme.unavailable_dots, "stroke-linecap": "round"}
+
+
 def stroke(status: Status, theme: Theme, width: float) -> dict[str, AttrValue]:
-    """Stroke attributes for ``status``: palette color and status weight, dashed if unavailable."""
-    return {
-        "stroke": theme.color(status),
-        "stroke-width": width * theme.weight(status),
-        "stroke-dasharray": theme.unavailable_dash if status is Status.UNAVAILABLE else None,
-    }
+    """Stroke attributes for ``status``: palette color and status weight, dotted if unavailable."""
+    pattern = dotted(theme) if status is Status.UNAVAILABLE else {}
+    return {"stroke": theme.color(status), "stroke-width": width * theme.weight(status), **pattern}
 
 
 def font(theme: Theme, size: float, fill: str) -> dict[str, AttrValue]:

@@ -18,14 +18,14 @@ def test_element_escapes_and_drops_none() -> None:
     assert element("text", {"x": 1, "id": None}, [text("a<b")]) == '<text x="1">a&lt;b</text>'
 
 
-def test_unavailable_symbols_are_gray_and_dashed() -> None:
+def test_unavailable_symbols_are_gray_and_dotted() -> None:
     fragments = [
         line(((0, 0), (100, 0)), Status.UNAVAILABLE, None, LCD),
         battery(0, 0, None, Status.UNAVAILABLE, LCD),
         breaker(0, 0, None, Status.UNAVAILABLE, Orientation.HORIZONTAL, LCD),
     ]
     for fragment in fragments:
-        assert LCD.unavailable_dash in fragment
+        assert f'stroke-dasharray="{LCD.unavailable_dots}" stroke-linecap="round"' in fragment
         assert set(re.findall(r"#[0-9a-f]{6}", fragment)) == {GRAY}
 
 

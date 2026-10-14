@@ -130,9 +130,9 @@ class TestTiles:
         svg = tile_svg(LCD)
         assert f'stroke="{LCD.dim}"' in svg and "attn" not in svg
 
-    def test_unavailable_tile_is_dashed(self) -> None:
+    def test_unavailable_tile_is_dotted(self) -> None:
         svg = render_element(TileElement("t", (0, 0), "GRID"), {}, LCD, view())
-        assert LCD.unavailable_dash in svg
+        assert f'stroke-dasharray="{LCD.unavailable_dots}" stroke-linecap="round"' in svg
 
     def test_lcd_unacked_warning_is_filled_and_flashes(self) -> None:
         svg = tile_svg(LCD, warn=Phase.ACTIVE_UNACKED)

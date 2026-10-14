@@ -68,12 +68,13 @@ examples/
 4. **Themes, not conditionals.** Target differences (colors, stroke widths,
    animation allowed, palette size) belong in theme/target objects, not
    `if target == "eink"` branches scattered through render code.
-5. **Missing or unavailable entities must render gracefully** (dashed / gray
+5. **Missing or unavailable entities must render gracefully** (dotted / gray
    "no data" state), never crash. New sensors get added over time; stale configs
    are normal.
 6. **Shared visual language across all targets,** from the Gruvbox palette:
    aqua `#8ec07c` = normal, yellow `#fabd2f` = caution, red `#fb4934` = warning,
-   blue `#83a598` = flow/active/advisory, gray `#928374` + dashed = unavailable.
+   blue `#83a598` = flow/active/advisory, gray `#928374` + dotted = unavailable
+   (on every element: lines, symbol outlines, tiles).
    Keep symbol shapes identical across themes; palette, stroke weights, tile
    fill and attention style vary by theme. Never rely on color alone where a
    palette can't show it: monochrome themes carry severity in weight and fill.
@@ -183,9 +184,6 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   `sensor.battery_power` values in the state fixtures so each scenario keeps
   its meaning (e.g. islanded = discharging). Snapshot changes should be limited
   to the battery readout sign.
-- **Unavailable becomes dotted everywhere** (lines, symbol outlines, tiles),
-  replacing dashed. Update core rules 5 and 6 when this lands; every
-  unavailable snapshot changes.
 - **Line severity is shown by pattern, plus color where the palette has it:**
   solid = normal, dashed = caution, angle-striped (hatched) = warning,
   dotted = unavailable. Lines only; symbols keep weight/fill and tiles keep

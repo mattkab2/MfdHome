@@ -13,7 +13,7 @@ class Status(StrEnum):
     CAUTION = "caution"  # amber
     WARNING = "warning"  # red
     ACTIVE = "active"  # cyan: flow / active
-    UNAVAILABLE = "unavailable"  # gray, dashed
+    UNAVAILABLE = "unavailable"  # gray, dotted
 
 
 @dataclass(frozen=True)

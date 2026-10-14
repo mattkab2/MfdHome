@@ -60,6 +60,8 @@ class Theme:
     ``status_weight`` multiplies stroke widths per status, giving a non-color
     severity cue on palettes that cannot show color (missing entries are 1).
     ``dim`` draws things that are present but inactive (unlit tiles).
+    ``unavailable_dots`` is the dash array for the no-data pattern; drawn with
+    round caps, a zero-length dash ("0 6") gives round dots.
     """
 
     name: str
@@ -69,7 +71,7 @@ class Theme:
     dim: str
     line_width: float
     symbol_stroke_width: float
-    unavailable_dash: str
+    unavailable_dots: str
     font_family: str
     font_size: float
     label_font_size: float

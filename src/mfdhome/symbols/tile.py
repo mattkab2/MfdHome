@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from mfdhome.layout.anchors import Box
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import font
+from mfdhome.symbols.style import dotted, font
 from mfdhome.themes.theme import AttentionKind, Theme, TileFill
 
 TILE_WIDTH = 160.0
@@ -72,18 +72,13 @@ def _panel(
     }
     background = theme.background if opaque else "none"
     if look.status is None:
-        if look.unavailable:
-            color = theme.color(Status.UNAVAILABLE)
-            dash = theme.unavailable_dash
-            outline = color
-        else:
-            color, dash, outline = theme.color(Status.UNAVAILABLE), None, theme.dim
+        color = theme.color(Status.UNAVAILABLE)
         attrs = {
             **rect,
             "fill": background,
-            "stroke": outline,
+            "stroke": color if look.unavailable else theme.dim,
             "stroke-width": theme.symbol_stroke_width,
-            "stroke-dasharray": dash,
+            **(dotted(theme) if look.unavailable else {}),
         }
         return [svg.element("rect", attrs)], color
 

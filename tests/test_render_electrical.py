@@ -40,7 +40,7 @@ def test_empty_state_renders_everything_unavailable() -> None:
     # The unbound bus tie has no data source, so it is the only "normal" element.
     allowed.add(LCD.color(Status.NORMAL))
     assert colors <= allowed
-    assert svg.count('stroke-dasharray="8 6"') >= 5
+    assert svg.count('stroke-dasharray="0 6" stroke-linecap="round"') >= 5
 
 
 def test_target_sets_pixel_size_and_canvas_sets_viewbox() -> None:

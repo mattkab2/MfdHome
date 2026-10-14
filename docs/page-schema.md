@@ -63,7 +63,7 @@ Any registered symbol type, centered at `at`:
 
 The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is
-drawn gray and dashed.
+drawn gray and dotted.
 
 ### Lines
 
@@ -118,7 +118,7 @@ What a tile shows:
 | Lit | The worst active or latched severity in the system. Advisories light in the active color. |
 | CLR | Every lit alert at that severity has cleared but is unacknowledged. |
 | Attention cue | Shown while a caution or warning is unacknowledged: flash, pulse or ring, depending on the theme. |
-| Unavailable | Dashed: every entity the system's alerts read has no data. |
+| Unavailable | Dotted: every entity the system's alerts read has no data. |
 
 ## Names and readouts
 
@@ -207,7 +207,7 @@ level, and warning limits win over caution limits.
    alerts don't count: an element shows the equipment's current state, while the
    latch shows on the annunciator.
 2. If nothing matches and the primary channel has no data, the element is
-   *unavailable* (gray, dashed).
+   *unavailable* (gray, dotted).
 3. Otherwise it is *normal*.
 
 An explicit rule about missing data therefore beats the gray display.
