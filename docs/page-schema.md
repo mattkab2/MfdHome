@@ -437,7 +437,7 @@ alerts:
   - id: grid_lost
     severity: warning          # advisory | caution | warning
     system: GRID
-    page: electrical           # shown when the alert preempts a display
+    page: electrical           # optional: the page the alert relates to
     message: GRID POWER LOST
     when: [{use: grid_lost}]   # same any/when forms as status rules
   - id: exporting
@@ -450,12 +450,12 @@ alerts:
 - An alert is raised while its condition holds. Conditions can only refer to
   `entity:` values, because alerts have no channels. They can `use` named
   conditions from `defs.yaml`, but only ones that also refer to entities.
-- Cautions and warnings need a `page`; advisories don't.
+- `page` is optional. Alerts never switch a display's page.
 - Cautions and warnings **latch**: they stay raised until someone acknowledges
-  them, even after the condition clears. Advisories clear on their own and never
-  preempt a display.
+  them, even after the condition clears. Advisories clear on their own.
 - One acknowledgement covers the whole house.
-- `system` must be declared under `systems`, and `page` must be one of the
-  loaded pages.
-- When an alert preempts a display, its page shows an annunciator banner along
-  the bottom 40 units of the canvas, so keep that strip clear on every page.
+- `system` must be declared under `systems`, and `page`, if given, must be one
+  of the loaded pages.
+- While any caution or warning is unacknowledged, an annunciator banner naming
+  the most urgent one shows along the bottom 40 units of whatever page is
+  displayed, so keep that strip clear on every page.

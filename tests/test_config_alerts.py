@@ -67,8 +67,8 @@ def test_load_alerts(tmp_path: Path) -> None:
 
 def test_severity_properties() -> None:
     assert [s.rank for s in Severity] == [0, 1, 2]
-    assert not Severity.ADVISORY.preempts and not Severity.ADVISORY.latches
-    assert Severity.CAUTION.preempts and Severity.WARNING.latches
+    assert not Severity.ADVISORY.needs_ack
+    assert Severity.CAUTION.needs_ack and Severity.WARNING.needs_ack
 
 
 def test_alert_errors(tmp_path: Path) -> None:
@@ -91,7 +91,6 @@ def test_alert_errors(tmp_path: Path) -> None:
     assert "5: alerts[1].id: duplicate alert id 'a'" in msgs
     assert "5: alerts[1].system: unknown system 'HVAC'; expected: GRID" in msgs
     assert "6: alerts[1].when[0].use: unknown condition 'missing'" in msgs
-    assert "7: alerts[2]: a caution alert needs a 'page' to show when it preempts" in msgs
     assert any(m.startswith("9: alerts[3].severity: Input should be") for m in msgs)
 
 

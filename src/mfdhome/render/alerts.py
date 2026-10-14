@@ -38,7 +38,7 @@ class SystemView:
 
 @dataclass(frozen=True)
 class Banner:
-    """The annunciator banner: the preempting alert, plus how many others need attention."""
+    """The annunciator banner: the most urgent alert, plus how many others need attention."""
 
     alert: AlertDef
     others: int = 0
@@ -71,7 +71,7 @@ class AlertView:
             cleared = all(self.phase(a.id) is Phase.CLEARED_UNACKED for a in top)
         else:
             worst, cleared = None, False
-        unacked = any(self.phase(a.id).unacknowledged and a.severity.latches for a in members)
+        unacked = any(self.phase(a.id).unacknowledged and a.severity.needs_ack for a in members)
         refs = {ref for a in members for ref in _entity_refs(a)}
         unavailable = bool(refs) and all(not read(r, state).available for r in refs)
         return SystemView(worst, cleared, unacked, unavailable)
@@ -82,7 +82,7 @@ class AlertView:
             a
             for a in self.alerts
             if (a.system in systems or a.id in alerts)
-            and a.severity.preempts
+            and a.severity.needs_ack
             and self.phase(a.id) in (Phase.ACTIVE_UNACKED, Phase.ACTIVE_ACKED)
         ]
         if not relevant:
@@ -90,10 +90,10 @@ class AlertView:
         return SEVERITY_STATUS[max((a.severity for a in relevant), key=lambda s: s.rank)]
 
     def banner(self) -> Banner | None:
-        """The banner to show, if enabled and something preempts."""
+        """The banner to show, if enabled and a caution/warning is unacknowledged."""
         if not self.show_banner:
             return None
-        pending = [a for a in attention_order(self.board, self.alerts) if a.severity.preempts]
+        pending = [a for a in attention_order(self.board, self.alerts) if a.severity.needs_ack]
         return Banner(pending[0], len(pending) - 1) if pending else None
 
 

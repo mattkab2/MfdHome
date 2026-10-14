@@ -391,12 +391,6 @@ class AlertModel(ExprModel):
     message: str
     page: Ident | None = None
 
-    @model_validator(mode="after")
-    def _page_for_preempting(self) -> Self:
-        if self.severity != "advisory" and self.page is None:
-            raise ValueError(f"a {self.severity} alert needs a 'page' to show when it preempts")
-        return self
-
 
 class AlertsModel(Strict):
     """The alerts file. Alerts are validated one by one so all problems surface."""

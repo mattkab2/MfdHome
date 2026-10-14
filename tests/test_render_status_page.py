@@ -1,11 +1,11 @@
-"""Status/annunciator page and preemption banner, end to end through mfd.alerts."""
+"""Status/annunciator page and the alert banner, end to end through mfd.alerts."""
 
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from syrupy.assertion import SnapshotAssertion
 
-from mfdhome.mfd import EMPTY_BOARD, Board, Phase, acknowledge, evaluate_alerts, preempting, step
+from mfdhome.mfd import EMPTY_BOARD, Board, Phase, acknowledge, evaluate_alerts, most_urgent, step
 from mfdhome.render import render_page
 from mfdhome.render.alerts import AlertView
 from mfdhome.themes import EINK_MONO, LCD, MIRROR, Target, Theme
@@ -46,7 +46,7 @@ def test_mixed_board_covers_every_phase() -> None:
         "front_door_open": Phase.ACTIVE_UNACKED,
     }
     # The cleared warning outranks the active caution.
-    assert preempting(MIXED, ALERTS) == CONFIG.alerts.by_id()["leak_detected"]
+    assert most_urgent(MIXED, ALERTS) == CONFIG.alerts.by_id()["leak_detected"]
 
 
 SCENARIOS = {
@@ -66,9 +66,9 @@ def test_status_page_snapshot(scenario: str, theme: Theme, svg_snapshot: Snapsho
 
 
 @pytest.mark.parametrize("theme", THEMES, ids=lambda t: t.name)
-def test_electrical_preempted_snapshot(theme: Theme, svg_snapshot: SnapshotAssertion) -> None:
+def test_electrical_banner_snapshot(theme: Theme, svg_snapshot: SnapshotAssertion) -> None:
     board = board_from("electrical_islanded")
-    assert preempting(board, ALERTS) == CONFIG.alerts.by_id()["grid_lost"]
+    assert most_urgent(board, ALERTS) == CONFIG.alerts.by_id()["grid_lost"]
     svg = render_page(
         config_page("electrical"), fixture_state("electrical_islanded"), theme, TABLET, view(board)
     )

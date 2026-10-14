@@ -24,13 +24,9 @@ class Severity(StrEnum):
         return list(Severity).index(self)
 
     @property
-    def preempts(self) -> bool:
-        """Cautions and warnings preempt the selected page; advisories never do."""
-        return self is not Severity.ADVISORY
-
-    @property
-    def latches(self) -> bool:
-        """Cautions and warnings stay until acknowledged; advisories clear on their own."""
+    def needs_ack(self) -> bool:
+        """Cautions and warnings latch until acknowledged and ask for attention;
+        advisories clear on their own and never do."""
         return self is not Severity.ADVISORY
 
 
@@ -46,8 +42,8 @@ class System:
 class AlertDef:
     """An alert: raised while ``condition`` holds.
 
-    ``page`` is shown when the alert preempts a display (required for cautions
-    and warnings, optional for advisories).
+    ``page`` optionally names the page the alert relates to (for a future
+    "jump to page" control; alerts never switch pages on their own).
     """
 
     id: str

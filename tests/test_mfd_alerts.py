@@ -1,4 +1,4 @@
-"""Tests for alert latching, acknowledgement and preemption ordering."""
+"""Tests for alert latching, acknowledgement and attention ordering."""
 
 from datetime import UTC, datetime, timedelta
 
@@ -13,7 +13,7 @@ from mfdhome.mfd import (
     acknowledge,
     attention_order,
     evaluate_alerts,
-    preempting,
+    most_urgent,
     step,
 )
 from mfdhome.model import AlertDef, EntityRef, Severity, snapshot_from_ha_states
@@ -102,7 +102,7 @@ def test_removed_definitions_are_dropped() -> None:
     assert step(board, [WARN], set(), at(1)) == {}
 
 
-def test_preemption_order() -> None:
+def test_attention_order() -> None:
     caution_new = alert("caution_new", Severity.CAUTION)
     warn_cleared = alert("warn_cleared")
     warn_old = alert("warn_old")
@@ -120,16 +120,16 @@ def test_preemption_order() -> None:
     }
     order = [a.id for a in attention_order(board, defs)]
     assert order == ["warn_new", "warn_old", "warn_cleared", "caution_new", "adv"]
-    assert preempting(board, defs) == warn_new
+    assert most_urgent(board, defs) == warn_new
 
 
-def test_advisories_and_acknowledged_never_preempt() -> None:
+def test_advisories_and_acknowledged_are_never_most_urgent() -> None:
     board = {
         "adv": AlertState(Phase.ACTIVE_UNACKED, T0),
         "warn": AlertState(Phase.ACTIVE_ACKED, T0),
     }
-    assert preempting(board, [ADVISORY, WARN]) is None
-    assert preempting(EMPTY_BOARD, [WARN]) is None
+    assert most_urgent(board, [ADVISORY, WARN]) is None
+    assert most_urgent(EMPTY_BOARD, [WARN]) is None
 
 
 def test_evaluate_alerts() -> None:

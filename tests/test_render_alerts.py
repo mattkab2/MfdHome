@@ -99,7 +99,7 @@ class TestBanner:
     def test_off_unless_requested(self) -> None:
         assert view(warn=Phase.ACTIVE_UNACKED).banner() is None
 
-    def test_picks_preempting_and_counts_others(self) -> None:
+    def test_picks_most_urgent_and_counts_others(self) -> None:
         v = AlertView(
             ALERTS,
             SYSTEMS,

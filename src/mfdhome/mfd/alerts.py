@@ -1,4 +1,4 @@
-"""Alert latching, house-wide acknowledgement and preemption ordering.
+"""Alert latching, house-wide acknowledgement and attention ordering.
 
 Everything here is pure: the caller supplies the clock (``now``) and keeps the
 returned board. One board is shared by every display, so one acknowledgement
@@ -81,7 +81,7 @@ def _step_one(alert: AlertDef, current: AlertState, raised: bool, now: datetime)
         case Phase.CLEARED_UNACKED, True:
             return AlertState(Phase.ACTIVE_UNACKED, now)
         case Phase.ACTIVE_UNACKED, False:
-            if alert.severity.latches:
+            if alert.severity.needs_ack:
                 return replace(current, phase=Phase.CLEARED_UNACKED)
             return INACTIVE
         case Phase.ACTIVE_ACKED, False:
@@ -135,13 +135,13 @@ def attention_order(board: Board, alerts: Iterable[AlertDef]) -> list[AlertDef]:
     return sorted(pending, key=lambda a: _priority(a, board[a.id]))
 
 
-def preempting(board: Board, alerts: Iterable[AlertDef]) -> AlertDef | None:
-    """The alert that should take over every display, if any.
+def most_urgent(board: Board, alerts: Iterable[AlertDef]) -> AlertDef | None:
+    """The unacknowledged caution/warning the banner should name, if any.
 
-    Only unacknowledged cautions and warnings preempt. Order: warning before
-    caution; active before cleared-but-unacknowledged; most recently raised first.
+    Order: warning before caution; active before cleared-but-unacknowledged;
+    most recently raised first. Advisories never qualify.
     """
     for alert in attention_order(board, alerts):
-        if alert.severity.preempts:
+        if alert.severity.needs_ack:
             return alert
     return None
