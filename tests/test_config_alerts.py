@@ -139,7 +139,7 @@ def loaded_alerts(tmp_path: Path) -> tuple[Defs, Alerts]:
 
 def test_tiles_grid_and_alert_status(tmp_path: Path) -> None:
     from mfdhome.config import load_page
-    from mfdhome.model import LineElement, StatusSpec, TileElement
+    from mfdhome.model import Frame, GroupElement, LineElement, StatusSpec, TileElement
 
     defs, alerts = loaded_alerts(tmp_path)
     path = page_with(
@@ -154,9 +154,13 @@ def test_tiles_grid_and_alert_status(tmp_path: Path) -> None:
         """,
     )
     page = load_page(path, defs, alerts)
-    grid_a, grid_b, solo, feed = page.elements
-    assert grid_a == TileElement("ann.GRID", (100, 62), "GRID")
-    assert grid_b == TileElement("ann.BATT", (100, 136), "BATT")
+    grid, solo, feed = page.elements
+    assert isinstance(grid, GroupElement)  # tile_grid is a frameless, unpadded group
+    assert grid.frame is Frame.NONE and grid.size == (160, 138)
+    assert grid.items == (
+        TileElement("ann.GRID", (100, 62), "GRID"),
+        TileElement("ann.BATT", (100, 136), "BATT"),
+    )
     assert solo == TileElement("solo", (500, 300), "BATT", "BATTERY SYS")
     assert isinstance(feed, LineElement)
     assert feed.status == StatusSpec((), ("GRID",), ("battery_low",))

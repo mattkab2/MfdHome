@@ -8,26 +8,47 @@ from types import MappingProxyType
 
 from mfdhome.conditions.model import AnyOf, ChannelRef, Condition, Op, Operand, Rule, ValueRef
 from mfdhome.conditions.values import MISSING, Value, as_number, read
-from mfdhome.model.binding import EntityRef, Status
+from mfdhome.model.binding import Binding, ElementRef, Status
 from mfdhome.model.state import StateSnapshot
 
 #: Rule levels in increasing precedence.
 SEVERITY_ORDER = (Status.NORMAL, Status.CAUTION, Status.WARNING)
 
 
+def _empty[V]() -> Mapping[str, V]:
+    return MappingProxyType({})
+
+
 @dataclass(frozen=True)
 class EvalContext:
-    """What a condition can see: the snapshot, plus the evaluating element's channels."""
+    """What a condition can see.
+
+    ``channels`` are the evaluating element's bindings; ``derived`` are its
+    computed channels (a group's sums and counts); ``elements`` holds other
+    elements' channel values, for bindings that refer to another element.
+    """
 
     state: StateSnapshot
-    channels: Mapping[str, EntityRef] = field(default_factory=lambda: MappingProxyType({}))
+    channels: Mapping[str, Binding] = field(default_factory=_empty)
+    derived: Mapping[str, Value] = field(default_factory=_empty)
+    elements: Mapping[str, Mapping[str, Value]] = field(default_factory=_empty)
 
     def value(self, ref: ValueRef) -> Value:
         """Resolve ``ref``; an unbound channel is unavailable."""
         if isinstance(ref, ChannelRef):
+            if ref.channel in self.derived:
+                return self.derived[ref.channel]
             bound = self.channels.get(ref.channel)
-            return MISSING if bound is None else read(bound, self.state)
+            if bound is None:
+                return MISSING
+            if isinstance(bound, ElementRef):
+                return self.elements.get(bound.element_id, {}).get(bound.channel, MISSING)
+            return read(bound, self.state)
         return read(ref, self.state)
+
+    def has(self, channel: str) -> bool:
+        """Whether ``channel`` is bound or derived on the evaluating element."""
+        return channel in self.channels or channel in self.derived
 
 
 def _same(value: object, operand: object) -> bool:

@@ -17,7 +17,9 @@ from mfdhome.config.schema import (
     AlertModel,
     AlertsModel,
     DefsModel,
+    DerivedModel,
     ExprModel,
+    GroupModel,
     LineModel,
     NameModel,
     NodeModel,
@@ -35,10 +37,15 @@ from mfdhome.layout.anchors import Anchor, anchor_names, parse_anchor
 from mfdhome.layout.grid import grid_centers
 from mfdhome.layout.path import Point
 from mfdhome.model.alert import AlertDef, Severity, System
-from mfdhome.model.binding import EntityRef, Status
+from mfdhome.model.binding import ElementRef, EntityRef, Status
 from mfdhome.model.page import (
+    Aggregate,
+    DerivedChannel,
     Element,
     FlowSpec,
+    Frame,
+    GridLayout,
+    GroupElement,
     LineElement,
     LineLook,
     LineStyle,
@@ -53,9 +60,8 @@ from mfdhome.model.page import (
     TileElement,
 )
 from mfdhome.render.format import FORMATS, is_valid_format
-from mfdhome.symbols.geometry import port_point
+from mfdhome.symbols.geometry import element_box, port_point
 from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
-from mfdhome.symbols.tile import TILE_HEIGHT, TILE_WIDTH
 from mfdhome.themes.builtin import THEMES
 
 
@@ -104,10 +110,10 @@ def _channels(expr: AnyOf) -> Iterator[str]:
 # --- conditions -------------------------------------------------------------------------------
 
 
-type Bound = Mapping[str, EntityRef] | None
+type Bound = Mapping[str, object] | None
 
 #: ``bound`` value for contexts that have no channels at all (alerts).
-NO_CHANNELS: Mapping[str, EntityRef] = MappingProxyType({})
+NO_CHANNELS: Mapping[str, object] = MappingProxyType({})
 
 
 class _Exprs:
@@ -297,18 +303,20 @@ class _ElementBuilder:
             self.issues.add((*loc, "bind"), f"required channel {channel!r} is not bound")
         return {k: EntityRef(v.entity, v.attribute) for k, v in model.bind.items() if k in allowed}
 
-    def bound_channel(self, channel: str, bound: Mapping[str, EntityRef], loc: Loc) -> bool:
+    def bound_channel(self, channel: str, bound: Mapping[str, object], loc: Loc) -> bool:
         if channel not in bound:
             self.issues.add(loc, f"channel {channel!r} is not bound on this element")
             return False
         return True
 
     def status(
-        self, model: StatusModel | None, primary: str, bound: Mapping[str, EntityRef], loc: Loc
+        self, model: StatusModel | None, primary: str, bound: Mapping[str, object], loc: Loc
     ) -> StatusSpec:
         if model is None:
             return StatusSpec()
         rules: list[Rule] = []
+        if not primary and model.from_ is None and (model.thresholds or model.map):
+            self.issues.add(loc, "groups have no primary channel; give 'from'")
         source = model.from_ or primary
         if model.thresholds is not None or model.map is not None:
             self.bound_channel(source, bound, (*loc, "from") if model.from_ else loc)
@@ -344,7 +352,7 @@ class _ElementBuilder:
         return Name(model.text, anchor, model.along, model.offset)
 
     def readouts(
-        self, models: list[ReadoutModel], bound: Mapping[str, EntityRef], loc: Loc
+        self, models: list[ReadoutModel], bound: Mapping[str, object], loc: Loc
     ) -> tuple[Readout, ...]:
         out = []
         for i, r in enumerate(models):
@@ -418,14 +426,76 @@ class _ElementBuilder:
         return style
 
     def tile_grid(self, model: TileGridModel, loc: Loc) -> list[Element]:
-        centers = grid_centers(
-            model.at, len(model.tiles), model.columns, (TILE_WIDTH, TILE_HEIGHT), model.gap
-        )
+        """Shorthand for a frameless, unpadded group of tiles."""
         tiles: list[Element] = []
-        for i, (system, center) in enumerate(zip(model.tiles, centers, strict=True)):
+        for i, system in enumerate(model.tiles):
             self.system(system, (*loc, "tiles", i))
-            tiles.append(TileElement(f"{model.id}.{system}", center, system))
-        return tiles
+            tiles.append(TileElement(system, (0.0, 0.0), system))
+        layout = GridLayout(model.columns, model.gap, padding=0.0)
+        return [_arrange(model.id, model.at, layout, tiles, frame=Frame.NONE)]
+
+    def group(self, model: GroupModel, loc: Loc) -> GroupElement | None:
+        items: list[Element] = []
+        seen: set[str] = set()
+        for i, raw in enumerate(model.items):
+            item_loc = (*loc, "items", i)
+            if "at" in raw:
+                self.issues.add((*item_loc, "at"), "items are positioned by the group's layout")
+                continue
+            merged = {**model.item_defaults, **raw, "at": [0, 0]}
+            kind = merged.get("type")
+            if kind not in (*REGISTRY, "tile", "group"):
+                self.issues.add(
+                    (*item_loc, "type"),
+                    f"groups can contain symbols, tiles and groups, not {kind!r}",
+                )
+                continue
+            if kind == "tile" and "id" not in merged and isinstance(merged.get("system"), str):
+                merged["id"] = merged["system"]
+            for item in self.element(merged, item_loc):
+                if item.id in seen:
+                    self.issues.add((*item_loc, "id"), f"duplicate item id {item.id!r}")
+                seen.add(item.id)
+                items.append(item)
+        if not items:
+            return None
+        derived = self.derived(model, items, (*loc, "channels"))
+        bound = dict.fromkeys(derived)
+        layout = GridLayout(
+            model.layout.grid.columns, model.layout.grid.gap, model.layout.grid.padding
+        )
+        group = _arrange(model.id, model.at, layout, items, frame=Frame(model.frame))
+        return replace(
+            group,
+            name=self.name(model.name, (*loc, "name")),
+            channels=MappingProxyType(derived),
+            status=self.status(model.status, "", bound, (*loc, "status")),
+            readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
+        )
+
+    def derived(
+        self, model: GroupModel, items: Sequence[Element], loc: Loc
+    ) -> dict[str, DerivedChannel]:
+        available = set().union(*(_channels_of(i) for i in items))
+        out = {}
+        for name, raw in model.channels.items():
+            d = validate(DerivedModel, raw, (*loc, name), self.issues)
+            if d is None:
+                continue
+            if d.count is not None:
+                out[name] = DerivedChannel(Aggregate.COUNT, d.count)
+                continue
+            aggregate, source = next(
+                (Aggregate(k), v) for k in ("sum", "min", "max") if (v := getattr(d, k))
+            )
+            if source not in available:
+                known = ", ".join(sorted(available)) or "none"
+                self.issues.add(
+                    (*loc, name, aggregate.value),
+                    f"no item has channel {source!r}; item channels: {known}",
+                )
+            out[name] = DerivedChannel(aggregate, source)
+        return out
 
     def element(self, raw: dict[str, Any], loc: Loc) -> list[Element]:
         """Build one YAML element; a ``tile_grid`` expands to several."""
@@ -451,6 +521,9 @@ class _ElementBuilder:
             case "node":
                 node = validate(NodeModel, raw, loc, self.issues)
                 built = None if node is None else NodeElement(node.id, node.at)
+            case "group":
+                g = validate(GroupModel, raw, loc, self.issues)
+                built = None if g is None else self.group(g, loc)
             case "tile_grid":
                 grid = validate(TileGridModel, raw, loc, self.issues)
                 return [] if grid is None else self.tile_grid(grid, loc)
@@ -475,15 +548,77 @@ def build_page(
             issues.add(("defs", *dupe.split(".")), f"{dupe} is already defined in shared defs")
     builder = _ElementBuilder(defs, alerts or Alerts(), issues)
     elements: list[Element] = []
-    seen: set[str] = set()
+    locs: dict[str, Loc] = {}
     for i, raw in enumerate(model.elements):
         for element in builder.element(raw, ("elements", i)):
-            if element.id in seen:
+            if element.id in locs:
                 issues.add(("elements", i, "id"), f"duplicate element id {element.id!r}")
-            seen.add(element.id)
+            locs[element.id] = ("elements", i)
             elements.append(element)
-    elements = _connect(elements, builder.pending, issues)
+    elements = _connect(elements, builder.pending, issues, locs)
     return Page(model.page, model.title, model.canvas.width, model.canvas.height, tuple(elements))
+
+
+def _channels_of(element: Element) -> set[str]:
+    """Channels an item exposes to its group: bound symbol channels or derived ones."""
+    match element:
+        case SymbolElement():
+            return set(element.bind)
+        case GroupElement():
+            return set(element.channels)
+        case _:
+            return set()
+
+
+def _rename(element: Element, prefix: str) -> Element:
+    """Scope an item's id (and, for groups, its items' ids) under ``prefix``."""
+    renamed = replace(element, id=f"{prefix}.{element.id}")
+    if isinstance(renamed, GroupElement):
+        renamed = replace(renamed, items=tuple(_rename(i, prefix) for i in renamed.items))
+    return renamed
+
+
+def _translate(element: Element, dx: float, dy: float) -> Element:
+    """Move an item (and a group's items) by (dx, dy)."""
+    if isinstance(element, GroupElement):
+        return replace(
+            element,
+            at=(element.at[0] + dx, element.at[1] + dy),
+            items=tuple(_translate(i, dx, dy) for i in element.items),
+        )
+    if isinstance(element, (SymbolElement, TileElement, NodeElement)):
+        return replace(element, at=(element.at[0] + dx, element.at[1] + dy))
+    return element
+
+
+def _arrange(
+    group_id: str,
+    origin: Point,
+    layout: GridLayout,
+    items: Sequence[Element],
+    frame: Frame,
+) -> GroupElement:
+    """Lay ``items`` out in a grid of cells sized to the largest item, centering each.
+
+    ``origin`` is the group's top-left; item ids are scoped under ``group_id``.
+    """
+    boxes = [element_box(i) for i in items]
+    cell_w = max((b.right - b.left for b in boxes if b), default=0.0)
+    cell_h = max((b.bottom - b.top for b in boxes if b), default=0.0)
+    pad, (gx, gy) = layout.padding, layout.gap
+    inner = (origin[0] + pad, origin[1] + pad)
+    centers = grid_centers(inner, len(items), layout.columns, (cell_w, cell_h), layout.gap)
+    placed = []
+    for item, box, (cx, cy) in zip(items, boxes, centers, strict=True):
+        moved = item if box is None else _translate(item, cx - box.cx, cy - box.cy)
+        placed.append(_rename(moved, group_id))
+    columns = min(layout.columns, len(items))
+    rows = -(-len(items) // layout.columns)
+    size = (
+        2 * pad + columns * cell_w + (columns - 1) * gx,
+        2 * pad + rows * cell_h + (rows - 1) * gy,
+    )
+    return GroupElement(group_id, origin, size, layout, tuple(placed), frame)
 
 
 #: Lines attached to a node at which a junction dot is drawn.
@@ -495,6 +630,14 @@ def _endpoint(
 ) -> Point | None:
     if not isinstance(end, str):
         return end
+    owner = _item_owner(end, by_id)
+    if owner is not None:
+        issues.add(
+            loc,
+            f"cannot connect to {end!r}: items of group {owner.id!r} connect only "
+            f"through the group; use '{owner.id}.<port>'",
+        )
+        return None
     if end in by_id:
         target, port = by_id[end], None
     else:
@@ -513,8 +656,70 @@ def _endpoint(
     return point
 
 
+def _item_ids(group: GroupElement) -> Iterator[str]:
+    for item in group.items:
+        yield item.id
+        if isinstance(item, GroupElement):
+            yield from _item_ids(item)
+
+
+def _item_owner(end: str, by_id: Mapping[str, Element]) -> GroupElement | None:
+    """The top-level group whose item ``end`` names (``item`` or ``item.port``), if any."""
+    for group in by_id.values():
+        if isinstance(group, GroupElement):
+            ids = set(_item_ids(group))
+            if end in ids or end.rpartition(".")[0] in ids:
+                return group
+    return None
+
+
+def _names_element(ref: object, by_id: Mapping[str, Element]) -> bool:
+    """Whether a binding refers to another element's channel (before or after conversion)."""
+    if isinstance(ref, ElementRef):
+        return True
+    return isinstance(ref, EntityRef) and ref.entity_id.rpartition(".")[0] in by_id
+
+
+def _element_bindings(
+    element: LineElement | SymbolElement,
+    by_id: Mapping[str, Element],
+    issues: Issues,
+    loc: Loc,
+) -> dict[str, EntityRef | ElementRef]:
+    """Turn bindings that name another element's channel (``array.power``) into ElementRefs.
+
+    A binding is an element channel when the part before its last dot is a
+    top-level element id. The target must be a symbol or group exposing that
+    channel, and the channel must not itself bind another element (no chains).
+    """
+    out: dict[str, EntityRef | ElementRef] = {}
+    for name, ref in element.bind.items():
+        target_id, _, channel = (
+            ref.entity_id.rpartition(".") if isinstance(ref, EntityRef) else ("", "", "")
+        )
+        target = by_id.get(target_id)
+        if target is None or not isinstance(ref, EntityRef) or ref.attribute is not None:
+            out[name] = ref
+            continue
+        where = (*loc, "bind", name)
+        if not isinstance(target, (SymbolElement, GroupElement)):
+            issues.add(where, f"{target_id!r} has no channels to bind to")
+        elif channel not in _channels_of(target):
+            known = ", ".join(sorted(_channels_of(target))) or "none"
+            issues.add(where, f"{target_id!r} has no channel {channel!r}; expected: {known}")
+        elif isinstance(target, SymbolElement) and _names_element(target.bind.get(channel), by_id):
+            issues.add(
+                where, f"{target_id}.{channel} is itself bound to an element; bind to the source"
+            )
+        out[name] = ElementRef(target_id, channel)
+    return out
+
+
 def _connect(
-    elements: Sequence[Element], pending: Sequence[_PendingLine], issues: Issues
+    elements: Sequence[Element],
+    pending: Sequence[_PendingLine],
+    issues: Issues,
+    locs: Mapping[str, Loc],
 ) -> list[Element]:
     """Resolve line endpoints to points and mark junction nodes."""
     by_id = {e.id: e for e in elements}
@@ -527,6 +732,9 @@ def _connect(
             points[line.id] = (start, *line.via, end)
     out: list[Element] = []
     for e in elements:
+        if isinstance(e, (LineElement, SymbolElement)):
+            bind = _element_bindings(e, by_id, issues, locs.get(e.id, ()))
+            e = replace(e, bind=MappingProxyType(bind))
         if isinstance(e, LineElement) and e.id in points:
             e = replace(e, points=points[e.id])
         elif isinstance(e, NodeElement) and degree[e.id] >= JUNCTION_DEGREE:

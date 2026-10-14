@@ -10,14 +10,39 @@ elements:
   # The bus: everything meets here (a junction dot is drawn automatically).
   - {id: bus, type: node, at: [500, 300]}
 
+  # Solar array: panels connect only through the group; the group's derived
+  # 'power' (sum of its panels) drives the feeder below it.
+  - id: array
+    type: group
+    at: [348, 30]
+    layout: {grid: {columns: 6, gap: 8}}
+    name: {text: SOLAR, anchor: left}
+    channels:
+      power: {sum: power}
+      offline: {count: unavailable}
+      online: {count: normal}
+    status:
+      # Caution when 2+ panels drop out while others still report; if nothing
+      # reports at all, the group shows as unavailable instead.
+      rules:
+        - level: caution
+          when: [{channel: offline, ge: 2}, {channel: online, ge: 1}]
+    item_defaults: {type: solar_panel}
+    items:
+      - {id: p1, bind: {power: sensor.pv_p1_power}}
+      - {id: p2, bind: {power: sensor.pv_p2_power}}
+      - {id: p3, bind: {power: sensor.pv_p3_power}}
+      - {id: p4, bind: {power: sensor.pv_p4_power}}
+      - {id: p5, bind: {power: sensor.pv_p5_power}}
+      - {id: p6, bind: {power: sensor.pv_p6_power}}
+
   - id: solar
     type: line
     style: feeder
-    from: [500, 80]
+    from: array.bottom
     to: bus
-    bind: {power: sensor.solar_power}
+    bind: {power: array.power}
     flow: true
-    name: {text: SOLAR, along: 0, anchor: top}
     readouts: [{value: power, format: power, abs: true}]
 
   - id: battery

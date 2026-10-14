@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from mfdhome.layout.anchors import Anchor, Box, box_point, parse_anchor
 from mfdhome.layout.path import Point
-from mfdhome.model.page import Element, NodeElement, SymbolElement, TileElement
+from mfdhome.model.page import Element, GroupElement, NodeElement, SymbolElement, TileElement
 from mfdhome.symbols.registry import get_symbol
 from mfdhome.symbols.tile import tile_box
 
@@ -18,6 +18,9 @@ def element_box(element: Element) -> Box | None:
             return tile_box(*element.at)
         case NodeElement():
             return Box.point(*element.at)
+        case GroupElement():
+            (x, y), (w, h) = element.at, element.size
+            return Box(x, y, x + w, y + h)
         case _:
             return None
 
@@ -70,5 +73,8 @@ def element_center(element: Element) -> Point:
     match element:
         case SymbolElement() | TileElement() | NodeElement():
             return element.at
+        case GroupElement():
+            (x, y), (w, h) = element.at, element.size
+            return (x + w / 2, y + h / 2)
         case _:
             raise ValueError(f"{element.id!r} has no center")

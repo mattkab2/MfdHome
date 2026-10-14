@@ -309,6 +309,63 @@ class TileGridModel(Strict):
         return [value, value] if isinstance(value, (int, float)) else value
 
 
+class GridModel(Strict):
+    """Grid layout: ``columns`` per row; ``padding`` between the frame and the cells."""
+
+    columns: Annotated[int, Field(ge=1)]
+    gap: Coord = (16.0, 16.0)
+    padding: Annotated[float, Field(ge=0)] = 12.0
+
+    @field_validator("gap", mode="before")
+    @classmethod
+    def _gap_shorthand(cls, value: Any) -> Any:
+        return [value, value] if isinstance(value, (int, float)) else value
+
+
+class LayoutModel(Strict):
+    """How a group positions its items (only ``grid`` for now)."""
+
+    grid: GridModel
+
+
+class DerivedModel(Strict):
+    """A derived channel: exactly one of ``sum``/``min``/``max`` (an item channel)
+    or ``count`` (an item status)."""
+
+    sum: str | None = None
+    min: str | None = None
+    max: str | None = None
+    count: Literal["normal", "caution", "warning", "unavailable"] | None = None
+
+    @model_validator(mode="after")
+    def _one(self) -> Self:
+        given = [k for k in ("sum", "min", "max", "count") if getattr(self, k) is not None]
+        if len(given) != 1:
+            raise ValueError("give exactly one of 'sum', 'min', 'max' or 'count'")
+        return self
+
+
+class GroupModel(Strict):
+    """A container; ``at`` is its top-left corner. Items are validated one by one."""
+
+    id: Ident
+    type: Literal["group"]
+    at: Coord
+    layout: LayoutModel
+    frame: Literal["outline", "none"] = "outline"
+    name: NameModel | None = None
+    status: StatusModel | None = None
+    readouts: list[ReadoutModel] = []
+    channels: dict[Ident, dict[str, Any]] = {}  # validated one by one as DerivedModel
+    item_defaults: dict[str, Any] = {}
+    items: Annotated[list[dict[str, Any]], Field(min_length=1)]
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _name_shorthand(cls, value: Any) -> Any:
+        return _shorthand("text")(value)
+
+
 class DefsModel(Strict):
     """Shared definitions: named thresholds, conditions and line styles."""
 
@@ -380,6 +437,10 @@ MODEL_NAMES = frozenset(
         "TextModel",
         "TileModel",
         "NodeModel",
+        "GroupModel",
+        "GridModel",
+        "LayoutModel",
+        "DerivedModel",
         "LineLookModel",
         "LineStyleModel",
         "TileGridModel",

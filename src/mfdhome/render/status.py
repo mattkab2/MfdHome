@@ -27,7 +27,7 @@ def element_status(
     candidates = [s for s in (highest_match(spec.rules, ctx), alert_status) if s is not None]
     if candidates:
         return max(candidates, key=SEVERITY_ORDER.index)
-    if primary in ctx.channels:
+    if ctx.has(primary):
         value = ctx.value(ChannelRef(primary))
         if (value.number if numeric else value.raw) is None:
             return Status.UNAVAILABLE

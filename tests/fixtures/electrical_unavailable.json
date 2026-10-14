@@ -1,5 +1,4 @@
 [
-  {"entity_id": "sensor.solar_power", "state": "unavailable", "attributes": {}},
   {"entity_id": "sensor.battery_power", "state": "unknown", "attributes": {}},
   {"entity_id": "sensor.grid_power", "state": "not-a-number", "attributes": {}},
   {"entity_id": "sensor.load_power", "state": "1200", "attributes": {"unit_of_measurement": "W"}},

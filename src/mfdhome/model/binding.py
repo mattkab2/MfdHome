@@ -22,3 +22,15 @@ class EntityRef:
 
     entity_id: str
     attribute: str | None = None
+
+
+@dataclass(frozen=True)
+class ElementRef:
+    """A reference to another element's channel (e.g. a group's derived ``power``)."""
+
+    element_id: str
+    channel: str
+
+
+#: What a channel can be bound to.
+type Binding = EntityRef | ElementRef

@@ -17,6 +17,7 @@ from mfdhome.model.binding import Status
 from mfdhome.model.page import Orientation
 from mfdhome.symbols.battery import battery, battery_box
 from mfdhome.symbols.breaker import breaker, breaker_box
+from mfdhome.symbols.panel import panel_box, solar_panel
 from mfdhome.themes.theme import Theme
 
 #: Channels accepted by line elements; ``power`` is primary and numeric.
@@ -103,8 +104,21 @@ def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:
     return breaker(inp.at[0], inp.at[1], closed, inp.status, inp.orientation, theme)
 
 
+def _draw_panel(inp: SymbolInput, theme: Theme) -> str:
+    return solar_panel(inp.at[0], inp.at[1], inp.status, theme)
+
+
 REGISTRY: Mapping[str, SymbolSpec] = MappingProxyType(
     {
+        "solar_panel": SymbolSpec(
+            type="solar_panel",
+            channels=("power",),
+            required=frozenset({"power"}),
+            primary="power",
+            numeric=frozenset({"power"}),
+            box=lambda at, _orientation: panel_box(*at),
+            draw=_draw_panel,
+        ),
         "battery": SymbolSpec(
             type="battery",
             channels=("level", "power"),

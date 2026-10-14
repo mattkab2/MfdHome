@@ -22,6 +22,8 @@ from mfdhome.layout.path import point_along
 from mfdhome.model.binding import Status
 from mfdhome.model.page import (
     Element,
+    Frame,
+    GroupElement,
     LineElement,
     Name,
     NodeElement,
@@ -35,8 +37,10 @@ from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
 from mfdhome.render.format import format_value
 from mfdhome.render.lines import resolve_look
+from mfdhome.render.resolve import Resolver
 from mfdhome.render.status import element_status
 from mfdhome.symbols import svg
+from mfdhome.symbols.geometry import element_box
 from mfdhome.symbols.line import Flow, line
 from mfdhome.symbols.registry import (
     LINE_CHANNELS,
@@ -45,7 +49,7 @@ from mfdhome.symbols.registry import (
     SymbolInput,
     get_symbol,
 )
-from mfdhome.symbols.style import font
+from mfdhome.symbols.style import dotted, font
 from mfdhome.symbols.tile import ATTENTION_CLASS, TileLook, banner, tile
 from mfdhome.themes.target import Target
 from mfdhome.themes.theme import AttentionKind, Theme
@@ -63,6 +67,16 @@ class _Label:
     anchor: Anchor
     along: float
     offset: tuple[float, float]
+
+
+@dataclass(frozen=True)
+class _Ctx:
+    """Everything element rendering needs."""
+
+    state: StateSnapshot
+    theme: Theme
+    alerts: AlertView
+    resolver: Resolver
 
 
 def _text(placement: Placement, content: str, size: float, color: str, theme: Theme) -> str:
@@ -120,19 +134,12 @@ def _draw_labels(
     return parts
 
 
-def _render_symbol(
-    element: SymbolElement, state: StateSnapshot, theme: Theme, alerts: AlertView
-) -> str:
+def _render_symbol(element: SymbolElement, c: _Ctx) -> str:
+    theme = c.theme
     spec = get_symbol(element.type)
-    ctx = EvalContext(state, element.bind)
-    values = {channel: ctx.value(ChannelRef(channel)) for channel in spec.channels}
-    status = element_status(
-        element.status,
-        ctx,
-        spec.primary,
-        spec.primary in spec.numeric,
-        alerts.active_status(element.status.systems, element.status.alerts),
-    )
+    resolved = c.resolver.element(element)
+    assert resolved is not None
+    status, values = resolved.status, resolved.values
     body = spec.draw(
         SymbolInput(element.at, element.orientation, status, values, element.params), theme
     )
@@ -158,18 +165,17 @@ def _flow(element: LineElement, ctx: EvalContext) -> Flow | None:
     return Flow.FORWARD if power > 0 else Flow.REVERSE
 
 
-def _render_line(
-    element: LineElement, state: StateSnapshot, theme: Theme, alerts: AlertView
-) -> tuple[str, str]:
+def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
     """The line's casing layer and its body (inner stroke, arrow, labels)."""
-    ctx = EvalContext(state, element.bind)
+    theme = c.theme
+    ctx = c.resolver.context(element.bind)
     values = {channel: ctx.value(ChannelRef(channel)) for channel in LINE_CHANNELS}
     status = element_status(
         element.status,
         ctx,
         LINE_PRIMARY,
         LINE_PRIMARY in LINE_NUMERIC,
-        alerts.active_status(element.status.systems, element.status.alerts),
+        c.alerts.active_status(element.status.systems, element.status.alerts),
     )
     flow = _flow(element, ctx)
     if flow is not None and status is Status.NORMAL:
@@ -194,10 +200,9 @@ def _render_line(
 LABEL_CLEARANCE = 8.0
 
 
-def _render_tile(
-    element: TileElement, state: StateSnapshot, theme: Theme, alerts: AlertView
-) -> str:
-    view = alerts.system(element.system, state)
+def _render_tile(element: TileElement, c: _Ctx) -> str:
+    theme, alerts = c.theme, c.alerts
+    view = alerts.system(element.system, c.state)
     system = alerts.systems.get(element.system)
     label = element.label or (system.label if system else element.system)
     look = TileLook(
@@ -209,26 +214,67 @@ def _render_tile(
     return tile(element.at[0], element.at[1], label, look, theme)
 
 
+def _render_group(element: GroupElement, c: _Ctx) -> str:
+    """Frame (status-colored when not normal), items, then name and readouts."""
+    theme = c.theme
+    resolved = c.resolver.element(element)
+    assert resolved is not None
+    status = resolved.status
+    box = element_box(element)
+    assert box is not None
+    parts = []
+    if element.frame is Frame.OUTLINE:
+        calm = status in (Status.NORMAL, Status.ACTIVE)
+        parts.append(
+            svg.element(
+                "rect",
+                {
+                    "x": box.left,
+                    "y": box.top,
+                    "width": box.right - box.left,
+                    "height": box.bottom - box.top,
+                    "fill": "none",
+                    "stroke": theme.dim if calm else theme.color(status),
+                    "stroke-width": theme.symbol_stroke_width * theme.weight(status),
+                    **(dotted(theme) if status is Status.UNAVAILABLE else {}),
+                },
+            )
+        )
+    parts.extend(_render_layers(item, c)[1] for item in element.items)
+    labels = _collect_labels(
+        element.name,
+        element.readouts,
+        resolved.values,
+        status,
+        theme,
+        default_name=lambda _: Anchor.TOP_CENTER,
+        default_readout=lambda _: Anchor.BOTTOM_CENTER,
+    )
+    parts.extend(_draw_labels(labels, lambda _: box, SYMBOL_GAP, theme))
+    return "".join(parts)
+
+
 def render_element(
     element: Element, state: StateSnapshot, theme: Theme, alerts: AlertView = NO_ALERTS
 ) -> str:
     """Render one element on its own: any underlay (line casing), then its group."""
-    underlay, group = _render_layers(element, state, theme, alerts)
+    underlay, group = _render_layers(element, _Ctx(state, theme, alerts, Resolver(state, alerts)))
     return underlay + group
 
 
-def _render_layers(
-    element: Element, state: StateSnapshot, theme: Theme, alerts: AlertView
-) -> tuple[str, str]:
+def _render_layers(element: Element, c: _Ctx) -> tuple[str, str]:
     """An element's underlay (tagged with ``data-for``) and its group (tagged with its id)."""
+    theme = c.theme
     underlay = ""
     match element:
         case SymbolElement():
-            body = _render_symbol(element, state, theme, alerts)
+            body = _render_symbol(element, c)
         case LineElement():
-            casing, body = _render_line(element, state, theme, alerts)
+            casing, body = _render_line(element, c)
             if casing:
                 underlay = svg.element("g", {"data-for": element.id}, [casing])
+        case GroupElement():
+            body = _render_group(element, c)
         case TextElement():
             body = _text(
                 Placement(element.at[0], element.at[1], element.align, None),
@@ -238,7 +284,7 @@ def _render_layers(
                 theme,
             )
         case TileElement():
-            body = _render_tile(element, state, theme, alerts)
+            body = _render_tile(element, c)
         case NodeElement():
             body = _render_node(element, theme)
     return underlay, svg.element("g", {"id": element.id}, [body])
@@ -260,6 +306,22 @@ def _render_node(element: NodeElement, theme: Theme) -> str:
             "fill": theme.color(Status.NORMAL),
         },
     )
+
+
+def _resolver(page: Page, state: StateSnapshot, alerts: AlertView) -> Resolver:
+    """A resolver that knows top-level elements' channel values.
+
+    Bindings to another element's channel never chain (the loader forbids
+    binding to a channel that is itself such a binding), so one pre-pass over
+    top-level elements is enough.
+    """
+    first = Resolver(state, alerts)
+    values = {}
+    for element in page.elements:
+        resolved = first.element(element)
+        if resolved is not None:
+            values[element.id] = resolved.values
+    return Resolver(state, alerts, values)
 
 
 def attention_css(theme: Theme) -> str:
@@ -295,9 +357,10 @@ def render_page(
     attribute order.
     """
     logger.debug("rendering page %s for target %s", page.id, target.name)
+    c = _Ctx(state, theme, alerts, _resolver(page, state, alerts))
     # Nodes last, so junction dots sit on top of the lines that meet there.
     ordered = sorted(page.elements, key=lambda e: isinstance(e, NodeElement))
-    layers = [_render_layers(element, state, theme, alerts) for element in ordered]
+    layers = [_render_layers(element, c) for element in ordered]
     underlays = [underlay for underlay, _ in layers if underlay]
     children = [
         svg.element(

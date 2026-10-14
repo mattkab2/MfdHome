@@ -1,12 +1,13 @@
 """Page and element definitions, positioned on a logical canvas.
 
-There are five element kinds:
+There are six element kinds:
 
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
 - ``LineElement``: a power/flow line along a polyline;
 - ``TextElement``: a static label;
 - ``TileElement``: an annunciator tile showing one system's alerts;
-- ``NodeElement``: a connection point lines can attach to.
+- ``NodeElement``: a connection point lines can attach to;
+- ``GroupElement``: a container laying out items that connect only through it.
 
 Symbols and lines bind HA entities to named *channels* declared by their type.
 Status rules, flow and readouts refer to channel names, not entity ids.
@@ -22,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from mfdhome.layout.anchors import Anchor
 from mfdhome.layout.path import Point
-from mfdhome.model.binding import EntityRef
+from mfdhome.model.binding import Binding
 
 if TYPE_CHECKING:
     # Annotation-only: conditions imports model.binding, so a runtime import would cycle.
@@ -130,7 +131,7 @@ class SymbolElement:
     id: str
     type: str
     at: Point
-    bind: Mapping[str, EntityRef] = field(default_factory=_empty)
+    bind: Mapping[str, Binding] = field(default_factory=_empty)
     name: Name | None = None
     status: StatusSpec = StatusSpec()
     readouts: tuple[Readout, ...] = ()
@@ -149,7 +150,7 @@ class LineElement:
 
     id: str
     points: tuple[Point, ...]
-    bind: Mapping[str, EntityRef] = field(default_factory=_empty)
+    bind: Mapping[str, Binding] = field(default_factory=_empty)
     name: Name | None = None
     status: StatusSpec = StatusSpec()
     readouts: tuple[Readout, ...] = ()
@@ -194,7 +195,67 @@ class NodeElement:
     junction: bool = False
 
 
-type Element = SymbolElement | LineElement | TextElement | TileElement | NodeElement
+class Frame(StrEnum):
+    """How a group's boundary is drawn. Never dashed or dotted: patterns carry status."""
+
+    OUTLINE = "outline"
+    NONE = "none"
+
+
+class Aggregate(StrEnum):
+    """How a group derives a channel from its items."""
+
+    SUM = "sum"
+    MIN = "min"
+    MAX = "max"
+    COUNT = "count"  # items whose status equals ``source``
+
+
+@dataclass(frozen=True)
+class DerivedChannel:
+    """A group channel computed from its items.
+
+    For ``sum``/``min``/``max``, ``source`` is an item channel name; items
+    without usable data are skipped (no data at all gives no data). For
+    ``count``, ``source`` is a status name (e.g. ``unavailable``).
+    """
+
+    aggregate: Aggregate
+    source: str
+
+
+@dataclass(frozen=True)
+class GridLayout:
+    """Items in rows of ``columns`` fixed-size cells (the largest item's box)."""
+
+    columns: int
+    gap: Point = (16.0, 16.0)
+    padding: float = 12.0
+
+
+@dataclass(frozen=True)
+class GroupElement:
+    """A container: its ``items`` are laid out inside it and connect only through it.
+
+    ``at`` is the top-left of the group's box and ``size`` its extent; both,
+    and the items' positions, are resolved at load time. Item ids are paths
+    (``array.p3``). Without status rules, a group takes its items' worst
+    caution/warning, and is unavailable only when every item is.
+    """
+
+    id: str
+    at: Point
+    size: Point
+    layout: GridLayout
+    items: tuple[Element, ...] = ()
+    frame: Frame = Frame.OUTLINE
+    name: Name | None = None
+    channels: Mapping[str, DerivedChannel] = field(default_factory=_empty)
+    status: StatusSpec = StatusSpec()
+    readouts: tuple[Readout, ...] = ()
+
+
+type Element = SymbolElement | LineElement | TextElement | TileElement | NodeElement | GroupElement
 
 
 @dataclass(frozen=True)

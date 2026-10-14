@@ -1,5 +1,10 @@
 [
-  {"entity_id": "sensor.solar_power", "state": "3200", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.pv_p1_power", "state": "540", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.pv_p2_power", "state": "535", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.pv_p3_power", "state": "530", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.pv_p4_power", "state": "530", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.pv_p5_power", "state": "535", "attributes": {"unit_of_measurement": "W"}},
+  {"entity_id": "sensor.pv_p6_power", "state": "530", "attributes": {"unit_of_measurement": "W"}},
   {"entity_id": "sensor.battery_soc", "state": "82", "attributes": {"unit_of_measurement": "%"}},
   {"entity_id": "sensor.battery_power", "state": "1500", "attributes": {"unit_of_measurement": "W"}},
   {"entity_id": "sensor.grid_power", "state": "300", "attributes": {"unit_of_measurement": "W"}},
