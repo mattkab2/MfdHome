@@ -9,5 +9,6 @@
   {"entity_id": "sensor.battery_power", "state": "200", "attributes": {"unit_of_measurement": "W"}},
   {"entity_id": "sensor.grid_power", "state": "-2800", "attributes": {"unit_of_measurement": "W"}},
   {"entity_id": "sensor.load_power", "state": "2400", "attributes": {"unit_of_measurement": "W"}},
-  {"entity_id": "switch.main_breaker", "state": "on", "attributes": {}}
+  {"entity_id": "switch.main_breaker", "state": "on", "attributes": {}},
+  {"entity_id": "binary_sensor.grid_connected", "state": "on", "attributes": {}}
 ]

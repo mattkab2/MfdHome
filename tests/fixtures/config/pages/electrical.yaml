@@ -1,5 +1,7 @@
-# Minimal Electrical page: solar and battery feed a bus; the bus feeds loads
-# and ties to the grid through the main breaker. Generic entity ids only.
+# Electrical page: whole-home backup. The grid feeds the house through the
+# main breaker and a grid-isolating transfer switch (ATS). Solar, battery and
+# the load panel share the backup bus on the house side of the ATS, so they
+# keep running when the ATS opens (islanded). Generic entity ids only.
 page: electrical
 title: Electrical
 canvas: {width: 1000, height: 600}
@@ -7,14 +9,63 @@ canvas: {width: 1000, height: 600}
 elements:
   - {id: title, type: text, at: [80, 40], text: ELEC}
 
-  # The bus: everything meets here (a junction dot is drawn automatically).
-  - {id: bus, type: node, at: [500, 300]}
+  # --- utility side --------------------------------------------------------
+  # Grid power: positive = import (grid -> house), negative = export.
+  - id: grid
+    type: line
+    style: feeder
+    from: [70, 260]
+    to: main_breaker.in
+    bind: {power: sensor.grid_power}
+    flow: true
+    status: {systems: [GRID]}       # hatched red while the grid is lost
+    name: {text: GRID, along: 0, anchor: left}
+    readouts: [{value: power, format: power, abs: true}]
+
+  - id: main_breaker
+    type: breaker
+    at: [160, 260]
+    name: MAIN
+    bind: {state: switch.main_breaker}
+    status:
+      map: {on: normal, closed: normal}
+      default: caution
+
+  - id: grid_link
+    type: line
+    style: feeder
+    from: main_breaker.out
+    to: ats.grid
+    bind: {power: sensor.grid_power}
+    flow: true
+    status: {systems: [GRID]}
+
+  - id: ats
+    type: transfer_switch
+    at: [330, 260]
+    name: ATS
+    bind: {state: binary_sensor.grid_connected}
+    status:
+      map: {on: normal}             # connected to the grid
+      default: caution              # open: islanded, running on backup
+
+  # --- backup (house) side -------------------------------------------------
+  - id: backup_feed
+    type: line
+    style: bus
+    from: ats.load
+    to: bus
+    bind: {power: sensor.grid_power}
+    flow: true
+
+  # The backup bus: everything on the house side meets here.
+  - {id: bus, type: node, at: [640, 260]}
 
   # Solar array: panels connect only through the group; the group's derived
-  # 'power' (sum of its panels) drives the feeder below it.
+  # 'power' (sum of its panels) drives the feeder.
   - id: array
     type: group
-    at: [348, 30]
+    at: [300, 40]
     layout: {grid: {columns: 6, gap: 8}}
     name: {text: SOLAR, anchor: left}
     channels:
@@ -39,16 +90,16 @@ elements:
   - id: solar
     type: line
     style: feeder
-    from: array.bottom
+    from: array.right
     to: bus
     bind: {power: array.power}
     flow: true
-    readouts: [{value: power, format: power, abs: true}]
+    readouts: [{value: power, format: power, abs: true, along: 0.6}]
 
   - id: battery
     type: battery
-    at: [200, 300]
-    name: BATT
+    at: [860, 420]
+    name: {text: BATT, anchor: right}
     bind:
       level: sensor.battery_soc
       power: sensor.battery_power
@@ -62,48 +113,23 @@ elements:
     type: line
     style: feeder
     from: bus
-    to: battery.right
+    to: battery.top
     bind: {power: sensor.battery_power}
     status: {alerts: [battery_low, battery_critical]}
     flow: true
     readouts: [{value: power, format: power, abs: true}]
 
-  - {id: bus_tie, type: line, style: bus, from: bus, to: main_breaker.in}
-
-  - id: main_breaker
-    type: breaker
-    at: [650, 300]
-    bind: {state: switch.main_breaker}
-    status:
-      map: {on: normal, closed: normal}
-      default: caution
-      rules:
-        # Open breaker with the grid gone means the house is islanded.
-        - level: warning
-          any:
-            - all:
-                - {channel: state, eq: off}
-                - {use: grid_lost}
-            - {channel: state, eq: tripped}
-
-  # Positive grid power = import (grid -> house); negative = export.
-  - id: grid
-    type: line
-    style: feeder
-    from: [880, 300]
-    to: main_breaker.out
-    bind: {power: sensor.grid_power}
-    status: {systems: [GRID]}       # hatched red while the grid is lost
-    flow: true
-    name: {text: GRID, along: 0, anchor: right}
-    readouts: [{value: power, format: power, abs: true}]
-
   - id: loads
+    type: load_panel
+    at: [640, 450]
+    name: {text: LOADS, anchor: right}
+    bind: {power: sensor.load_power}
+
+  - id: load_feed
     type: line
     style: feeder
     from: bus
-    to: [500, 500]
+    to: loads.top
     bind: {power: sensor.load_power}
     flow: true
-    name: {text: LOADS, along: 1, anchor: bottom}
     readouts: [{value: power, format: power, abs: true}]

@@ -61,9 +61,10 @@ def test_eink_mono_shows_severity_by_weight() -> None:
     svg = render_page(
         config_page("electrical"), fixture_state("electrical_islanded"), EINK_MONO, TABLET
     )
-    # warning breaker (3x), caution battery (2x), normal lines (1x)
-    assert 'stroke-width="6"' in _group(svg, "main_breaker")
+    # islanded ATS and low battery are both caution: 2x symbol stroke on e-ink
+    assert 'stroke-width="4"' in _group(svg, "ats")
     assert 'stroke-width="4"' in _group(svg, "battery")
+    assert 'stroke-width="2"' in _group(svg, "main_breaker")  # normal
 
 
 def _group(svg: str, element_id: str) -> str:
@@ -72,12 +73,20 @@ def _group(svg: str, element_id: str) -> str:
     return svg[start : end if end != -1 else len(svg)]
 
 
-def test_open_breaker_with_grid_lost_is_warning() -> None:
+def test_islanded_ats_is_caution_and_main_breaker_stays_on() -> None:
     page = config_page("electrical")
     islanded = render_page(page, fixture_state("electrical_islanded"), LCD, TABLET)
-    assert LCD.color(Status.WARNING) in _group(islanded, "main_breaker")
-    # Breaker off but grid still reporting: only the map's caution applies.
-    state = dict(fixture_state("electrical_normal"))
-    state["switch.main_breaker"] = fixture_state("electrical_islanded")["switch.main_breaker"]
-    opened = render_page(page, state, LCD, TABLET)
-    assert LCD.color(Status.CAUTION) in _group(opened, "main_breaker")
+    assert LCD.color(Status.CAUTION) in _group(islanded, "ats")
+    assert LCD.color(Status.NORMAL) in _group(islanded, "main_breaker")
+    normal = render_page(page, fixture_state("electrical_normal"), LCD, TABLET)
+    assert LCD.color(Status.NORMAL) in _group(normal, "ats")
+
+
+def test_backup_feed_is_blank_when_islanded() -> None:
+    """No grid power through the open ATS: a hollow pipe, no core, no arrow."""
+    page = config_page("electrical")
+    islanded = render_page(page, fixture_state("electrical_islanded"), LCD, TABLET)
+    feed = _group(islanded, "backup_feed")
+    assert feed.count("<polyline") == 1 and "<polygon" not in feed
+    normal = render_page(page, fixture_state("electrical_normal"), LCD, TABLET)
+    assert _group(normal, "backup_feed").count("<polyline") == 2  # hollow + core

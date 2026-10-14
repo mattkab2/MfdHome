@@ -3,10 +3,12 @@ thresholds:
   battery_soc: {warning_low: 10, caution_low: 25}
 
 conditions:
-  # The grid feed has no data: treated as lost.
+  # The grid is lost when its feed has no data, or the transfer switch has
+  # opened to island the house.
   grid_lost:
-    when:
+    any:
       - {entity: sensor.grid_power, unavailable: true}
+      - {entity: binary_sensor.grid_connected, eq: off}
 
 # Connection styles: relative weight and casing (hollow pipe, the default).
 # Color and pattern always come from status. Variants are keyed by theme name.
