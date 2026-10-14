@@ -27,10 +27,10 @@ from mfdhome.render import render_element
 from mfdhome.render.format import NO_DATA, format_value, is_valid_format
 from mfdhome.render.status import element_status
 from mfdhome.symbols import get_symbol
-from mfdhome.themes import DARK
+from mfdhome.themes import LCD
 from tests.support import ha_state
 
-GRAY = DARK.color(Status.UNAVAILABLE)
+GRAY = LCD.color(Status.UNAVAILABLE)
 
 
 def ctx(*items: dict[str, object], **channels: str) -> EvalContext:
@@ -133,7 +133,7 @@ class TestElements:
             params=get_symbol("breaker").params({"closed": ["engaged"]}),
         )
         state = snapshot_from_ha_states([ha_state("switch.main", "engaged")])
-        assert 'x2="20" y2="0"' in render_element(element, state, DARK)
+        assert 'x2="20" y2="0"' in render_element(element, state, LCD)
 
     def test_line_flow_on_caution_line_keeps_caution_color(self) -> None:
         rule = Rule(
@@ -148,14 +148,14 @@ class TestElements:
             flow=FlowSpec(),
         )
         state = snapshot_from_ha_states([ha_state("sensor.p", "6000")])
-        svg = render_element(element, state, DARK)
+        svg = render_element(element, state, LCD)
         assert "<polygon" in svg
-        assert DARK.color(Status.CAUTION) in svg
-        assert DARK.color(Status.ACTIVE) not in svg
+        assert LCD.color(Status.CAUTION) in svg
+        assert LCD.color(Status.ACTIVE) not in svg
 
     def test_readout_on_unbound_channel_shows_no_data(self) -> None:
         element = LineElement("l", ((0, 0), (100, 0)), readouts=(Readout("power"),))
-        assert f">{NO_DATA}<" in render_element(element, {}, DARK)
+        assert f">{NO_DATA}<" in render_element(element, {}, LCD)
 
     def test_readouts_stack_at_shared_anchor(self) -> None:
         element = SymbolElement(
@@ -166,6 +166,6 @@ class TestElements:
             readouts=(Readout("level", "percent"), Readout("level", "number")),
         )
         state = snapshot_from_ha_states([ha_state("sensor.soc", "50")])
-        svg = render_element(element, state, DARK)
+        svg = render_element(element, state, LCD)
         assert 'y="66"' in svg
         assert 'y="86.8"' in svg
