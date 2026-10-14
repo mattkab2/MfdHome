@@ -35,11 +35,6 @@ def port_names(element: Element) -> list[str]:
     return [*extra, *edges, "top", "bottom", "left", "right"]
 
 
-def port_point(element: Element, port: str | None) -> Point:
-    """Where a line attaches to ``element`` at ``port`` (see :func:`find_port`)."""
-    return find_port(element, port).point
-
-
 def find_port(element: Element, port: str | None) -> Port:
     """The connection point and outward direction of ``port`` on ``element``.
 

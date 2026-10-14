@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from mfdhome.conditions.values import Value
+from mfdhome.symbols import svg
 
 NO_DATA = "---"
 
@@ -21,11 +22,6 @@ def is_valid_format(fmt: str) -> bool:
     except ValueError, TypeError, IndexError, KeyError, AttributeError:
         return False
     return True
-
-
-def _trim(value: float) -> str:
-    text = f"{value:.2f}".rstrip("0").rstrip(".")
-    return "0" if text in ("-0", "") else text
 
 
 def format_power(value: float, unit: str | None) -> str:
@@ -59,6 +55,6 @@ def format_value(value: Value, fmt: str, unit: str | None = None, absolute: bool
         case "percent":
             return f"{number:.0f}%"
         case "number":
-            return _trim(number) + (f" {unit}" if unit else "")
+            return svg.fmt(number) + (f" {unit}" if unit else "")
         case _:
             return fmt.format(number)

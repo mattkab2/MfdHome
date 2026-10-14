@@ -7,7 +7,7 @@ import pytest
 
 from mfdhome.config import ConfigError, load_page
 from mfdhome.model import EntityRef, LineElement, NodeElement, Orientation, SymbolElement
-from mfdhome.symbols.geometry import port_names, port_point
+from mfdhome.symbols.geometry import find_port, port_names
 
 BATTERY = SymbolElement("bat", "battery", (200, 300), bind={"level": EntityRef("sensor.soc")})
 BREAKER = SymbolElement("br", "breaker", (650, 300))
@@ -33,18 +33,18 @@ VBREAKER = SymbolElement("vb", "breaker", (100, 100), orientation=Orientation.VE
 def test_port_points(
     element: SymbolElement, port: str | None, expected: tuple[float, float]
 ) -> None:
-    assert port_point(element, port) == expected
+    assert find_port(element, port).point == expected
 
 
 def test_port_errors() -> None:
     with pytest.raises(ValueError, match="needs a port: in, out, top-left"):
-        port_point(BREAKER, None)
+        find_port(BREAKER, None)
     with pytest.raises(ValueError, match="unknown port 'center'"):
-        port_point(BATTERY, "center")
+        find_port(BATTERY, "center")
     with pytest.raises(ValueError, match="unknown port 'side'"):
-        port_point(BATTERY, "side")
+        find_port(BATTERY, "side")
     with pytest.raises(ValueError, match="has no ports"):
-        port_point(NodeElement("n", (0, 0)), "left")
+        find_port(NodeElement("n", (0, 0)), "left")
     assert "center" not in port_names(BATTERY)
 
 
