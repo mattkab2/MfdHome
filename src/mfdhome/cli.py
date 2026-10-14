@@ -1,4 +1,4 @@
-"""The ``mfdhome`` command line: check configs, dump HA states, serve displays.
+"""The ``mfdhome`` command line: check configs, dump HA states, render and serve displays.
 
 Set ``MFD_DISPLAY_TOKEN`` to require ``?token=...`` on display URLs.
 """
@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,9 +21,14 @@ import aiohttp
 from mfdhome.config import ConfigError, load_config
 from mfdhome.config.inventory import entity_uses
 from mfdhome.model.state import StateSnapshot, snapshot_from_ha_states
+from mfdhome.render.panels import PANELS
+from mfdhome.render.raster import rasterize
 from mfdhome.server.app import serve
+from mfdhome.server.images import stamp_text
+from mfdhome.server.runtime import Runtime
 from mfdhome.sources.fixture import load_fixture
 from mfdhome.sources.ha import HomeAssistant
+from mfdhome.themes.builtin import THEMES
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +124,36 @@ def cmd_dump_states(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_render(args: argparse.Namespace) -> int:
+    try:
+        config = load_config(args.config)
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    display = config.displays.get(args.display)
+    if display is None:
+        print(
+            f"no display {args.display!r}; expected: {', '.join(config.displays)}", file=sys.stderr
+        )
+        return 1
+    runtime = Runtime(config)
+    now = datetime.now(UTC)
+    runtime.update(load_fixture(args.states) if args.states else {}, now)
+    if args.page is not None and not runtime.select(display.id, args.page):
+        print(f"display {display.id!r} cannot show page {args.page!r}", file=sys.stderr)
+        return 1
+    if display.panel is None:
+        output = Path(args.output or f"{display.id}.svg")
+        output.write_text(runtime.render(display.id), encoding="utf-8")
+    else:
+        output = Path(args.output or f"{display.id}.png")
+        svg = runtime.render(display.id, stamp_text(now))
+        background = THEMES[display.theme].background
+        output.write_bytes(rasterize(svg, PANELS[display.panel], background))
+    print(f"wrote {output}", file=sys.stderr)
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     url, token = ha_credentials()
     config = args.config or os.environ.get("MFD_CONFIG")
@@ -153,6 +189,16 @@ def parser() -> argparse.ArgumentParser:
     dump.add_argument("-o", "--output", help="file to write (default: stdout)")
     dump.add_argument("--scrub", action="store_true", help="drop identifying data")
     dump.set_defaults(run=cmd_dump_states)
+
+    render = sub.add_parser(
+        "render", help="render a display once: PNG for e-paper panels, SVG otherwise"
+    )
+    render.add_argument("config", help="config directory")
+    render.add_argument("display", help="display id from displays.yaml")
+    render.add_argument("--states", help="HA states dump to render (default: no data)")
+    render.add_argument("--page", help="page to show (default: the display's home page)")
+    render.add_argument("-o", "--output", help="file to write (default: <display>.png or .svg)")
+    render.set_defaults(run=cmd_render)
 
     serve = sub.add_parser("serve", help="serve live displays (needs HA_URL and HA_TOKEN)")
     serve.add_argument("config", nargs="?", help="config directory (default: MFD_CONFIG)")

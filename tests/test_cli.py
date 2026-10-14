@@ -8,10 +8,12 @@ from typing import Any
 
 import pytest
 from aiohttp.test_utils import TestServer
+from PIL import Image
 
 from mfdhome.cli import fetch_states, load_dotenv, main, scrub
 from mfdhome.config import load_config
 from mfdhome.config.inventory import entity_uses
+from mfdhome.render.raster import image_colors
 from tests.fake_ha import TOKEN, FakeHA
 from tests.support import CONFIG, FIXTURES
 
@@ -89,3 +91,26 @@ async def test_fetch_states(aiohttp_server: ServerFactory, monkeypatch: pytest.M
     monkeypatch.setenv("HA_URL", str(server.make_url("")))
     monkeypatch.setenv("HA_TOKEN", TOKEN)
     assert await fetch_states() == [{"entity_id": "sensor.a", "state": "1", "attributes": {}}]
+
+
+def test_render_panel_display_to_png(tmp_path: Path) -> None:
+    out = tmp_path / "frame.png"
+    states = str(FIXTURES / "electrical_islanded.json")
+    args = ["render", str(CONFIG), "main_floor", "--states", states, "--page", "electrical"]
+    assert main([*args, "-o", str(out)]) == 0
+    image = Image.open(out)
+    assert image.size == (800, 480)
+    assert image_colors(image) == {"#000000", "#ffffff"}
+
+
+def test_render_live_display_to_svg(tmp_path: Path) -> None:
+    out = tmp_path / "frame.svg"
+    assert main(["render", str(CONFIG), "workshop", "-o", str(out)]) == 0
+    assert 'data-page="status"' in out.read_text() and 'id="as-of"' not in out.read_text()
+
+
+def test_render_errors(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["render", str(CONFIG), "attic"]) == 1
+    assert "no display 'attic'; expected: workshop" in capsys.readouterr().err
+    assert main(["render", str(CONFIG), "hallway", "--page", "status"]) == 1
+    assert "display 'hallway' cannot show page 'status'" in capsys.readouterr().err
