@@ -1,0 +1,369 @@
+"""Turn validated schema models into frozen model objects, with context checks."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import Any
+
+from pydantic import BaseModel, ValidationError
+
+from mfdhome.conditions.model import TRUE, AllOf, AnyOf, ChannelRef, Condition, Op, Rule
+from mfdhome.conditions.sugar import Thresholds, state_map_rules
+from mfdhome.config.errors import Issues, Loc
+from mfdhome.config.schema import (
+    DefsModel,
+    ExprModel,
+    LineModel,
+    NameModel,
+    PageModel,
+    ReadoutModel,
+    StatusModel,
+    SymbolModel,
+    TermModel,
+    TextModel,
+    ThresholdsModel,
+)
+from mfdhome.layout.anchors import Anchor, anchor_names, parse_anchor
+from mfdhome.model.binding import EntityRef, Status
+from mfdhome.model.page import (
+    Element,
+    FlowSpec,
+    LineElement,
+    Name,
+    Orientation,
+    Page,
+    Readout,
+    StatusSpec,
+    SymbolElement,
+    TextElement,
+)
+from mfdhome.render.format import FORMATS, is_valid_format
+from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
+
+
+@dataclass(frozen=True)
+class Defs:
+    """Resolved shared definitions."""
+
+    thresholds: Mapping[str, Thresholds] = field(default_factory=lambda: MappingProxyType({}))
+    conditions: Mapping[str, AnyOf] = field(default_factory=lambda: MappingProxyType({}))
+
+    def merge(self, other: Defs) -> tuple[Defs, list[str]]:
+        """Combine two sets of defs; returns the result and any duplicated names."""
+        dupes = sorted(
+            {f"thresholds.{k}" for k in self.thresholds.keys() & other.thresholds.keys()}
+            | {f"conditions.{k}" for k in self.conditions.keys() & other.conditions.keys()}
+        )
+        merged = Defs(
+            MappingProxyType({**self.thresholds, **other.thresholds}),
+            MappingProxyType({**self.conditions, **other.conditions}),
+        )
+        return merged, dupes
+
+
+def validate[M: BaseModel](model: type[M], data: Any, loc: Loc, issues: Issues) -> M | None:
+    """Validate ``data`` against ``model``, recording errors under ``loc``."""
+    try:
+        return model.model_validate(data)
+    except ValidationError as exc:
+        for err in exc.errors():
+            message = str(err["msg"]).removeprefix("Value error, ")
+            issues.add(loc + tuple(err["loc"]), message)
+        return None
+
+
+def _thresholds(model: ThresholdsModel) -> Thresholds:
+    return Thresholds(model.warning_low, model.caution_low, model.caution_high, model.warning_high)
+
+
+def _channels(expr: AnyOf) -> Iterator[str]:
+    for term in expr.terms:
+        for cond in term.conditions:
+            if isinstance(cond.ref, ChannelRef):
+                yield cond.ref.channel
+
+
+# --- conditions -------------------------------------------------------------------------------
+
+
+type Bound = Mapping[str, EntityRef] | None
+
+
+class _Exprs:
+    """Builds DNF expressions, resolving ``use`` against named conditions.
+
+    ``bound`` is the evaluating element's channels; when given, channel
+    references are checked against it where they are written (or at the
+    ``use`` site for named conditions). Named conditions themselves are built
+    with ``bound=None``, since they may be used by several elements.
+    """
+
+    def __init__(
+        self, named: Mapping[str, ExprModel], resolved: Mapping[str, AnyOf], prefix: Loc = ()
+    ) -> None:
+        self.named = named
+        self.prefix = prefix
+        self.resolved = dict(resolved)
+        self.resolving: list[str] = []
+
+    def use(self, name: str, loc: Loc, issues: Issues, bound: Bound = None) -> AnyOf:
+        expr = self._resolve(name, loc, issues)
+        if bound is not None:
+            for channel in sorted(set(_channels(expr)) - bound.keys()):
+                issues.add(loc, f"condition {name!r} uses channel {channel!r}, which is not bound")
+        return expr
+
+    def _resolve(self, name: str, loc: Loc, issues: Issues) -> AnyOf:
+        if name in self.resolved:
+            return self.resolved[name]
+        if name not in self.named:
+            issues.add(loc, f"unknown condition {name!r}")
+            return AnyOf()
+        if name in self.resolving:
+            chain = " -> ".join([*self.resolving[self.resolving.index(name) :], name])
+            issues.add(loc, f"condition cycle: {chain}")
+            return AnyOf()
+        self.resolving.append(name)
+        expr = self.expr(self.named[name], (*self.prefix, "conditions", name), issues)
+        self.resolving.pop()
+        self.resolved[name] = expr
+        return expr
+
+    def condition(self, term: TermModel, loc: Loc, issues: Issues, bound: Bound) -> AnyOf:
+        if term.channel is not None:
+            ref: ChannelRef | EntityRef = ChannelRef(term.channel)
+            if bound is not None and term.channel not in bound:
+                issues.add((*loc, "channel"), f"channel {term.channel!r} is not bound")
+        else:
+            ref = EntityRef(str(term.entity), term.attribute)
+        [op] = term.predicates()
+        operand: Any = {
+            "eq": term.eq,
+            "ne": term.ne,
+            "in": tuple(term.in_ or ()),
+            "not_in": tuple(term.not_in or ()),
+            "lt": term.lt,
+            "le": term.le,
+            "gt": term.gt,
+            "ge": term.ge,
+            "between": term.between,
+            "unavailable": term.unavailable,
+        }[op]
+        return AnyOf((AllOf((Condition(ref, Op(op), operand),)),))
+
+    def conjunction(
+        self, terms: list[TermModel], loc: Loc, issues: Issues, bound: Bound = None
+    ) -> AnyOf:
+        result = TRUE
+        for i, term in enumerate(terms):
+            if term.all_ is not None:
+                issues.add((*loc, i, "all"), "'all' groups are only allowed directly under 'any'")
+            elif term.use is not None:
+                result = result.and_(self.use(term.use, (*loc, i, "use"), issues, bound))
+            else:
+                result = result.and_(self.condition(term, (*loc, i), issues, bound))
+        return result
+
+    def expr(self, model: ExprModel, loc: Loc, issues: Issues, bound: Bound = None) -> AnyOf:
+        if model.when is not None:
+            return self.conjunction(model.when, (*loc, "when"), issues, bound)
+        result = AnyOf()
+        for i, term in enumerate(model.any_ or ()):
+            item = (*loc, "any", i)
+            if term.all_ is not None:
+                result = result.or_(self.conjunction(term.all_, (*item, "all"), issues, bound))
+            elif term.use is not None:
+                result = result.or_(self.use(term.use, (*item, "use"), issues, bound))
+            else:
+                result = result.or_(self.condition(term, item, issues, bound))
+        return result
+
+
+def build_defs(
+    model: DefsModel, issues: Issues, base: Defs | None = None, prefix: Loc = ("defs",)
+) -> Defs:
+    """Resolve a defs model; named conditions may ``use`` each other and ``base`` conditions.
+
+    ``prefix`` is where the defs sit in their file: under ``defs`` in a page,
+    at the top level of a shared defs file.
+    """
+    base = base or Defs()
+    exprs = _Exprs(model.conditions, base.conditions, prefix)
+    conditions = {
+        name: exprs.use(name, (*prefix, "conditions", name), issues) for name in model.conditions
+    }
+    thresholds = {name: _thresholds(t) for name, t in model.thresholds.items()}
+    return Defs(MappingProxyType(thresholds), MappingProxyType(conditions))
+
+
+# --- elements ---------------------------------------------------------------------------------
+
+
+def _anchor(name: str | None, loc: Loc, issues: Issues) -> Anchor | None:
+    if name is None:
+        return None
+    try:
+        return parse_anchor(name)
+    except ValueError:
+        issues.add(loc, f"unknown anchor {name!r}; expected one of: {', '.join(anchor_names())}")
+        return None
+
+
+class _ElementBuilder:
+    def __init__(self, defs: Defs, issues: Issues) -> None:
+        self.defs = defs
+        self.issues = issues
+        self.exprs = _Exprs({}, defs.conditions)
+
+    def bind(
+        self,
+        model: SymbolModel | LineModel,
+        allowed: tuple[str, ...],
+        required: frozenset[str],
+        loc: Loc,
+    ) -> dict[str, EntityRef]:
+        for channel in model.bind:
+            if channel not in allowed:
+                self.issues.add(
+                    (*loc, "bind", channel),
+                    f"unknown channel {channel!r} for {model.type}; expected: {', '.join(allowed)}",
+                )
+        for channel in sorted(required - model.bind.keys()):
+            self.issues.add((*loc, "bind"), f"required channel {channel!r} is not bound")
+        return {k: EntityRef(v.entity, v.attribute) for k, v in model.bind.items() if k in allowed}
+
+    def bound_channel(self, channel: str, bound: Mapping[str, EntityRef], loc: Loc) -> bool:
+        if channel not in bound:
+            self.issues.add(loc, f"channel {channel!r} is not bound on this element")
+            return False
+        return True
+
+    def status(
+        self, model: StatusModel | None, primary: str, bound: Mapping[str, EntityRef], loc: Loc
+    ) -> StatusSpec:
+        if model is None:
+            return StatusSpec()
+        rules: list[Rule] = []
+        source = model.from_ or primary
+        if model.thresholds is not None or model.map is not None:
+            self.bound_channel(source, bound, (*loc, "from") if model.from_ else loc)
+        ref = ChannelRef(source)
+        if model.thresholds is not None:
+            if isinstance(model.thresholds, str):
+                named = self.defs.thresholds.get(model.thresholds)
+                if named is None:
+                    self.issues.add(
+                        (*loc, "thresholds"), f"unknown thresholds {model.thresholds!r}"
+                    )
+                else:
+                    rules.extend(named.rules(ref))
+            else:
+                rules.extend(_thresholds(model.thresholds).rules(ref))
+        if model.map is not None:
+            mapping = {k.strip().lower(): Status(v) for k, v in model.map.items()}
+            rules.extend(state_map_rules(ref, mapping, Status(model.default or "normal")))
+        for i, rule in enumerate(model.rules):
+            when = self.exprs.expr(rule, (*loc, "rules", i), self.issues, bound)
+            rules.append(Rule(Status(rule.level), when))
+        return StatusSpec(tuple(rules))
+
+    def name(self, model: NameModel | None, loc: Loc) -> Name | None:
+        if model is None:
+            return None
+        anchor = _anchor(model.anchor, (*loc, "anchor"), self.issues)
+        return Name(model.text, anchor, model.along, model.offset)
+
+    def readouts(
+        self, models: list[ReadoutModel], bound: Mapping[str, EntityRef], loc: Loc
+    ) -> tuple[Readout, ...]:
+        out = []
+        for i, r in enumerate(models):
+            item = (*loc, i)
+            self.bound_channel(r.value, bound, (*item, "value"))
+            if not is_valid_format(r.format):
+                self.issues.add(
+                    (*item, "format"),
+                    f"unknown format {r.format!r}; use one of {', '.join(sorted(FORMATS))} "
+                    "or a format string like '{:.1f} V'",
+                )
+            anchor = _anchor(r.anchor, (*item, "anchor"), self.issues)
+            out.append(Readout(r.value, r.format, r.unit, r.abs, anchor, r.along, r.offset))
+        return tuple(out)
+
+    def symbol(self, model: SymbolModel, loc: Loc) -> SymbolElement | None:
+        spec = REGISTRY.get(model.type)
+        if spec is None:
+            known = ", ".join(["line", "text", *sorted(REGISTRY)])
+            self.issues.add((*loc, "type"), f"unknown type {model.type!r}; expected: {known}")
+            return None
+        bound = self.bind(model, spec.channels, spec.required, loc)
+        try:
+            params = spec.params(model.params)
+        except ValueError as exc:
+            self.issues.add((*loc, "params"), str(exc))
+            params = MappingProxyType({})
+        return SymbolElement(
+            id=model.id,
+            type=model.type,
+            at=model.at,
+            bind=MappingProxyType(bound),
+            name=self.name(model.name, (*loc, "name")),
+            status=self.status(model.status, spec.primary, bound, (*loc, "status")),
+            readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
+            orientation=Orientation(model.orientation),
+            params=params,
+        )
+
+    def line(self, model: LineModel, loc: Loc) -> LineElement:
+        bound = self.bind(model, LINE_CHANNELS, frozenset(), loc)
+        flow = None
+        if model.flow is not None:
+            self.bound_channel(model.flow.from_, bound, (*loc, "flow", "from"))
+            flow = FlowSpec(model.flow.from_, model.flow.threshold)
+        return LineElement(
+            id=model.id,
+            points=tuple(model.points),
+            bind=MappingProxyType(bound),
+            name=self.name(model.name, (*loc, "name")),
+            status=self.status(model.status, LINE_PRIMARY, bound, (*loc, "status")),
+            readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
+            flow=flow,
+        )
+
+    def element(self, raw: dict[str, Any], loc: Loc) -> Element | None:
+        kind = raw.get("type")
+        if not isinstance(kind, str):
+            self.issues.add((*loc, "type"), "every element needs a 'type'")
+            return None
+        if kind == "text":
+            text = validate(TextModel, raw, loc, self.issues)
+            return None if text is None else TextElement(text.id, text.at, text.text, text.align)
+        if kind == "line":
+            line = validate(LineModel, raw, loc, self.issues)
+            return None if line is None else self.line(line, loc)
+        symbol = validate(SymbolModel, raw, loc, self.issues)
+        return None if symbol is None else self.symbol(symbol, loc)
+
+
+def build_page(model: PageModel, shared: Defs, issues: Issues) -> Page:
+    """Build a page, merging page-local ``defs`` over the shared ones (no redefinition)."""
+    defs = shared
+    if model.defs is not None:
+        local = build_defs(model.defs, issues, base=shared)
+        defs, dupes = shared.merge(local)
+        for dupe in dupes:
+            issues.add(("defs", *dupe.split(".")), f"{dupe} is already defined in shared defs")
+    builder = _ElementBuilder(defs, issues)
+    elements: list[Element] = []
+    seen: set[str] = set()
+    for i, raw in enumerate(model.elements):
+        element = builder.element(raw, ("elements", i))
+        if element is None:
+            continue
+        if element.id in seen:
+            issues.add(("elements", i, "id"), f"duplicate element id {element.id!r}")
+        seen.add(element.id)
+        elements.append(element)
+    return Page(model.page, model.title, model.canvas.width, model.canvas.height, tuple(elements))
