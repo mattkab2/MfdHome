@@ -472,6 +472,8 @@ displays:
     size: [1280, 800]          # pixels
     home: status               # shown at startup
     pages: [status, electrical]   # what a viewer can select
+    controls: soft             # soft keys; default: soft when there is more than one page
+    alerts_page: status        # where the ALERTS key goes; default: home
   hallway:
     theme: mirror
     size: [1920, 1080]
@@ -480,5 +482,23 @@ displays:
 
 A display shows one page at a time and stays on it until a viewer selects
 another. Pages are never cycled automatically, and alerts never switch pages;
-the annunciator banner overlays whatever page is showing. `home` is always
-selectable.
+the annunciator banner overlays whatever page is showing. `home` (and
+`alerts_page`) are always selectable.
+
+### Soft keys
+
+With `controls: soft`, four keys share the bottom 40-unit strip with the
+banner, so they cost no page space:
+
+```
+[◀ PREV][ALERTS]   banner   [LOCK][NEXT ▶]
+```
+
+| Key | What it does |
+|---|---|
+| PREV / NEXT | Step through `pages` in order, wrapping around. |
+| ALERTS | Jumps to `alerts_page`. It lights in the alert's color, with the attention cue, while a caution or warning is unacknowledged. |
+| LOCK | Toggles the lock. While locked, every tap except LOCK is ignored (enforced by the server), and the key reads LOCKED. |
+
+Lock state isn't saved, so displays start unlocked. Acknowledging still
+happens by tapping the banner or a tile.

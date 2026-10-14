@@ -6,8 +6,10 @@ import pytest
 from syrupy.assertion import SnapshotAssertion
 
 from mfdhome.mfd import EMPTY_BOARD, Board, Phase, acknowledge, evaluate_alerts, most_urgent, step
+from mfdhome.model import Status
 from mfdhome.render import render_page
 from mfdhome.render.alerts import AlertView
+from mfdhome.render.controls import Controls
 from mfdhome.themes import EINK_MONO, LCD, MIRROR, Target, Theme
 from tests.support import config_page, fixture_state, load_test_config
 
@@ -91,3 +93,17 @@ def test_status_pages_use_only_theme_palette(theme: Theme) -> None:
         state = fixture_state(fixture) if fixture else {}
         svg = render_page(config_page("status"), state, theme, TABLET, view(board))
         assert set(re.findall(r"#[0-9a-fA-F]{6}", svg)) <= theme.palette()
+
+
+@pytest.mark.parametrize("theme", THEMES, ids=lambda t: t.name)
+def test_soft_keys_snapshot(theme: Theme, svg_snapshot: SnapshotAssertion) -> None:
+    """Status page with the soft keys: ALERTS lit, banner between the keys."""
+    svg = render_page(
+        config_page("status"),
+        fixture_state("status_mixed"),
+        theme,
+        TABLET,
+        view(MIXED),
+        Controls(Status.WARNING, locked=False),
+    )
+    assert svg == svg_snapshot

@@ -30,9 +30,10 @@ class TestDisplays:
     def test_load(self) -> None:
         displays = load_config(CONFIG).displays
         assert displays["workshop"] == Display(
-            "workshop", "lcd", 1280, 800, "status", ("status", "electrical")
+            "workshop", "lcd", 1280, 800, "status", ("status", "electrical"), True, "status"
         )
-        assert displays["hallway"].pages == ("electrical",)  # fixed to its home page
+        hallway = displays["hallway"]
+        assert hallway.pages == ("electrical",) and not hallway.controls  # fixed, no keys
 
     def test_errors(self, tmp_path: Path) -> None:
         path = tmp_path / "displays.yaml"
@@ -120,3 +121,49 @@ class TestRuntime:
         assert not rt.select("hallway", "status")  # the mirror is fixed
         assert not rt.select("nope", "status")
         assert 'data-theme="mirror"' in rt.render("hallway")
+
+
+class TestSoftKeys:
+    def test_display_options(self, tmp_path: Path) -> None:
+        path = tmp_path / "displays.yaml"
+        path.write_text(
+            "displays:\n"
+            "  a: {theme: lcd, size: [10, 10], home: electrical, alerts_page: status}\n"
+            "  b: {theme: lcd, size: [10, 10], home: status, pages: [electrical], controls: none}\n"
+            "  c: {theme: lcd, size: [10, 10], home: status, controls: soft}\n"
+        )
+        displays = load_displays(path, {"status", "electrical"})
+        a, b, c = displays["a"], displays["b"], displays["c"]
+        assert a.pages == ("electrical", "status") and a.controls  # alerts page is selectable
+        assert not b.controls and c.controls
+        path.write_text(
+            "displays:\n  a: {theme: lcd, size: [1, 1], home: status, alerts_page: x}\n"
+        )
+        with pytest.raises(ConfigError, match="alerts_page: unknown page 'x'"):
+            load_displays(path, {"status"})
+
+    def test_step_wraps(self) -> None:
+        d = Display("d", "lcd", 1, 1, "a", ("a", "b", "c"))
+        assert [d.step("a", 1), d.step("c", 1), d.step("a", -1)] == ["b", "a", "c"]
+
+    def test_press(self, tmp_path: Path) -> None:
+        rt = TestRuntime().runtime(tmp_path)
+        assert rt.press("workshop", "next") and rt.selected["workshop"] == "electrical"
+        assert rt.press("workshop", "next") and rt.selected["workshop"] == "status"  # wraps
+        assert rt.press("workshop", "prev") and rt.selected["workshop"] == "electrical"
+        assert rt.press("workshop", "alerts") and rt.selected["workshop"] == "status"
+        assert not rt.press("workshop", "alerts")  # already there
+        assert rt.press("workshop", "lock") and rt.locked["workshop"]
+        assert not rt.press("workshop", "next")  # locked
+        assert rt.selected["workshop"] == "status"
+        assert rt.press("workshop", "lock") and not rt.locked["workshop"]
+        assert not rt.press("workshop", "bogus") and not rt.press("nope", "next")
+
+    def test_render_shows_keys_only_where_configured(self, tmp_path: Path) -> None:
+        rt = TestRuntime().runtime(tmp_path)
+        rt.update(states("electrical_islanded"), T0)
+        workshop = rt.render("workshop")
+        assert '<g id="controls">' in workshop and '<g id="key-alerts"><g class="attn">' in workshop
+        assert '<g id="controls">' not in rt.render("hallway")
+        rt.press("workshop", "lock")
+        assert ">LOCKED<" in rt.render("workshop")

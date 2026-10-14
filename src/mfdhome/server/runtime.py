@@ -11,10 +11,11 @@ from collections.abc import Iterable
 from datetime import datetime
 
 from mfdhome.config.load import Config
-from mfdhome.mfd.alerts import Board, acknowledge, evaluate_alerts, step
+from mfdhome.mfd.alerts import Board, acknowledge, evaluate_alerts, most_urgent, step
 from mfdhome.mfd.display import Display
 from mfdhome.model.state import StateSnapshot
-from mfdhome.render.alerts import AlertView
+from mfdhome.render.alerts import SEVERITY_STATUS, AlertView
+from mfdhome.render.controls import Controls
 from mfdhome.render.page import render_page
 from mfdhome.server.store import BoardStore
 from mfdhome.sources.staleness import mark_stale
@@ -33,6 +34,7 @@ class Runtime:
         self.board: Board = store.load() if store else {}
         self.state: StateSnapshot = {}
         self.selected = {d.id: d.home for d in config.displays.values()}
+        self.locked = dict.fromkeys(config.displays, False)
 
     @property
     def displays(self) -> dict[str, Display]:
@@ -65,6 +67,29 @@ class Runtime:
         self.selected[display_id] = page_id
         return True
 
+    def press(self, display_id: str, key: str) -> bool:
+        """A soft key: ``prev``/``next`` step through pages, ``alerts`` jumps to the
+        alerts page, ``lock`` toggles the lock. Returns whether anything changed.
+
+        While locked, only ``lock`` does anything.
+        """
+        display = self.config.displays.get(display_id)
+        if display is None or (self.locked[display_id] and key != "lock"):
+            return False
+        current = self.selected[display_id]
+        match key:
+            case "lock":
+                self.locked[display_id] = not self.locked[display_id]
+                return True
+            case "prev" | "next":
+                target = display.step(current, -1 if key == "prev" else 1)
+            case "alerts":
+                target = display.alerts_page
+            case _:
+                return False
+        self.selected[display_id] = target
+        return target != current
+
     def render(self, display_id: str) -> str:
         """The SVG a display should show now."""
         display = self.config.displays[display_id]
@@ -73,7 +98,12 @@ class Runtime:
             self.config.alerts.alerts, self.config.alerts.systems, self.board, show_banner=True
         )
         target = Target(display.id, display.width, display.height)
-        return render_page(page, self.state, THEMES[display.theme], target, view)
+        controls = None
+        if display.controls:
+            urgent = most_urgent(self.board, self.config.alerts.alerts)
+            alert_status = None if urgent is None else SEVERITY_STATUS[urgent.severity]
+            controls = Controls(alert_status, self.locked[display_id])
+        return render_page(page, self.state, THEMES[display.theme], target, view, controls)
 
     def _set_board(self, board: Board) -> bool:
         if board == self.board:

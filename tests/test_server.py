@@ -99,3 +99,27 @@ async def test_refresh_loop_feeds_runtime(aiohttp_client: ClientFactory, tmp_pat
     assert "GRID POWER LOST" in frame["svg"]
     assert (tmp_path / "board.json").exists()  # board persisted
     await ws.close()
+
+
+async def test_keys_and_lock_enforcement(aiohttp_client: ClientFactory) -> None:
+    runtime = islanded()
+    client = await aiohttp_client(create_app(runtime, clock=lambda: T0))
+    ws = await client.ws_connect("/display/workshop/ws")
+    await ws.receive_json()
+    await ws.send_json({"type": "key", "key": "next"})
+    assert 'data-page="electrical"' in (await ws.receive_json())["svg"]
+    await ws.send_json({"type": "key", "key": "lock"})
+    assert ">LOCKED<" in (await ws.receive_json())["svg"]
+    # While locked: keys, acknowledgements and selection are all ignored.
+    for message in (
+        {"type": "key", "key": "alerts"},
+        {"type": "ack", "target": "banner"},
+        {"type": "ack", "system": "GRID"},
+        {"type": "select", "page": "status"},
+    ):
+        await ws.send_json(message)
+    await ws.send_json({"type": "key", "key": "lock"})  # unlock
+    unlocked = await ws.receive_json()  # the only frame since locking
+    assert ">LOCK<" in unlocked["svg"] and 'data-page="electrical"' in unlocked["svg"]
+    assert runtime.board["grid_lost"].phase is Phase.ACTIVE_UNACKED
+    await ws.close()

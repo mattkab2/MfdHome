@@ -43,6 +43,7 @@ function patch(svgText) {
 
 screen.addEventListener("click", (event) => {
   for (let el = event.target; el && el !== screen; el = el.parentElement) {
+    if (el.id.startsWith("key-")) return send({ type: "key", key: el.id.slice(4) });
     if (el.id === "banner") return send({ type: "ack", target: "banner" });
     if (el.id in tiles) return send({ type: "ack", system: tiles[el.id] });
   }
@@ -70,7 +71,7 @@ function connect() {
   };
 }
 
-// Page selection for now: window.mfdSelect("electrical") (bezel buttons come later).
+// Direct page selection (debugging): window.mfdSelect("electrical").
 window.mfdSelect = (page) => send({ type: "select", page });
 
 connect();

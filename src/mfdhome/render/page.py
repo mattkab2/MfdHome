@@ -33,6 +33,7 @@ from mfdhome.model.page import (
 )
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
+from mfdhome.render.controls import Controls, banner_box, soft_keys
 from mfdhome.render.format import format_value
 from mfdhome.render.lines import resolve_look
 from mfdhome.render.resolve import Resolver
@@ -44,7 +45,7 @@ from mfdhome.symbols.registry import (
     get_symbol,
 )
 from mfdhome.symbols.style import dotted, font
-from mfdhome.symbols.tile import ATTENTION_CLASS, TileLook, banner, tile
+from mfdhome.symbols.tile import ATTENTION_CLASS, TileLook, banner, banner_strip, tile
 from mfdhome.themes.target import Target
 from mfdhome.themes.theme import AttentionKind, Theme
 
@@ -334,12 +335,14 @@ def render_page(
     theme: Theme,
     target: Target,
     alerts: AlertView = NO_ALERTS,
+    controls: Controls | None = None,
 ) -> str:
     """Render ``page`` with ``state`` for ``target`` as a standalone SVG document.
 
     ``alerts`` supplies alert definitions and the shared board for tiles,
     alert-driven element status and (if ``alerts.show_banner``) the annunciator
-    banner along the bottom of the canvas.
+    banner along the bottom of the canvas. ``controls`` adds the soft keys to
+    that strip, with the banner between them.
 
     Output is deterministic: no clock, randomness or I/O, and fixed element and
     attribute order.
@@ -359,16 +362,20 @@ def render_page(
         *([svg.element("g", {"id": "casings"}, underlays)] if underlays else []),
         *(group for _, group in layers),
     ]
+    strip = banner_strip(page.width, page.height)
     shown = alerts.banner()
     if shown is not None:
         status = SEVERITY_STATUS[shown.alert.severity]
+        box = strip if controls is None else banner_box(strip)
         children.append(
             svg.element(
                 "g",
                 {"id": "banner"},
-                [banner(page.width, page.height, shown.alert.message, shown.others, status, theme)],
+                [banner(box, shown.alert.message, shown.others, status, theme)],
             )
         )
+    if controls is not None:
+        children.append(svg.element("g", {"id": "controls"}, [soft_keys(strip, controls, theme)]))
     css = attention_css(theme)
     if css and f'class="{ATTENTION_CLASS}"' in "".join(children):
         children.insert(0, svg.element("style", {}, [css]))

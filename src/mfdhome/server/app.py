@@ -94,9 +94,17 @@ class Hub:
                 await ws.send_json(frame)
 
     async def handle(self, display_id: str, message: dict[str, Any]) -> None:
-        """Apply a message from a display: acknowledge, or select a page."""
+        """Apply a message from a display: a soft key, an acknowledgement or a page.
+
+        A locked display ignores everything except its LOCK key.
+        """
         now = self.clock()
-        if message.get("type") == "ack":
+        kind, key = message.get("type"), message.get("key")
+        if self.runtime.locked.get(display_id) and not (kind == "key" and key == "lock"):
+            return
+        if kind == "key" and isinstance(key, str) and self.runtime.press(display_id, key):
+            await self.push([display_id])
+        elif kind == "ack":
             if message.get("target") == "banner":
                 alert = most_urgent(self.runtime.board, self.runtime.config.alerts.alerts)
                 changed = alert is not None and self.runtime.acknowledge(
@@ -109,9 +117,12 @@ class Hub:
             if changed:
                 logger.info("display %s acknowledged %s", display_id, message)
                 await self.push()  # acknowledgement is house-wide
-        elif message.get("type") == "select" and isinstance(page := message.get("page"), str):
-            if self.runtime.select(display_id, page):
-                await self.push([display_id])
+        elif (
+            kind == "select"
+            and isinstance(page := message.get("page"), str)
+            and self.runtime.select(display_id, page)
+        ):
+            await self.push([display_id])
 
 
 async def _favicon(_request: web.Request) -> web.Response:

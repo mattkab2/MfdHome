@@ -777,12 +777,20 @@ def build_displays(
         if d.theme not in THEMES:
             issues.add((*loc, "theme"), f"unknown theme {d.theme!r}; expected: {', '.join(THEMES)}")
         checks: list[tuple[Loc, str]] = [((*loc, "home"), d.home)]
+        if d.alerts_page is not None:
+            checks.append(((*loc, "alerts_page"), d.alerts_page))
         checks += [((*loc, "pages", i), page) for i, page in enumerate(d.pages)]
         for where, page in checks:
             if page not in page_ids:
                 issues.add(where, f"unknown page {page!r}")
+        alerts_page = d.alerts_page or d.home
         pages = (d.home, *(p for p in d.pages if p != d.home))
-        out[display_id] = Display(display_id, d.theme, d.size[0], d.size[1], d.home, pages)
+        if alerts_page not in pages:
+            pages = (*pages, alerts_page)
+        controls = d.controls == "soft" if d.controls is not None else len(pages) > 1
+        out[display_id] = Display(
+            display_id, d.theme, d.size[0], d.size[1], d.home, pages, controls, alerts_page
+        )
     return out
 
 

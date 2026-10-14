@@ -37,7 +37,7 @@ def tile_box(x: float, y: float) -> Box:
     return Box(x - TILE_WIDTH / 2, y - TILE_HEIGHT / 2, x + TILE_WIDTH / 2, y + TILE_HEIGHT / 2)
 
 
-def _attention_group(parts: list[str], attention: bool, theme: Theme) -> str:
+def attention_group(parts: list[str], attention: bool, theme: Theme) -> str:
     animated = attention and theme.attention.animated
     return svg.element("g", {"class": ATTENTION_CLASS if animated else None}, parts)
 
@@ -57,7 +57,7 @@ def _ring(box: Box, color: str, theme: Theme) -> str:
     )
 
 
-def _panel(
+def panel(
     box: Box, look: TileLook, theme: Theme, opaque: bool, ring: bool
 ) -> tuple[list[str], str]:
     """The tile/banner rectangle(s) and the color for text drawn on it.
@@ -106,7 +106,7 @@ def _panel(
 def tile(x: float, y: float, label: str, look: TileLook, theme: Theme) -> str:
     """Render an annunciator tile centered at (x, y)."""
     box = tile_box(x, y)
-    parts, text_color = _panel(box, look, theme, opaque=False, ring=True)
+    parts, text_color = panel(box, look, theme, opaque=False, ring=True)
     parts.append(
         svg.element(
             "text",
@@ -134,26 +134,28 @@ def tile(x: float, y: float, label: str, look: TileLook, theme: Theme) -> str:
                 [CLEARED_MARK],
             )
         )
-    return _attention_group(parts, look.attention, theme)
+    return attention_group(parts, look.attention, theme)
 
 
-def banner(
-    width: float, height: float, message: str, others: int, status: Status, theme: Theme
-) -> str:
-    """Render the annunciator banner across the bottom of a ``width`` x ``height`` canvas.
+def banner_strip(width: float, height: float) -> Box:
+    """The strip along the bottom of a canvas reserved for the banner (and soft keys)."""
+    return Box(0, height - BANNER_HEIGHT, width, height)
+
+
+def banner(box: Box, message: str, others: int, status: Status, theme: Theme) -> str:
+    """Render the annunciator banner filling ``box`` (normally the bottom strip).
 
     The banner is opaque, so it reads cleanly over page content, and always
     carries the attention cue (it only appears for unacknowledged alerts).
     """
-    box = Box(0, height - BANNER_HEIGHT, width, height)
     look = TileLook(status, attention=True)
     # No ring: it would fall off the canvas, and the banner itself is the cue.
-    parts, text_color = _panel(box, look, theme, opaque=True, ring=False)
+    parts, text_color = panel(box, look, theme, opaque=True, ring=False)
     text_attrs = {"dominant-baseline": "middle", **font(theme, theme.label_font_size, text_color)}
     parts.append(
         svg.element(
             "text",
-            {"x": 16, "y": box.cy, "text-anchor": "start", **text_attrs},
+            {"x": box.left + 16, "y": box.cy, "text-anchor": "start", **text_attrs},
             [svg.text(message)],
         )
     )
@@ -161,8 +163,8 @@ def banner(
         parts.append(
             svg.element(
                 "text",
-                {"x": width - 16, "y": box.cy, "text-anchor": "end", **text_attrs},
+                {"x": box.right - 16, "y": box.cy, "text-anchor": "end", **text_attrs},
                 [f"+{others}"],
             )
         )
-    return _attention_group(parts, True, theme)
+    return attention_group(parts, True, theme)

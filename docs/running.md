@@ -50,9 +50,10 @@ mfdhome serve CONFIG --port 8099 --board var/board.json
 - **Acknowledging:** tap the banner to acknowledge the alert it names, or tap
   an annunciator tile to acknowledge that system's alerts. Acknowledgements
   count for the whole house.
-- **Selecting pages:** for now, from the browser console with
-  `mfdSelect("electrical")`. Bezel buttons are planned. A display with one page
-  (like the mirror) can't change page.
+- **Soft keys:** displays with more than one page get PREV, ALERTS, LOCK and
+  NEXT keys at the bottom. ALERTS jumps to the alerts page and is lit while
+  something needs acknowledging. LOCK ignores every tap except LOCK until it's
+  tapped again. A display with one page (like the mirror) has no keys.
 - **Live behavior:** displays update within a fraction of a second of a
   change in Home Assistant. Data that stops arriving goes dotted after its
   `stale_after` limit. If Home Assistant is unreachable, everything shows as

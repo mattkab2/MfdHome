@@ -235,24 +235,15 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   `displays.yaml` gives each display a theme, size, home page and selectable
   pages. Browsers receive only rendered SVG; an optional `MFD_DISPLAY_TOKEN`
   gates display URLs.
+- **Soft keys** `[PREV][ALERTS] banner [LOCK][NEXT]` share the bottom 40-unit
+  strip with the banner (no page space lost). PREV/NEXT step through `pages`
+  (wrapping); ALERTS jumps to `alerts_page` and is lit while a caution/warning
+  is unacknowledged; LOCK is a tap toggle with no auto-relock, enforced by
+  the server, in memory (displays start unlocked). `controls: soft | none`
+  per display (default soft with more than one page).
 
 ## Next milestone
 
-- **Soft keys (tablet):** four keys in the bottom 40-unit strip every page
-  already keeps clear, with the banner between them:
-  `[PREV][ALERTS]  banner  [LOCK][NEXT]` (~51 px tall on a 1280x800 tablet).
-  - PREV/NEXT step through the display's `pages` in order, wrapping.
-  - ALERTS jumps to the display's alerts page (`alerts_page`, default `home`)
-    and is lit with the theme's attention cue while a caution/warning is
-    unacknowledged. Acknowledging stays on the banner and tiles.
-  - LOCK toggles with a tap (no auto-relock). While locked, every tap except
-    LOCK is ignored, enforced by the server. Lock state is per display, in
-    memory; displays start unlocked.
-  - Rendered as SVG by `render_page` from an optional `controls` input, drawn
-    with theme colors, so existing snapshots are unchanged. `displays.yaml`
-    gains `controls: soft | none` (default `soft` with more than one page, so
-    a fixed mirror gets none) and `alerts_page`. E-ink later maps the same
-    four actions to hardware bezel buttons.
 - **Real-house check (needs the owner):** run `mfdhome dump-states --scrub`
   against the real Home Assistant, add the result as a fixture, and build the
   real Electrical page against it (in the private config repo).
