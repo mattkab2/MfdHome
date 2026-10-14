@@ -1,4 +1,7 @@
-"""The ``mfdhome`` command line: check configs, dump HA states, serve displays."""
+"""The ``mfdhome`` command line: check configs, dump HA states, serve displays.
+
+Set ``MFD_DISPLAY_TOKEN`` to require ``?token=...`` on display URLs.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +20,7 @@ import aiohttp
 from mfdhome.config import ConfigError, load_config
 from mfdhome.config.inventory import entity_uses
 from mfdhome.model.state import StateSnapshot, snapshot_from_ha_states
+from mfdhome.server.app import serve
 from mfdhome.sources.fixture import load_fixture
 from mfdhome.sources.ha import HomeAssistant
 
@@ -114,6 +118,25 @@ def cmd_dump_states(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    url, token = ha_credentials()
+    config = args.config or os.environ.get("MFD_CONFIG")
+    if not config:
+        raise SystemExit("give a config directory (argument or MFD_CONFIG)")
+    asyncio.run(
+        serve(
+            config,
+            url,
+            token,
+            host=args.host,
+            port=args.port,
+            board_path=args.board,
+            display_token=os.environ.get("MFD_DISPLAY_TOKEN") or None,
+        )
+    )
+    return 0
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mfdhome", description=__doc__)
     p.add_argument("-v", "--verbose", action="store_true", help="log debug output")
@@ -130,6 +153,13 @@ def parser() -> argparse.ArgumentParser:
     dump.add_argument("-o", "--output", help="file to write (default: stdout)")
     dump.add_argument("--scrub", action="store_true", help="drop identifying data")
     dump.set_defaults(run=cmd_dump_states)
+
+    serve = sub.add_parser("serve", help="serve live displays (needs HA_URL and HA_TOKEN)")
+    serve.add_argument("config", nargs="?", help="config directory (default: MFD_CONFIG)")
+    serve.add_argument("--host", default="0.0.0.0", help="address to listen on (LAN only)")
+    serve.add_argument("--port", type=int, default=8099)
+    serve.add_argument("--board", default="var/board.json", help="where to keep the alert board")
+    serve.set_defaults(run=cmd_serve)
     return p
 
 
