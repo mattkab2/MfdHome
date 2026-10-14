@@ -13,7 +13,8 @@ class Display:
     always includes ``home``). A display with a single page, such as a mirror,
     is fixed to it. ``theme`` names a built-in theme; ``width``/``height`` are
     its pixel size. ``controls`` draws the soft keys (PREV, ALERTS, LOCK, NEXT);
-    ALERTS jumps to ``alerts_page``.
+    ALERTS jumps to ``alerts_page``. A display with a ``panel`` (an e-paper
+    panel profile name) is served as PNG snapshots quantized to that panel.
     """
 
     id: str
@@ -24,6 +25,7 @@ class Display:
     pages: tuple[str, ...]
     controls: bool = False
     alerts_page: str = ""
+    panel: str | None = None
 
     def step(self, current: str, delta: int) -> str:
         """The page ``delta`` places from ``current`` in ``pages``, wrapping."""

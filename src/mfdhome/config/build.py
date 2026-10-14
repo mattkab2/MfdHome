@@ -64,6 +64,7 @@ from mfdhome.model.page import (
 )
 from mfdhome.model.state import StalePolicy
 from mfdhome.render.format import FORMATS, is_valid_format
+from mfdhome.render.panels import PANELS
 from mfdhome.symbols.geometry import element_box, find_port
 from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
 from mfdhome.themes.builtin import THEMES
@@ -783,15 +784,34 @@ def build_displays(
         for where, page in checks:
             if page not in page_ids:
                 issues.add(where, f"unknown page {page!r}")
+        if d.panel is not None:
+            _check_panel(loc, d.theme, d.panel, issues)
         alerts_page = d.alerts_page or d.home
         pages = (d.home, *(p for p in d.pages if p != d.home))
         if alerts_page not in pages:
             pages = (*pages, alerts_page)
         controls = d.controls == "soft" if d.controls is not None else len(pages) > 1
         out[display_id] = Display(
-            display_id, d.theme, d.size[0], d.size[1], d.home, pages, controls, alerts_page
+            display_id, d.theme, d.size[0], d.size[1], d.home, pages, controls, alerts_page, d.panel
         )
     return out
+
+
+def _check_panel(loc: Loc, theme: str, panel: str, issues: Issues) -> None:
+    """The panel profile must exist and show every color the theme draws."""
+    profile = PANELS.get(panel)
+    if profile is None:
+        issues.add((*loc, "panel"), f"unknown panel {panel!r}; expected: {', '.join(PANELS)}")
+        return
+    if theme not in THEMES:
+        return
+    missing = profile.unsupported(THEMES[theme])
+    if missing:
+        issues.add(
+            (*loc, "panel"),
+            f"panel {panel!r} cannot show theme {theme!r} (colors {', '.join(sorted(missing))});"
+            " use a theme drawn in the panel's colors, such as eink_mono",
+        )
 
 
 # --- alerts -----------------------------------------------------------------------------------

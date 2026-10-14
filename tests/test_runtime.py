@@ -60,6 +60,24 @@ class TestDisplays:
         assert "displays.a.home: unknown page 'nowhere'" in msgs
         assert "displays.a.pages[1]: unknown page 'gone'" in msgs
 
+    def test_panel(self, tmp_path: Path) -> None:
+        path = tmp_path / "displays.yaml"
+        path.write_text(
+            "displays:\n"
+            "  kitchen: {theme: eink_color, size: [800, 480], home: status, panel: spectra6}\n"
+        )
+        assert load_displays(path, {"status"})["kitchen"].panel == "spectra6"
+        path.write_text(
+            "displays:\n"
+            "  a: {theme: eink_mono, size: [800, 480], home: status, panel: plasma}\n"
+            "  b: {theme: eink_color, size: [800, 480], home: status, panel: mono}\n"
+        )
+        with pytest.raises(ConfigError) as info:
+            load_displays(path, {"status"})
+        msgs = [f"{i.loc}: {i.message}" for i in info.value.issues]
+        assert msgs[0].startswith("displays.a.panel: unknown panel 'plasma'; expected: mono")
+        assert msgs[1].startswith("displays.b.panel: panel 'mono' cannot show theme 'eink_color'")
+
 
 class TestStore:
     BOARD: ClassVar[dict[str, AlertState]] = {

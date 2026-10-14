@@ -400,7 +400,7 @@ class AlertsModel(Strict):
 
 
 class DisplayModel(Strict):
-    """One display: theme, pixel size, home page and the pages a viewer can select."""
+    """One display: theme, pixel size, home page, selectable pages and (e-paper) panel."""
 
     theme: str
     size: tuple[Annotated[int, Field(gt=0)], Annotated[int, Field(gt=0)]]
@@ -408,6 +408,7 @@ class DisplayModel(Strict):
     pages: list[Ident] = []
     controls: Literal["soft", "none"] | None = None  # default: soft with more than one page
     alerts_page: Ident | None = None  # default: home
+    panel: str | None = None  # e-paper panel profile: served as PNG snapshots
 
 
 class DisplaysModel(Strict):

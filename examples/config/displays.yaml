@@ -11,3 +11,9 @@ displays:
     theme: mirror
     size: [1920, 1080]
     home: electrical
+  main_floor:
+    theme: eink_mono
+    size: [800, 480]
+    home: status
+    pages: [status, electrical]
+    panel: mono

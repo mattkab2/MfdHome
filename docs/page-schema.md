@@ -468,7 +468,7 @@ alerts:
 ```yaml
 displays:
   workshop:
-    theme: lcd                 # lcd | mirror | eink_mono
+    theme: lcd                 # lcd | mirror | eink_mono | eink_color
     size: [1280, 800]          # pixels
     home: status               # shown at startup
     pages: [status, electrical]   # what a viewer can select
@@ -478,6 +478,12 @@ displays:
     theme: mirror
     size: [1920, 1080]
     home: electrical           # no 'pages': fixed to its home page
+  main_floor:
+    theme: eink_mono
+    size: [800, 480]           # the panel's own resolution
+    home: status
+    pages: [status, electrical]
+    panel: mono                # e-paper: served as PNG snapshots
 ```
 
 A display shows one page at a time and stays on it until a viewer selects
@@ -502,3 +508,26 @@ banner, so they cost no page space:
 
 Lock state isn't saved, so displays start unlocked. Acknowledging still
 happens by tapping the banner or a tile.
+
+### E-paper panels
+
+A display with a `panel` is an e-paper device that fetches PNG snapshots
+instead of a live page (see `docs/running.md`). The PNG is the display's
+`size` and uses only the panel's colors, without dithering:
+
+| Panel | Colors | Theme |
+|---|---|---|
+| `mono` | black, white | `eink_mono` |
+| `gray4` | 4 grays | `eink_mono` |
+| `gray16` | 16 grays | `eink_mono` |
+| `spectra6` | black, white, red, yellow, blue, green | `eink_mono` or `eink_color` |
+
+The theme must draw only colors the panel can show; `mfdhome check` reports
+anything else. `eink_color` uses the six inks directly: green normal, yellow
+caution, red warning, blue active, black dotted for no data. A page whose
+proportions differ from the panel's is centered, with margins in the
+background color.
+
+The soft-key labels are still drawn along the bottom strip when the display
+has more than one page, so hardware buttons mounted beneath them are
+labelled.
