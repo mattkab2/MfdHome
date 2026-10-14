@@ -14,11 +14,11 @@ page (WAN → router → switches → APs), and a Status/annunciator page.
 The core idea is **author once, render many**: a page is defined once and
 rendered to several display targets with different themes and constraints:
 
-| Target | Hardware | Rendering | Constraints |
-|---|---|---|---|
-| `tablet` | Rugged Android tablet (workshop), kiosk browser | Live SVG/HTML, interactive | Touch targets ≥ 48px, glove-friendly |
-| `mirror` | Two-way mirror over a monitor, kiosk browser | Live SVG/HTML, auto-cycling | **Pure black background**, thin bright lines, no large light areas |
-| `eink` | 10–13" e-paper panel (main floor) | Server-side snapshot → PNG pushed to device | No animation, limited palette (1-bit / grays / 6-color), refresh every 1–5 min, bezel buttons for page select |
+| Target | Theme | Hardware | Rendering | Constraints |
+|---|---|---|---|---|
+| `tablet` | `lcd` | Rugged Android tablet (workshop), kiosk browser | Live SVG/HTML, interactive | Touch targets ≥ 48px, glove-friendly |
+| `mirror` | `mirror` | Two-way mirror over a monitor, kiosk browser | Live SVG/HTML, auto-cycling | **Pure black background**, thin bright lines, no large light areas |
+| `eink` | `eink_mono` | 10–13" e-paper panel (main floor) | Server-side snapshot → PNG pushed to device | No animation, limited palette (1-bit / grays / 6-color), refresh every 1–5 min, bezel buttons for page select |
 
 House content (which sensors exist, where systems physically are) changes often,
 so **page definitions are data, separate from library code**.
@@ -34,12 +34,14 @@ src/mfdhome/
                # node, link, tank, sensor badge. Each returns SVG fragments.
                # registry.py declares each type's channels, box and params.
   layout/      # Positioning helpers: anchors, polyline geometry, (later) grids
-  themes/      # Theme definitions (palette, stroke widths, fonts) per target
+  themes/      # Gruvbox palette and built-in themes (lcd, mirror, eink_mono):
+               # palette, stroke weights, tile fill, attention style, fonts
   render/      # Pure render functions: (page, state, theme, target) -> SVG string
                # plus rasterization to PNG for e-ink (quantize to panel palette)
   sources/     # State providers: HA websocket/REST client, static fixture source
-  mfd/         # MFD behavior: page rotation, page selection, master-caution
-               # preemption, alert acknowledgement
+  mfd/         # MFD behavior: alert latching, house-wide acknowledgement and
+               # preemption order (pure, caller supplies the clock); later page
+               # rotation and selection
   server/      # Web server: serves live pages to tablet/mirror, pushes updates,
                # exposes PNG endpoints for e-ink devices
   config/      # Loading + validating page definition files (YAML, see
@@ -69,16 +71,29 @@ examples/
 5. **Missing or unavailable entities must render gracefully** (dashed / gray
    "no data" state), never crash. New sensors get added over time; stale configs
    are normal.
-6. **Shared visual language across all targets:** green = normal, amber =
-   caution, red = warning, cyan = flow/active, gray/dashed = unavailable. Keep
-   symbol shapes identical across themes; only palette and weights change.
+6. **Shared visual language across all targets,** from the Gruvbox palette:
+   aqua `#8ec07c` = normal, yellow `#fabd2f` = caution, red `#fb4934` = warning,
+   blue `#83a598` = flow/active/advisory, gray `#928374` + dashed = unavailable.
+   Keep symbol shapes identical across themes; palette, stroke weights, tile
+   fill and attention style vary by theme. Never rely on color alone where a
+   palette can't show it: monochrome themes carry severity in weight and fill.
 
 ### MFD behavior
 
 - Each display has a current page, a rotation list, and a dwell time.
-- Alerts have severity (`advisory`, `caution`, `warning`). A caution/warning
-  preempts rotation on all displays, shows the relevant page with an annunciator
-  banner, and persists until acknowledged or cleared.
+- Alerts have severity (`advisory`, `caution`, `warning`) and belong to a
+  system (one annunciator tile each). Defined in `alerts.yaml`.
+- Cautions and warnings **latch**: they stay until acknowledged, even after
+  their condition clears ("cleared, unacknowledged" is its own visible state).
+  Advisories clear on their own and never preempt.
+- **One acknowledgement counts for the whole house** (one shared alert board);
+  record who acknowledged and when.
+- An unacknowledged caution/warning preempts rotation on all displays and shows
+  its page with the annunciator banner (bottom of the canvas; keep the bottom
+  40 units of pages clear). Order: warning before caution, active before
+  cleared, most recently raised first.
+- Unacknowledged cue by display type: LCD/LED panels flash (≤ 1 Hz), the mirror
+  pulses slowly, e-ink draws a static outline ring.
 - The Status/annunciator page is the default/home page.
 
 ## Tooling and commands
@@ -150,9 +165,28 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   Status rules are in disjunctive normal form (OR of AND-groups) and may refer
   to any entity, not just the element's own channels.
 
+- **Colors come from Gruvbox.** Aqua replaces Gruvbox green for "normal"
+  because green and yellow are nearly indistinguishable under color-vision
+  deficiency; orange is unused for the same reason. The mirror keeps a pure
+  black background; the LCD theme uses Gruvbox `bg0_h`.
+- **Alerts live in `alerts.yaml`** (systems + alerts), using the same condition
+  format as status rules but entity references only.
+- **Annunciator tiles have a fixed size** (160 x 64) and are positioned
+  manually or with `tile_grid`. Manual placement must always remain possible.
+
+## Future work (not yet scheduled)
+
+- Adaptive layout for annunciator tiles, so large alert sets don't need manual
+  layout (in addition to, not replacing, manual positioning).
+- Page rotation and dwell timers (server milestone; needs a clock loop).
+
 ## Open decisions (ask before settling)
 
 - Web server framework and live-update mechanism (e.g. websocket push vs polling).
 - PNG rasterization library for e-ink.
+- **Panel profiles** (deferred to the rasterization milestone): the exact colors
+  a panel can show and its dithering policy, used by rasterization to quantize.
+  The color e-ink theme (Gruvbox light, mapped onto the panel's colors) and the
+  choice of e-ink panel type (1-bit, grayscale or 6-color) come with it.
 - How e-ink devices fetch images (pull a PNG URL vs push) and which firmware.
 - Whether house-specific page configs live in this repo or a separate one.
