@@ -13,6 +13,9 @@ dependencies = [
     "aiohttp (>=3.14.5,<4.0.0)"
 ]
 
+[project.scripts]
+mfdhome = "mfdhome.cli:main"
+
 [tool.poetry]
 packages = [{include = "mfdhome", from = "src"}]
 
