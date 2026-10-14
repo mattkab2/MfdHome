@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from mfdhome.conditions import AllOf, AnyOf, Condition, Op
+from mfdhome.conditions import AnyOf, Condition, Op
 from mfdhome.mfd import AlertState, Phase
 from mfdhome.model import (
     AlertDef,
@@ -30,7 +30,7 @@ TARGET = Target("t", 100, 100)
 
 
 def cond(entity: str) -> AnyOf:
-    return AnyOf((AllOf((Condition(EntityRef(entity), Op.EQ, "on"),)),))
+    return AnyOf.single(Condition(EntityRef(entity), Op.EQ, "on"))
 
 
 def alert(id_: str, severity: Severity, system: str = "GRID") -> AlertDef:

@@ -3,7 +3,6 @@
 import pytest
 
 from mfdhome.conditions import (
-    AllOf,
     AnyOf,
     ChannelRef,
     Condition,
@@ -54,7 +53,7 @@ class TestElementStatus:
     def test_explicit_rule_beats_no_data(self) -> None:
         rule = Rule(
             Status.WARNING,
-            AnyOf((AllOf((Condition(ChannelRef("state"), Op.UNAVAILABLE, True),)),)),
+            AnyOf.single(Condition(ChannelRef("state"), Op.UNAVAILABLE, True)),
         )
         context = ctx(state="switch.main")
         assert element_status(StatusSpec((rule,)), context, "state") is Status.WARNING
@@ -138,7 +137,7 @@ class TestElements:
     def test_line_flow_on_caution_line_keeps_caution_color(self) -> None:
         rule = Rule(
             Status.CAUTION,
-            AnyOf((AllOf((Condition(ChannelRef("power"), Op.GT, 5000),)),)),
+            AnyOf.single(Condition(ChannelRef("power"), Op.GT, 5000)),
         )
         element = LineElement(
             "l",

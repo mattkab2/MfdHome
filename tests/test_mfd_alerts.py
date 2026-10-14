@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from mfdhome.conditions import TRUE, AllOf, AnyOf, Condition, Op
+from mfdhome.conditions import TRUE, AnyOf, Condition, Op
 from mfdhome.mfd import (
     EMPTY_BOARD,
     AlertState,
@@ -138,7 +138,7 @@ def test_evaluate_alerts() -> None:
         Severity.CAUTION,
         "BATT",
         "LOW",
-        AnyOf((AllOf((Condition(EntityRef("sensor.soc"), Op.LT, 20),)),)),
+        AnyOf.single(Condition(EntityRef("sensor.soc"), Op.LT, 20)),
         "page",
     )
     snap = snapshot_from_ha_states([ha_state("sensor.soc", "15")])

@@ -58,6 +58,11 @@ class AnyOf:
 
     terms: tuple[AllOf, ...] = ()
 
+    @classmethod
+    def single(cls, condition: Condition) -> AnyOf:
+        """An expression of one condition."""
+        return cls((AllOf((condition,)),))
+
     def and_(self, other: AnyOf) -> AnyOf:
         """Conjunction of two DNF expressions, distributed back into DNF."""
         return AnyOf(

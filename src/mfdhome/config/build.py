@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from mfdhome.conditions.model import TRUE, AllOf, AnyOf, ChannelRef, Condition, Op, Rule
+from mfdhome.conditions.model import TRUE, AnyOf, ChannelRef, Condition, Op, Rule
 from mfdhome.conditions.sugar import Thresholds, state_map_rules
 from mfdhome.config.errors import Issues, Loc
 from mfdhome.config.schema import (
@@ -185,7 +185,7 @@ class _Exprs:
             "between": term.between,
             "unavailable": term.unavailable,
         }[op]
-        return AnyOf((AllOf((Condition(ref, Op(op), operand),)),))
+        return AnyOf.single(Condition(ref, Op(op), operand))
 
     def conjunction(
         self, terms: list[TermModel], loc: Loc, issues: Issues, bound: Bound = None

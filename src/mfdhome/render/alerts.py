@@ -73,7 +73,7 @@ class AlertView:
         members = list(self.in_system(system))
         lit = [a for a in members if self.phase(a.id).lit]
         if lit:
-            worst = max((a.severity for a in lit), key=_rank)
+            worst = max((a.severity for a in lit), key=lambda s: s.rank)
             top = [a for a in lit if a.severity is worst]
             cleared = all(self.phase(a.id) is Phase.CLEARED_UNACKED for a in top)
         else:
@@ -94,7 +94,7 @@ class AlertView:
         ]
         if not relevant:
             return None
-        return SEVERITY_STATUS[max((a.severity for a in relevant), key=_rank)]
+        return SEVERITY_STATUS[max((a.severity for a in relevant), key=lambda s: s.rank)]
 
     def banner(self) -> Banner | None:
         """The banner to show, if enabled and something preempts."""
@@ -102,10 +102,6 @@ class AlertView:
             return None
         pending = [a for a in attention_order(self.board, self.alerts) if a.severity.preempts]
         return Banner(pending[0], len(pending) - 1) if pending else None
-
-
-def _rank(severity: Severity) -> int:
-    return severity.rank
 
 
 def _entity_refs(alert: AlertDef) -> Iterator[EntityRef]:
