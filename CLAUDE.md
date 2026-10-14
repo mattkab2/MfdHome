@@ -174,6 +174,65 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - **Annunciator tiles have a fixed size** (160 x 64) and are positioned
   manually or with `tile_grid`. Manual placement must always remain possible.
 
+## Next milestone
+
+- **Battery sign convention: negative battery power means discharging**
+  (positive = charging). The example and test configs currently assume the
+  opposite: flip the `battery_feed` line (or its points) so discharge flows
+  battery → bus, fix the comments in `electrical.yaml`, and update the
+  `sensor.battery_power` values in the state fixtures so each scenario keeps
+  its meaning (e.g. islanded = discharging). Snapshot changes should be limited
+  to the battery readout sign.
+- **Unavailable becomes dotted everywhere** (lines, symbol outlines, tiles),
+  replacing dashed. Update core rules 5 and 6 when this lands; every
+  unavailable snapshot changes.
+- **Line severity is shown by pattern, plus color where the palette has it:**
+  solid = normal, dashed = caution, angle-striped (hatched) = warning,
+  dotted = unavailable. Lines only; symbols keep weight/fill and tiles keep
+  fill/ring. Constraints:
+  - Stripes fill the casing interior; a warning line needs a minimum rendered
+    width (force casing on if a style turned it off).
+  - Rotate the hatch per segment so stripes always cross the line (a fixed
+    45° pattern vanishes on 45° lines).
+  - Hatch spacing is a theme value, to be tuned against panel pixels in the
+    rasterization milestone.
+  - Flow arrows stay solid on top of any pattern. No "marching dashes" flow
+    animation (it would read as caution); animate chevrons if anything.
+  - E-ink stops using stroke weight for *line* severity (`status_weight`
+    applies to symbols only), so weight on lines is purely structural.
+- **Connection styles:** named, relative line styles in `defs.yaml`: weight
+  multiplier, casing, junction dots. Never color, and never a pattern (solid,
+  dashed, hatched and dotted all carry status). **Casing is the default**;
+  `casing: false` opts out. Per-element `weight` override. Resolution, last
+  wins except where noted:
+  1. the style's base properties;
+  2. the style's per-theme variant in `defs.yaml`, keyed by theme name
+     (`themes: {mirror: {weight: 1.5}}`): house-level YAML, usable now;
+  3. later, per-display overrides by style name, when display configurations
+     arrive with the server milestone;
+  4. theme policies applied last and always honored: generic limits on
+     properties, never on style names (e.g. `max_weight`, `casing: never`),
+     so library themes stay independent of house configs.
+- **Attach lines to symbols:** ports declared per symbol type in the registry,
+  a `node` element for junctions (auto junction dots where 3+ lines meet),
+  line endpoints as coordinates or `element.port`, `via` bend points.
+- **Groups (containers):** a `group` element whose `layout` (grid now,
+  adaptive modes later) positions `items`; children have no lines and connect
+  implicitly to the group, which exposes ports like a symbol. Groups nest,
+  keep their hierarchy through render (bottom-up: children, then derived
+  channels such as `sum`/`count`, then frame/status/readouts), and frames are
+  solid/dim/none only (patterns carry status). `tile_grid` becomes shorthand
+  for a frameless group of tiles (status snapshots must stay identical). Lines
+  may bind to another element's channel (e.g. `array.power`). Decided:
+  - Child ids are scoped to their group and addressed as a path (`array.p3`).
+  - Repetition is explicit: `item_defaults` plus a listed `items` entry per
+    child. No range/template shorthand.
+  - Lines may never connect to a child (e.g. `array.p3.right` is a load
+    error); only the group's own ports are connectable.
+  - Default group status (when the group has no rules): the worst caution or
+    warning among its children; unavailable only if every child is
+    unavailable. Rules on derived channels (e.g. `offline >= 2`) can raise it.
+
 ## Future work (not yet scheduled)
 
 - Adaptive layout for annunciator tiles, so large alert sets don't need manual
