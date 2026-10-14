@@ -30,6 +30,7 @@ argument or `MFD_CONFIG`. `examples/config/` is a complete starting point.
 | `mfdhome check CONFIG --ha` | Also lists every bound entity that doesn't exist in Home Assistant, with where it's used. |
 | `mfdhome check CONFIG --states FILE` | The same, against a saved states dump instead of a live HA. |
 | `mfdhome dump-states -o states.json --scrub` | Saves HA's current states as a fixture. `--scrub` keeps only what rendering needs and drops people and location domains. |
+| `mfdhome render CONFIG DISPLAY` | Renders one display once, to `DISPLAY.png` for e-paper panels or `DISPLAY.svg` otherwise. `--states FILE` renders a saved states dump (alerts included), `--page` picks a page, `-o` names the file. |
 | `mfdhome serve CONFIG` | Runs the live display server (see below). |
 
 Add `-v` before the command for debug logging.
@@ -59,3 +60,130 @@ mfdhome serve CONFIG --port 8099 --board var/board.json
   `stale_after` limit. If Home Assistant is unreachable, everything shows as
   unavailable until it reconnects, and the display shows "OFFLINE" while its
   own connection to the server is down.
+
+## E-paper displays
+
+A display with a `panel` in `displays.yaml` is served as a PNG that the device
+fetches on a timer:
+
+| Route | What it does |
+|---|---|
+| `GET /display/<id>.png` | The current page, at the display's `size`, in the panel's colors only. |
+| `POST /display/<id>/key/<key>` | Presses `prev`, `next`, `alerts` or `lock`, like the soft keys (the lock applies too). |
+
+Both take `?token=...` when `MFD_DISPLAY_TOKEN` is set.
+
+- **Cheap polling:** every PNG carries an `ETag`. A request with that tag in
+  `If-None-Match` gets `304 Not Modified` while nothing has changed, so the
+  device can poll often without redrawing.
+- **"As of" stamp:** the bottom strip shows when the content last changed
+  (server local time), not when the image was fetched, so an unchanged page
+  keeps the same image. A device that fails to fetch should mark that itself
+  (the ESPHome example below draws OFFLINE), because a frozen image looks
+  exactly like a quiet house.
+- **Keys:** the PREV/ALERTS/LOCK/NEXT labels are drawn along the bottom strip
+  when the display has more than one page. Mount the buttons beneath them.
+  Acknowledging alerts happens on an interactive display (tablet).
+- **Refresh:** a page change from a button press shows on the next fetch, so
+  have the device fetch right after a press. Alerts appear at the next
+  scheduled fetch. Pick an interval that suits the panel: a minute or two for
+  mono panels with fast refresh, longer for six-color panels, which take
+  15–30 s to redraw.
+
+Check a layout without a device:
+
+```bash
+mfdhome render CONFIG main_floor --states tests/fixtures/electrical_islanded.json --page electrical
+```
+
+### ESPHome example
+
+A sketch for an ESP32 (with PSRAM: a decoded 800×480 frame doesn't fit
+in plain RAM) driving a mono panel with four buttons. Adjust the display
+platform, pins and image `type` (`BINARY` for mono, `GRAYSCALE` for gray
+panels, a color type for six-color panels) to your hardware, and check option
+names against your ESPHome version's `online_image` and `http_request` docs.
+
+```yaml
+substitutions:
+  mfd: http://mfd.local:8099/display/main_floor
+  token: "?token=CHANGE_ME"        # or "" without MFD_DISPLAY_TOKEN
+
+http_request:
+  timeout: 10s
+
+globals:
+  - id: offline
+    type: bool
+    initial_value: "false"
+
+online_image:
+  - id: frame
+    url: ${mfd}.png${token}
+    format: PNG
+    type: BINARY
+    update_interval: 2min
+    on_download_finished:
+      - lambda: id(offline) = false;
+      - if:
+          condition:
+            lambda: return !cached;    # 304: same image, no redraw
+          then:
+            - component.update: epaper
+    on_error:
+      - lambda: id(offline) = true;
+      - component.update: epaper
+
+font:
+  - file: "gfonts://Roboto Mono"
+    id: small
+    size: 16
+
+display:
+  - platform: waveshare_epaper     # your panel's driver and model
+    id: epaper
+    model: 7.50inV2
+    cs_pin: GPIO15
+    dc_pin: GPIO27
+    busy_pin: GPIO25
+    reset_pin: GPIO26
+    update_interval: never         # redrawn only when the image changes
+    lambda: |-
+      it.image(0, 0, id(frame));
+      if (id(offline)) {
+        it.filled_rectangle(it.get_width() - 100, 0, 100, 26, COLOR_ON);
+        it.print(it.get_width() - 50, 13, id(small), COLOR_OFF, TextAlign::CENTER, "OFFLINE");
+      }
+
+script:
+  - id: press
+    parameters:
+      key: string
+    then:
+      - http_request.post:
+          url: !lambda 'return "${mfd}/key/" + key + "${token}";'
+          on_response:
+            - component.update: frame  # fetch the new page right away
+
+binary_sensor:
+  - platform: gpio
+    pin: {number: GPIO32, mode: INPUT_PULLUP, inverted: true}
+    name: PREV
+    on_press: {script.execute: {id: press, key: prev}}
+  - platform: gpio
+    pin: {number: GPIO33, mode: INPUT_PULLUP, inverted: true}
+    name: ALERTS
+    on_press: {script.execute: {id: press, key: alerts}}
+  - platform: gpio
+    pin: {number: GPIO34, mode: INPUT, inverted: true}   # needs an external pull-up
+    name: LOCK
+    on_press: {script.execute: {id: press, key: lock}}
+  - platform: gpio
+    pin: {number: GPIO35, mode: INPUT, inverted: true}   # needs an external pull-up
+    name: NEXT
+    on_press: {script.execute: {id: press, key: next}}
+```
+
+A Raspberry Pi (or any other device) uses the same two routes: fetch the PNG
+with `If-None-Match`, draw it when the response is `200`, and `POST` a key on
+each button press.

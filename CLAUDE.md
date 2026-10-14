@@ -18,7 +18,7 @@ rendered to several display targets with different themes and constraints:
 |---|---|---|---|---|
 | `tablet` | `lcd` | Rugged Android tablet (workshop), kiosk browser | Live SVG/HTML, interactive | Touch targets ≥ 48px, glove-friendly |
 | `mirror` | `mirror` | Two-way mirror over a monitor, kiosk browser | Live SVG/HTML | **Pure black background**, thin bright lines, no large light areas |
-| `eink` | `eink_mono` | 10–13" e-paper panel (main floor) | Server-side snapshot → PNG pushed to device | No animation, limited palette (1-bit / grays / 6-color), refresh every 1–5 min, bezel buttons for page select |
+| `eink` | `eink_mono` / `eink_color` | 10–13" e-paper panel (main floor), likely ESPHome on an ESP32 | Server-side snapshot → PNG fetched by the device | No animation, limited palette (1-bit / grays / 6-color), refresh every 1–5 min, bezel buttons for page select |
 
 House content (which sensors exist, where systems physically are) changes often,
 so **page definitions are data, separate from library code**.
@@ -36,11 +36,13 @@ src/mfdhome/
                # geometry.py gives element boxes and port points.
   layout/      # Positioning helpers: anchors, polyline geometry, grids
                # (adaptive group layouts later)
-  themes/      # Gruvbox palette and built-in themes (lcd, mirror, eink_mono):
+  themes/      # Gruvbox palette and built-in themes (lcd, mirror, eink_mono,
+               # eink_color):
                # palette, stroke weights, tile fill, attention style, fonts
   render/      # Pure render functions: (page, state, theme, target) -> SVG string;
                # resolve.py resolves status/derived channels bottom-up through
-               # groups. Later: rasterization to PNG for e-ink (quantize to panel)
+               # groups. panels.py (e-paper panel profiles) and raster.py (SVG ->
+               # PNG via resvg, quantized to the panel palette)
   sources/     # State providers: HA websocket client (ha.py), JSON fixtures,
                # staleness marking
   mfd/         # MFD behavior: alert latching, house-wide acknowledgement and
@@ -48,8 +50,10 @@ src/mfdhome/
                # selection per display
   server/      # Live runtime (alert loop, persisted board, page selection) and
                # the aiohttp display server (HTML shell + WebSocket frames,
-               # static/client.js). Later: PNG endpoints for e-ink devices.
-  cli.py       # `mfdhome check | dump-states | serve` (see docs/running.md)
+               # static/client.js), and PNG snapshots + key presses for e-paper
+               # displays (images.py).
+  fonts/       # Bundled DejaVu Sans Mono (with its license), used by rasterization
+  cli.py       # `mfdhome check | dump-states | render | serve` (see docs/running.md)
   config/      # Loading + validating page definition files (YAML, see
                # docs/page-schema.md). pydantic stays inside this package.
 tests/
@@ -235,6 +239,21 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   `displays.yaml` gives each display a theme, size, home page and selectable
   pages. Browsers receive only rendered SVG; an optional `MFD_DISPLAY_TOKEN`
   gates display URLs.
+- **E-paper rendering:** resvg (resvg-py) rasterizes with only the bundled
+  font, then Pillow quantizes to the panel profile (`mono`, `gray4`,
+  `gray16`, `spectra6`) by exact nearest color, never dithered, and writes an
+  indexed PNG. Panels without intermediate tones render without
+  antialiasing. A display's `panel` in `displays.yaml` makes it an e-paper
+  display; its theme may only draw colors the panel shows (checked at load).
+  `eink_color` draws the Gruvbox roles in the Spectra 6 inks (no gray ink:
+  unavailable is black dotted; yellow never carries text). All displays
+  are landscape.
+- **E-paper delivery:** the device pulls `GET /display/<id>.png` on a timer
+  (ETag / 304 when unchanged) and presses keys with `POST
+  /display/<id>/key/<key>`. The expected device is ESPHome on an ESP32
+  (`online_image`), possibly a Pi Zero; both use the same routes. The "as of"
+  stamp in the bottom strip shows when content last changed, not fetch time,
+  so unchanged pages don't redraw; the device marks failed fetches itself.
 - **Soft keys** `[PREV][ALERTS] banner [LOCK][NEXT]` share the bottom 40-unit
   strip with the banner (no page space lost). PREV/NEXT step through `pages`
   (wrapping); ALERTS jumps to `alerts_page` and is lit while a caution/warning
@@ -257,16 +276,16 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   to, not replacing, manual positioning and the fixed grid.
 - Flow animation, if wanted: animate chevrons only, never "marching dashes"
   (dashes mean caution).
-- Hardware buttons for the same four actions (e-ink bezel buttons, possibly
-  the mirror), with key labels drawn beside them.
+- Hardware buttons for the mirror (e-ink buttons use the key route).
+- Immediate e-ink refresh on new alerts (a wake signal to the device, e.g.
+  through Home Assistant's ESPHome integration); today alerts appear at the
+  next scheduled fetch.
+- A Pi Zero client for the PNG and key routes.
+- Tuning against a real panel's pixels: `hatch_spacing`, dot spacing, and
+  `core_inset` (at 800×480 the gap between a flowing pipe's walls and its
+  core falls below a pixel on 1-bit panels).
 
 ## Open decisions (ask before settling)
 
-
-- PNG rasterization library for e-ink.
-- **Panel profiles** (deferred to the rasterization milestone): the exact colors
-  a panel can show and its dithering policy, used by rasterization to quantize.
-  The color e-ink theme (Gruvbox light, mapped onto the panel's colors) and the
-  choice of e-ink panel type (1-bit, grayscale or 6-color) come with it, as
-  does tuning `hatch_spacing` and dot spacing against the panel's pixels.
-- How e-ink devices fetch images (pull a PNG URL vs push) and which firmware.
+- The exact e-ink panel (mono expected; six-color if one can be had) and its
+  resolution, which fix the profile and the tuning above.
