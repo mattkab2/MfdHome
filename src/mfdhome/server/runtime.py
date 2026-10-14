@@ -90,8 +90,8 @@ class Runtime:
         self.selected[display_id] = target
         return target != current
 
-    def render(self, display_id: str) -> str:
-        """The SVG a display should show now."""
+    def render(self, display_id: str, as_of: str | None = None) -> str:
+        """The SVG a display should show now, with an optional "as of" stamp."""
         display = self.config.displays[display_id]
         page = self.config.pages[self.selected[display_id]]
         view = AlertView(
@@ -103,7 +103,8 @@ class Runtime:
             urgent = most_urgent(self.board, self.config.alerts.alerts)
             alert_status = None if urgent is None else SEVERITY_STATUS[urgent.severity]
             controls = Controls(alert_status, self.locked[display_id])
-        return render_page(page, self.state, THEMES[display.theme], target, view, controls)
+        theme = THEMES[display.theme]
+        return render_page(page, self.state, theme, target, view, controls, as_of)
 
     def _set_board(self, board: Board) -> bool:
         if board == self.board:

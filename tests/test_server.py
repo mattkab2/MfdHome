@@ -1,19 +1,23 @@
-"""The display server: pages, live frames, acknowledgement and selection."""
+"""The display server: pages, live frames, acknowledgement, selection and PNG snapshots."""
 
 import asyncio
+import io
 import json
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from aiohttp import web
 from aiohttp.test_utils import TestClient
+from PIL import Image
 
 from mfdhome.config import load_config
 from mfdhome.mfd import Phase
 from mfdhome.model import snapshot_from_ha_states
+from mfdhome.render.raster import image_colors
 from mfdhome.server.app import create_app, refresh_loop
+from mfdhome.server.images import stamp_text
 from mfdhome.server.runtime import Runtime
 from mfdhome.server.store import BoardStore
 from tests.support import CONFIG, FIXTURES
@@ -123,3 +127,65 @@ async def test_keys_and_lock_enforcement(aiohttp_client: ClientFactory) -> None:
     assert ">LOCK<" in unlocked["svg"] and 'data-page="electrical"' in unlocked["svg"]
     assert runtime.board["grid_lost"].phase is Phase.ACTIVE_UNACKED
     await ws.close()
+
+
+class Clock:
+    """A settable clock."""
+
+    def __init__(self, now: datetime) -> None:
+        self.now = now
+
+    def __call__(self) -> datetime:
+        return self.now
+
+
+async def test_panel_png_and_change_detection(aiohttp_client: ClientFactory) -> None:
+    runtime = islanded()
+    clock = Clock(T0)
+    client = await aiohttp_client(create_app(runtime, clock=clock))
+    first = await client.get("/display/main_floor.png")
+    assert first.status == 200 and first.content_type == "image/png"
+    png = await first.read()
+    image = Image.open(io.BytesIO(png))
+    assert image.size == (800, 480)
+    assert image_colors(image) <= {"#000000", "#ffffff"}  # the mono panel
+    etag = first.headers["ETag"]
+
+    # Nothing changed: same image, and a conditional request costs nothing.
+    clock.now = T0 + timedelta(minutes=5)
+    again = await client.get("/display/main_floor.png")
+    assert again.headers["ETag"] == etag and await again.read() == png
+    unchanged = await client.get("/display/main_floor.png", headers={"If-None-Match": etag})
+    assert unchanged.status == 304 and unchanged.headers["ETag"] == etag
+
+    # A page change is new content, stamped with the time it happened.
+    assert (await client.post("/display/main_floor/key/next")).status == 204
+    assert runtime.selected["main_floor"] == "electrical"
+    changed = await client.get("/display/main_floor.png", headers={"If-None-Match": etag})
+    assert changed.status == 200 and changed.headers["ETag"] != etag
+    assert client.app["hub"].images.changed_at("main_floor") == clock.now
+
+
+async def test_panel_routes_reject_bad_requests(aiohttp_client: ClientFactory) -> None:
+    client = await aiohttp_client(create_app(islanded(), display_token="s3cret"))
+    assert (await client.get("/display/main_floor.png")).status == 401
+    assert (await client.post("/display/main_floor/key/next")).status == 401
+    assert (await client.get("/display/main_floor.png?token=s3cret")).status == 200
+    assert (await client.get("/display/workshop.png?token=s3cret")).status == 404  # no panel
+    assert (await client.get("/display/nope.png?token=s3cret")).status == 404
+    assert (await client.post("/display/main_floor/key/eject?token=s3cret")).status == 404
+
+
+async def test_panel_keys_respect_the_lock(aiohttp_client: ClientFactory) -> None:
+    runtime = islanded()
+    client = await aiohttp_client(create_app(runtime, clock=lambda: T0))
+    await client.post("/display/main_floor/key/lock")
+    await client.post("/display/main_floor/key/next")
+    assert runtime.locked["main_floor"] and runtime.selected["main_floor"] == "status"
+    await client.post("/display/main_floor/key/lock")
+    await client.post("/display/main_floor/key/next")
+    assert runtime.selected["main_floor"] == "electrical"
+
+
+def test_stamp_uses_local_time() -> None:
+    assert stamp_text(T0) == f"AS OF {T0.astimezone():%H:%M}"

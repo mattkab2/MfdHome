@@ -1,4 +1,5 @@
-"""The display server: an HTML shell per display and a WebSocket of live frames.
+"""The display server: an HTML shell per display and a WebSocket of live frames,
+plus PNG snapshots and key presses for e-paper displays.
 
 Browsers only ever receive rendered SVG: the HA token stays in this process.
 An optional shared display token (``MFD_DISPLAY_TOKEN``) gates every route.
@@ -24,6 +25,8 @@ from mfdhome.config.load import load_config
 from mfdhome.mfd.alerts import most_urgent
 from mfdhome.model.page import Element, GroupElement, TileElement
 from mfdhome.model.state import StateSnapshot
+from mfdhome.render.controls import KEYS
+from mfdhome.server.images import PanelImages
 from mfdhome.server.runtime import Runtime
 from mfdhome.server.store import BoardStore
 from mfdhome.sources.ha import HomeAssistant
@@ -70,6 +73,7 @@ class Hub:
         self.clock = clock
         self.sockets: defaultdict[str, set[web.WebSocketResponse]] = defaultdict(set)
         self.last: dict[str, str] = {}
+        self.images = PanelImages(runtime)
 
     def frame(self, display_id: str) -> dict[str, Any]:
         """The message a display should show now: its SVG and its tile map."""
@@ -81,7 +85,11 @@ class Hub:
         }
 
     async def push(self, display_ids: list[str] | None = None, force: bool = False) -> None:
-        """Send a fresh frame to each connected display whose SVG changed."""
+        """Send a fresh frame to each connected display whose SVG changed.
+
+        E-paper displays poll instead; for them, only note what changed when.
+        """
+        self.images.observe(self.clock())
         for display_id in display_ids or list(self.sockets):
             sockets = self.sockets.get(display_id)
             if not sockets:
@@ -187,12 +195,32 @@ def create_app(
             hub.sockets[display_id].discard(ws)
         return ws
 
+    async def image(request: web.Request) -> web.Response:
+        display_id = display_of(request)
+        if runtime.config.displays[display_id].panel is None:
+            raise web.HTTPNotFound(text=f"display {display_id!r} has no panel")
+        current = await hub.images.image(display_id, hub.clock())
+        headers = {"ETag": f'"{current.etag}"', "Cache-Control": "no-cache"}
+        if request.headers.get("If-None-Match") == f'"{current.etag}"':
+            return web.Response(status=304, headers=headers)
+        return web.Response(body=current.png, content_type="image/png", headers=headers)
+
+    async def key(request: web.Request) -> web.Response:
+        display_id = display_of(request)
+        name = request.match_info["key"]
+        if name not in KEYS:
+            raise web.HTTPNotFound(text=f"no key {name!r}; expected: {', '.join(KEYS)}")
+        await hub.handle(display_id, {"type": "key", "key": name})
+        return web.Response(status=204)
+
     async def client_js(_request: web.Request) -> web.Response:
         return web.Response(text=CLIENT_JS, content_type="application/javascript")
 
     app = web.Application()
     app["hub"] = hub
     app.router.add_get("/", index)
+    app.router.add_get("/display/{display}.png", image)
+    app.router.add_post("/display/{display}/key/{key}", key)
     app.router.add_get("/display/{display}", page)
     app.router.add_get("/display/{display}/ws", socket)
     app.router.add_get("/static/client.js", client_js)
