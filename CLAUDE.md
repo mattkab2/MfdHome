@@ -82,7 +82,8 @@ examples/
    fill and attention style vary by theme. Never rely on color alone where a
    palette can't show it: symbols carry severity in weight and fill on
    monochrome themes, and **lines carry it in pattern on every theme** (solid =
-   normal/flowing, dashed = caution, hatched = warning, dotted = unavailable).
+   normal, solid core = flowing, dashed core = caution, hatched = warning,
+   dotted = unavailable).
    Patterns are therefore reserved for status: styles and group frames can't
    use them, and line weight is purely structural.
 

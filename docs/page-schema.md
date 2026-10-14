@@ -143,8 +143,8 @@ without color:
 | Status | Pattern |
 |---|---|
 | normal, no flow | solid walls, blank (hollow) core |
-| normal / caution, flowing | **solid core** in the status color while \|power\| is above the flow threshold |
-| caution | dashed walls (or a dashed stroke if uncased) |
+| normal, flowing | **solid core** in the status color while \|power\| is above the flow threshold |
+| caution | solid walls, **dashed core**, flowing or not (the arrow shows flow); a dashed stroke if uncased |
 | warning | hatched: stripes fill the hollow, rotated to cross each segment; casing is forced on |
 | unavailable | dotted |
 

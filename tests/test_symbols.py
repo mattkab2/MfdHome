@@ -81,10 +81,11 @@ class TestCasing:
 
 
 class TestSeverityPatterns:
-    def test_caution_dashes_the_walls(self) -> None:
-        parts = line(((0, 0), (100, 0)), Status.CAUTION, None, LCD, casing=True)
-        assert 'stroke-width="10" stroke-dasharray="15 10"' in parts.casing
-        assert "stroke-dasharray" not in parts.body  # the hollow stays continuous
+    def test_caution_dashes_the_core_not_the_walls(self) -> None:
+        for flow in (None, Flow.FORWARD):  # shown whether or not power flows
+            parts = line(((0, 0), (100, 0)), Status.CAUTION, flow, LCD, casing=True)
+            assert "stroke-dasharray" not in parts.casing  # solid walls
+            assert 'stroke-width="4" stroke-dasharray="15 10"' in parts.body
 
     def test_caution_dashes_an_uncased_line(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.CAUTION, None, LCD)
@@ -139,7 +140,8 @@ class TestCore:
 
     def test_caution_keeps_core_warning_keeps_hatch(self) -> None:
         caution = line(self.PTS, Status.CAUTION, Flow.FORWARD, LCD, casing=True).body
-        assert f'stroke="{LCD.color(Status.CAUTION)}" stroke-width="4"' in caution
+        yellow = LCD.color(Status.CAUTION)
+        assert f'stroke="{yellow}" stroke-width="4" stroke-dasharray="15 10"' in caution
         warning = line(self.PTS, Status.WARNING, Flow.FORWARD, LCD, casing=True).body
         assert "url(#hatch" in warning and 'stroke-width="4"' not in warning
 

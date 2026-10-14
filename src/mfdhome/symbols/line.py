@@ -1,9 +1,10 @@
 """Power line symbol: a polyline, solid or cased, with an optional flow chevron.
 
 Line severity is carried by pattern as well as color, so it survives palettes
-without color: solid = normal/active, dashed = caution, hatched = warning,
-dotted = unavailable. Stroke widths here are structural only (style weight);
-the theme's per-status weights apply to symbols, not lines.
+without color: solid = normal/active (solid core while flowing), dashed core =
+caution, hatched = warning, dotted = unavailable. Stroke widths here are
+structural only (style weight); the theme's per-status weights apply to
+symbols, not lines.
 """
 
 from __future__ import annotations
@@ -146,7 +147,8 @@ def line(
     hollow pipe ``theme.casing_width * weight`` wide with ``theme.casing_wall``
     walls; while ``flow`` is set (power above the flow threshold) its hollow
     gets a solid core, and a blank hollow means no flow. Severity patterns:
-    caution dashes the stroke (or the pipe's walls);
+    caution dashes the core (shown even without flow; an uncased line's stroke
+    is dashed instead);
     warning hatches the pipe's interior, forcing casing on so stripes have
     room; unavailable is dotted. ``flow`` draws a chevron at the midpoint
     pointing along (FORWARD) or against (REVERSE) the point order. ``line_id``
@@ -158,16 +160,30 @@ def line(
     casing = casing or status is Status.WARNING
     if casing:
         outer = theme.casing_width * weight
-        shell = _polyline(
-            pts, {"stroke": color, "stroke-width": outer, **_pattern(status, theme, outer)}
-        )
+        # Walls are solid except when unavailable (dotted); caution lives in the core.
+        walls = _pattern(status, theme, outer) if status is Status.UNAVAILABLE else {}
+        shell = _polyline(pts, {"stroke": color, "stroke-width": outer, **walls})
         hollow = max(outer - 2 * theme.casing_wall, MIN_HOLLOW)
         if status is Status.WARNING:
             parts = _hatch(line_id, pts, hollow, color, theme)
         else:
             parts = [_polyline(pts, {"stroke": theme.background, "stroke-width": hollow})]
             core = hollow - 2 * theme.core_inset
-            if flow is not None and core > 0:
+            if core > 0 and status is Status.CAUTION:
+                # Dashed core: caution, whether or not power flows (the arrow
+                # shows flow). Dashes scale with the pipe so they stay legible.
+                dash, gap = (outer * k for k in CAUTION_DASH)
+                parts.append(
+                    _polyline(
+                        pts,
+                        {
+                            "stroke": color,
+                            "stroke-width": core,
+                            "stroke-dasharray": f"{svg.fmt(dash)} {svg.fmt(gap)}",
+                        },
+                    )
+                )
+            elif core > 0 and flow is not None:
                 # Solid core: power is flowing. A blank pipe means no flow.
                 parts.append(_polyline(pts, {"stroke": color, "stroke-width": core}))
         size = max(ARROW_SIZE, outer * ARROW_CASING_RATIO)
