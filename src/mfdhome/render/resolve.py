@@ -15,13 +15,14 @@ from mfdhome.model.page import (
     DerivedChannel,
     Element,
     GroupElement,
+    LineElement,
     SymbolElement,
     TileElement,
 )
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import AlertView
 from mfdhome.render.status import element_status
-from mfdhome.symbols.registry import get_symbol
+from mfdhome.symbols.registry import LINE_CHANNELS, LINE_NUMERIC, LINE_PRIMARY, get_symbol
 
 _NO_VALUES: Mapping[str, Value] = {}
 
@@ -59,12 +60,19 @@ class Resolver:
         return EvalContext(self.state, bind, derived, self.elements)
 
     def element(self, element: Element) -> Resolved | None:
-        """Resolve a symbol, tile or group; ``None`` for kinds without a status."""
+        """Resolve a symbol, line, tile or group; ``None`` for kinds without a status."""
         if element.id in self._cache:
             return self._cache[element.id]
         match element:
             case SymbolElement():
-                result = self._symbol(element)
+                spec = get_symbol(element.type)
+                result = self._bound(
+                    element, spec.channels, spec.primary, spec.primary in spec.numeric
+                )
+            case LineElement():
+                result = self._bound(
+                    element, LINE_CHANNELS, LINE_PRIMARY, LINE_PRIMARY in LINE_NUMERIC
+                )
             case TileElement():
                 result = self._tile(element)
             case GroupElement():
@@ -74,17 +82,18 @@ class Resolver:
         self._cache[element.id] = result
         return result
 
-    def _symbol(self, element: SymbolElement) -> Resolved:
-        spec = get_symbol(element.type)
+    def _bound(
+        self,
+        element: SymbolElement | LineElement,
+        channels: Iterable[str],
+        primary: str,
+        numeric: bool,
+    ) -> Resolved:
+        """Status and channel values of an element with bound channels."""
         ctx = self.context(element.bind)
-        values = {channel: ctx.value(ChannelRef(channel)) for channel in spec.channels}
-        status = element_status(
-            element.status,
-            ctx,
-            spec.primary,
-            spec.primary in spec.numeric,
-            self.alerts.active_status(element.status.systems, element.status.alerts),
-        )
+        values = {channel: ctx.value(ChannelRef(channel)) for channel in channels}
+        alert_status = self.alerts.active_status(element.status.systems, element.status.alerts)
+        status = element_status(element.status, ctx, primary, numeric, alert_status)
         return Resolved(status, values)
 
     def _tile(self, element: TileElement) -> Resolved:

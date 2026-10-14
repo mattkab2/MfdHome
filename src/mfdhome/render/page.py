@@ -6,8 +6,6 @@ import logging
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from mfdhome.conditions.evaluate import EvalContext
-from mfdhome.conditions.model import ChannelRef
 from mfdhome.conditions.values import Value
 from mfdhome.layout.anchors import (
     LINE_GAP,
@@ -38,14 +36,10 @@ from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
 from mfdhome.render.format import format_value
 from mfdhome.render.lines import resolve_look
 from mfdhome.render.resolve import Resolver
-from mfdhome.render.status import element_status
 from mfdhome.symbols import svg
 from mfdhome.symbols.geometry import element_box
 from mfdhome.symbols.line import Flow, line
 from mfdhome.symbols.registry import (
-    LINE_CHANNELS,
-    LINE_NUMERIC,
-    LINE_PRIMARY,
     SymbolInput,
     get_symbol,
 )
@@ -156,10 +150,10 @@ def _render_symbol(element: SymbolElement, c: _Ctx) -> str:
     return body + "".join(_draw_labels(labels, lambda _: box, SYMBOL_GAP, theme))
 
 
-def _flow(element: LineElement, ctx: EvalContext) -> Flow | None:
+def _flow(element: LineElement, values: Mapping[str, Value]) -> Flow | None:
     if element.flow is None:
         return None
-    power = ctx.value(ChannelRef(element.flow.channel)).number
+    power = values[element.flow.channel].number
     if power is None or abs(power) <= element.flow.threshold:
         return None
     return Flow.FORWARD if power > 0 else Flow.REVERSE
@@ -168,16 +162,10 @@ def _flow(element: LineElement, ctx: EvalContext) -> Flow | None:
 def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
     """The line's casing layer and its body (inner stroke, arrow, labels)."""
     theme = c.theme
-    ctx = c.resolver.context(element.bind)
-    values = {channel: ctx.value(ChannelRef(channel)) for channel in LINE_CHANNELS}
-    status = element_status(
-        element.status,
-        ctx,
-        LINE_PRIMARY,
-        LINE_PRIMARY in LINE_NUMERIC,
-        c.alerts.active_status(element.status.systems, element.status.alerts),
-    )
-    flow = _flow(element, ctx)
+    resolved = c.resolver.element(element)
+    assert resolved is not None
+    status, values = resolved.status, resolved.values
+    flow = _flow(element, values)
     if flow is not None and status is Status.NORMAL:
         status = Status.ACTIVE
     look = resolve_look(element, theme)
