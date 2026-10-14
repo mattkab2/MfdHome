@@ -13,6 +13,8 @@ from mfdhome.conditions.model import TRUE, AllOf, AnyOf, ChannelRef, Condition, 
 from mfdhome.conditions.sugar import Thresholds, state_map_rules
 from mfdhome.config.errors import Issues, Loc
 from mfdhome.config.schema import (
+    AlertModel,
+    AlertsModel,
     DefsModel,
     ExprModel,
     LineModel,
@@ -26,6 +28,7 @@ from mfdhome.config.schema import (
     ThresholdsModel,
 )
 from mfdhome.layout.anchors import Anchor, anchor_names, parse_anchor
+from mfdhome.model.alert import AlertDef, Severity, System
 from mfdhome.model.binding import EntityRef, Status
 from mfdhome.model.page import (
     Element,
@@ -90,6 +93,9 @@ def _channels(expr: AnyOf) -> Iterator[str]:
 
 type Bound = Mapping[str, EntityRef] | None
 
+#: ``bound`` value for contexts that have no channels at all (alerts).
+NO_CHANNELS: Mapping[str, EntityRef] = MappingProxyType({})
+
 
 class _Exprs:
     """Builds DNF expressions, resolving ``use`` against named conditions.
@@ -112,7 +118,13 @@ class _Exprs:
         expr = self._resolve(name, loc, issues)
         if bound is not None:
             for channel in sorted(set(_channels(expr)) - bound.keys()):
-                issues.add(loc, f"condition {name!r} uses channel {channel!r}, which is not bound")
+                if bound is NO_CHANNELS:
+                    message = (
+                        f"condition {name!r} uses channel {channel!r}; alerts can only use 'entity'"
+                    )
+                else:
+                    message = f"condition {name!r} uses channel {channel!r}, which is not bound"
+                issues.add(loc, message)
         return expr
 
     def _resolve(self, name: str, loc: Loc, issues: Issues) -> AnyOf:
@@ -134,7 +146,9 @@ class _Exprs:
     def condition(self, term: TermModel, loc: Loc, issues: Issues, bound: Bound) -> AnyOf:
         if term.channel is not None:
             ref: ChannelRef | EntityRef = ChannelRef(term.channel)
-            if bound is not None and term.channel not in bound:
+            if bound is NO_CHANNELS:
+                issues.add((*loc, "channel"), "alerts have no channels; use 'entity'")
+            elif bound is not None and term.channel not in bound:
                 issues.add((*loc, "channel"), f"channel {term.channel!r} is not bound")
         else:
             ref = EntityRef(str(term.entity), term.attribute)
@@ -367,3 +381,40 @@ def build_page(model: PageModel, shared: Defs, issues: Issues) -> Page:
         seen.add(element.id)
         elements.append(element)
     return Page(model.page, model.title, model.canvas.width, model.canvas.height, tuple(elements))
+
+
+# --- alerts -----------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Alerts:
+    """Systems and alert definitions, in file order."""
+
+    systems: Mapping[str, System] = field(default_factory=lambda: MappingProxyType({}))
+    alerts: tuple[AlertDef, ...] = ()
+
+    def by_id(self) -> Mapping[str, AlertDef]:
+        """Alerts keyed by id."""
+        return MappingProxyType({a.id: a for a in self.alerts})
+
+
+def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
+    """Build alerts; conditions may use only ``entity`` references and defs conditions."""
+    systems = {sid: System(sid, s.label) for sid, s in model.systems.items()}
+    exprs = _Exprs({}, defs.conditions)
+    alerts: list[AlertDef] = []
+    seen: set[str] = set()
+    for i, raw in enumerate(model.alerts):
+        loc: Loc = ("alerts", i)
+        a = validate(AlertModel, raw, loc, issues)
+        if a is None:
+            continue
+        if a.id in seen:
+            issues.add((*loc, "id"), f"duplicate alert id {a.id!r}")
+        seen.add(a.id)
+        if a.system not in systems:
+            known = ", ".join(systems) or "none defined"
+            issues.add((*loc, "system"), f"unknown system {a.system!r}; expected: {known}")
+        condition = exprs.expr(a, loc, issues, NO_CHANNELS)
+        alerts.append(AlertDef(a.id, Severity(a.severity), a.system, a.message, condition, a.page))
+    return Alerts(MappingProxyType(systems), tuple(alerts))

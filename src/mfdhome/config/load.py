@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Collection, Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -12,14 +12,15 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 
-from mfdhome.config.build import Defs, build_defs, build_page, validate
+from mfdhome.config.build import Alerts, Defs, build_alerts, build_defs, build_page, validate
 from mfdhome.config.errors import ConfigError, Issue, Issues
-from mfdhome.config.schema import DefsModel, PageModel
+from mfdhome.config.schema import AlertsModel, DefsModel, PageModel
 from mfdhome.model.page import Page
 
 logger = logging.getLogger(__name__)
 
 DEFS_FILE = "defs.yaml"
+ALERTS_FILE = "alerts.yaml"
 PAGES_DIR = "pages"
 
 
@@ -29,6 +30,7 @@ class Config:
 
     defs: Defs
     pages: Mapping[str, Page]
+    alerts: Alerts = field(default_factory=Alerts)
 
 
 def _plain(node: Any) -> Any:
@@ -73,6 +75,28 @@ def load_defs(path: str | Path) -> Defs:
     return defs
 
 
+def load_alerts(
+    path: str | Path, defs: Defs | None = None, page_ids: Collection[str] | None = None
+) -> Alerts:
+    """Load an alerts file (``systems`` and ``alerts``).
+
+    If ``page_ids`` is given, each alert's ``page`` must be one of them.
+    """
+    path = Path(path)
+    tree = _read(path)
+    issues = Issues(path, tree)
+    model = validate(AlertsModel, _plain(tree) or {}, (), issues)
+    issues.raise_if_any()
+    assert model is not None
+    alerts = build_alerts(model, defs or Defs(), issues)
+    if page_ids is not None:
+        for i, alert in enumerate(alerts.alerts):
+            if alert.page is not None and alert.page not in page_ids:
+                issues.add(("alerts", i, "page"), f"unknown page {alert.page!r}")
+    issues.raise_if_any()
+    return alerts
+
+
 def load_page(path: str | Path, defs: Defs | None = None) -> Page:
     """Load and validate one page file against shared ``defs``."""
     path = Path(path)
@@ -88,13 +112,16 @@ def load_page(path: str | Path, defs: Defs | None = None) -> Page:
 
 
 def load_config(directory: str | Path) -> Config:
-    """Load ``defs.yaml`` (optional) and every ``pages/*.yaml`` under ``directory``.
+    """Load ``defs.yaml`` and ``alerts.yaml`` (both optional) and ``pages/*.yaml``.
 
-    Problems in all files are collected and raised together.
+    Problems in all page files are collected and raised together. Alert
+    ``page`` references are checked against the loaded pages.
     """
     directory = Path(directory)
     defs_path = directory / DEFS_FILE
     defs = load_defs(defs_path) if defs_path.exists() else Defs()
+    alerts_path = directory / ALERTS_FILE
+    alerts = load_alerts(alerts_path, defs) if alerts_path.exists() else Alerts()
     pages: dict[str, Page] = {}
     sources: dict[str, Path] = {}
     problems: list[Issue] = []
@@ -118,4 +145,6 @@ def load_config(directory: str | Path) -> Config:
         sources[page.id] = path
     if problems:
         raise ConfigError(problems)
-    return Config(defs, MappingProxyType(pages))
+    if alerts_path.exists():
+        alerts = load_alerts(alerts_path, defs, pages.keys())
+    return Config(defs, MappingProxyType(pages), alerts)

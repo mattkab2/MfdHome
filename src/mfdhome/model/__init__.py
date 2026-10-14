@@ -1,6 +1,6 @@
 """Pure data model: pages, elements, bindings, alerts and state snapshots."""
 
-from mfdhome.model.alert import Alert, Severity
+from mfdhome.model.alert import AlertDef, Severity, System
 from mfdhome.model.binding import EntityRef, Status
 from mfdhome.model.page import (
     Element,
@@ -17,7 +17,7 @@ from mfdhome.model.page import (
 from mfdhome.model.state import EntityState, StateSnapshot, snapshot_from_ha_states
 
 __all__ = [
-    "Alert",
+    "AlertDef",
     "Element",
     "EntityRef",
     "EntityState",
@@ -32,6 +32,7 @@ __all__ = [
     "Status",
     "StatusSpec",
     "SymbolElement",
+    "System",
     "TextElement",
     "snapshot_from_ha_states",
 ]

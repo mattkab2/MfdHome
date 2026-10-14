@@ -5,6 +5,7 @@ Pages are YAML files. A config directory looks like this:
 ```
 config/
   defs.yaml        # optional: shared thresholds and named conditions
+  alerts.yaml      # optional: systems and alerts (see "Alerts" below)
   pages/
     electrical.yaml
     water.yaml
@@ -227,3 +228,38 @@ A named condition used inside an AND-group is distributed back into DNF.
 Named conditions can refer to `channel:` values. Those channels are checked
 where the condition is used, so they must be bound on every element that uses
 it.
+
+## Alerts
+
+`alerts.yaml` declares the house's systems (one annunciator tile each) and the
+alerts grouped under them:
+
+```yaml
+systems:
+  GRID: {label: GRID}
+  BATT: {label: BATT}
+
+alerts:
+  - id: grid_lost
+    severity: warning          # advisory | caution | warning
+    system: GRID
+    page: electrical           # shown when the alert preempts rotation
+    message: GRID POWER LOST
+    when: [{use: grid_lost}]   # same any/when forms as status rules
+  - id: exporting
+    severity: advisory
+    system: GRID
+    message: EXPORTING TO GRID
+    when: [{entity: sensor.grid_power, lt: -1000}]
+```
+
+- An alert is raised while its condition holds. Conditions can only refer to
+  `entity:` values, because alerts have no channels. They can `use` named
+  conditions from `defs.yaml`, but only ones that also refer to entities.
+- Cautions and warnings need a `page`; advisories don't.
+- Cautions and warnings **latch**: they stay raised until someone acknowledges
+  them, even after the condition clears. Advisories clear on their own and never
+  preempt rotation.
+- One acknowledgement covers the whole house.
+- `system` must be declared under `systems`, and `page` must be one of the
+  loaded pages.

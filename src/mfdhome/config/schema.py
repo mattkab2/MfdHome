@@ -239,6 +239,35 @@ class DefsModel(Strict):
     conditions: dict[Ident, ExprModel] = {}
 
 
+class SystemModel(Strict):
+    """A system: one annunciator tile."""
+
+    label: str
+
+
+class AlertModel(ExprModel):
+    """One alert; its condition uses the same ``any``/``when`` forms as status rules."""
+
+    id: Ident
+    severity: Literal["advisory", "caution", "warning"]
+    system: Ident
+    message: str
+    page: Ident | None = None
+
+    @model_validator(mode="after")
+    def _page_for_preempting(self) -> Self:
+        if self.severity != "advisory" and self.page is None:
+            raise ValueError(f"a {self.severity} alert needs a 'page' to show when it preempts")
+        return self
+
+
+class AlertsModel(Strict):
+    """The alerts file. Alerts are validated one by one so all problems surface."""
+
+    systems: dict[Ident, SystemModel] = {}
+    alerts: list[dict[str, Any]] = []
+
+
 class CanvasModel(Strict):
     """Logical canvas size."""
 
@@ -271,5 +300,8 @@ MODEL_NAMES = frozenset(
         "SymbolModel",
         "LineModel",
         "TextModel",
+        "SystemModel",
+        "AlertModel",
+        "AlertsModel",
     }
 )
