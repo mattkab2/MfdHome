@@ -20,8 +20,8 @@ def test_element_escapes_and_drops_none() -> None:
 
 def test_unavailable_symbols_are_gray_and_dashed() -> None:
     fragments = [
-        line(((0, 0), (100, 0)), Status.UNAVAILABLE, None, "---", DARK),
-        battery(0, 0, None, Status.UNAVAILABLE, ("---",), DARK),
+        line(((0, 0), (100, 0)), Status.UNAVAILABLE, None, DARK),
+        battery(0, 0, None, Status.UNAVAILABLE, DARK),
         breaker(0, 0, None, Status.UNAVAILABLE, Orientation.HORIZONTAL, DARK),
     ]
     for fragment in fragments:
@@ -30,20 +30,20 @@ def test_unavailable_symbols_are_gray_and_dashed() -> None:
 
 
 def test_line_flow_chevron_points_in_flow_direction() -> None:
-    forward = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, None, DARK)
-    reverse = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.REVERSE, None, DARK)
+    forward = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, DARK)
+    reverse = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.REVERSE, DARK)
     assert 'points="60,0 40,10 40,-10"' in forward
     assert 'points="40,0 60,-10 60,10"' in reverse
-    assert "polygon" not in line(((0, 0), (100, 0)), Status.NORMAL, None, None, DARK)
+    assert "polygon" not in line(((0, 0), (100, 0)), Status.NORMAL, None, DARK)
 
 
 def test_degenerate_line_renders_nothing() -> None:
-    assert line(((0, 0),), Status.NORMAL, None, None, DARK) == ""
+    assert line(((0, 0),), Status.NORMAL, None, DARK) == ""
 
 
 def test_battery_fill_is_clamped() -> None:
-    full = battery(0, 0, 1.0, Status.NORMAL, (), DARK)
-    over = battery(0, 0, 1.4, Status.NORMAL, (), DARK)
+    full = battery(0, 0, 1.0, Status.NORMAL, DARK)
+    over = battery(0, 0, 1.4, Status.NORMAL, DARK)
     assert full == over
 
 

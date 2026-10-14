@@ -1,13 +1,30 @@
-"""Page and element definitions, positioned on a logical canvas."""
+"""Page and element definitions, positioned on a logical canvas.
+
+There are three geometry kinds:
+
+- ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
+- ``LineElement``: a power/flow line along a polyline;
+- ``TextElement``: a static label.
+
+Symbols and lines bind HA entities to named *channels* declared by their type.
+Status rules, flow and readouts refer to channel names, not entity ids.
+"""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from types import MappingProxyType
+from typing import TYPE_CHECKING
 
-from mfdhome.model.binding import BreakerStateMap, EntityRef, Thresholds
+from mfdhome.layout.anchors import Anchor
+from mfdhome.layout.path import Point
+from mfdhome.model.binding import EntityRef
 
-type Point = tuple[float, float]
+if TYPE_CHECKING:
+    # Annotation-only: conditions imports model.binding, so a runtime import would cycle.
+    from mfdhome.conditions.model import Rule
 
 
 class Orientation(StrEnum):
@@ -17,58 +34,102 @@ class Orientation(StrEnum):
     VERTICAL = "vertical"
 
 
+def _empty[V]() -> Mapping[str, V]:
+    return MappingProxyType({})
+
+
+@dataclass(frozen=True)
+class Name:
+    """The element's name label.
+
+    ``anchor=None`` uses the default: top for symbols, beside the line for lines.
+    ``along`` (0..1) positions the label along a line and is ignored for symbols.
+    """
+
+    text: str
+    anchor: Anchor | None = None
+    along: float = 0.5
+    offset: Point = (0.0, 0.0)
+
+
+@dataclass(frozen=True)
+class Readout:
+    """A displayed value from one of the element's channels.
+
+    ``format`` is a named formatter (``power``, ``percent``, ``number``, ``raw``)
+    or a Python format string applied to the numeric value. ``unit`` overrides
+    the entity's ``unit_of_measurement``. ``absolute`` shows the magnitude only
+    (useful when direction is shown by a flow arrow). ``anchor=None`` uses the
+    default: bottom for symbols, beside the line for lines.
+    """
+
+    channel: str
+    format: str = "number"
+    unit: str | None = None
+    absolute: bool = False
+    anchor: Anchor | None = None
+    along: float = 0.5
+    offset: Point = (0.0, 0.0)
+
+
+@dataclass(frozen=True)
+class StatusSpec:
+    """How an element's status is derived. The most severe matching rule wins."""
+
+    rules: tuple[Rule, ...] = ()
+
+
+@dataclass(frozen=True)
+class FlowSpec:
+    """Draw a flow arrow when ``|channel| > threshold``; the sign sets direction."""
+
+    channel: str = "power"
+    threshold: float = 10.0
+
+
+@dataclass(frozen=True)
+class SymbolElement:
+    """A registered symbol type centered at ``at``."""
+
+    id: str
+    type: str
+    at: Point
+    bind: Mapping[str, EntityRef] = field(default_factory=_empty)
+    name: Name | None = None
+    status: StatusSpec = StatusSpec()
+    readouts: tuple[Readout, ...] = ()
+    orientation: Orientation = Orientation.HORIZONTAL
+    params: Mapping[str, object] = field(default_factory=_empty)
+
+
 @dataclass(frozen=True)
 class LineElement:
-    """A power line between points.
+    """A line along ``points``.
 
-    Positive ``power`` flows from the first point toward the last; negative
-    flows backward (e.g. grid export).
+    Positive flow runs from the first point toward the last; negative flows
+    backward (e.g. grid export).
     """
 
     id: str
     points: tuple[Point, ...]
-    power: EntityRef | None = None
-    flow_threshold: float = 10.0
-    unit: str = "W"
-
-
-@dataclass(frozen=True)
-class BatteryElement:
-    """A battery centered at (x, y) showing state of charge."""
-
-    id: str
-    x: float
-    y: float
-    soc: EntityRef
-    power: EntityRef | None = None
-    thresholds: Thresholds = field(
-        default_factory=lambda: Thresholds(warning_low=10.0, caution_low=25.0)
-    )
-
-
-@dataclass(frozen=True)
-class BreakerElement:
-    """A breaker centered at (x, y)."""
-
-    id: str
-    x: float
-    y: float
-    state: EntityRef
-    state_map: BreakerStateMap = field(default_factory=BreakerStateMap)
-    orientation: Orientation = Orientation.HORIZONTAL
+    bind: Mapping[str, EntityRef] = field(default_factory=_empty)
+    name: Name | None = None
+    status: StatusSpec = StatusSpec()
+    readouts: tuple[Readout, ...] = ()
+    flow: FlowSpec | None = None
 
 
 @dataclass(frozen=True)
 class TextElement:
-    """A static text label anchored at (x, y)."""
+    """A static text label at ``at``; ``align`` is ``start``, ``middle`` or ``end``."""
 
     id: str
-    x: float
-    y: float
+    at: Point
     text: str
+    align: str = "middle"
 
 
-type Element = LineElement | BatteryElement | BreakerElement | TextElement
+type Element = SymbolElement | LineElement | TextElement
 
 
 @dataclass(frozen=True)
