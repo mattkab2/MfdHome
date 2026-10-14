@@ -14,11 +14,13 @@ from mfdhome.mfd.alerts import (
     most_urgent,
     step,
 )
+from mfdhome.mfd.display import Display
 
 __all__ = [
     "EMPTY_BOARD",
     "AlertState",
     "Board",
+    "Display",
     "Phase",
     "acknowledge",
     "attention_order",

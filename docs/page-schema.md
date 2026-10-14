@@ -6,6 +6,7 @@ Pages are YAML files. A config directory looks like this:
 config/
   defs.yaml        # optional: shared thresholds, named conditions, line styles
   alerts.yaml      # optional: systems and alerts (see "Alerts" below)
+  displays.yaml    # optional: physical displays (see "Displays" below)
   pages/
     electrical.yaml
     water.yaml
@@ -459,3 +460,25 @@ alerts:
 - While any caution or warning is unacknowledged, an annunciator banner naming
   the most urgent one shows along the bottom 40 units of whatever page is
   displayed, so keep that strip clear on every page.
+
+## Displays
+
+`displays.yaml` lists the physical displays the server drives:
+
+```yaml
+displays:
+  workshop:
+    theme: lcd                 # lcd | mirror | eink_mono
+    size: [1280, 800]          # pixels
+    home: status               # shown at startup
+    pages: [status, electrical]   # what a viewer can select
+  hallway:
+    theme: mirror
+    size: [1920, 1080]
+    home: electrical           # no 'pages': fixed to its home page
+```
+
+A display shows one page at a time and stays on it until a viewer selects
+another. Pages are never cycled automatically, and alerts never switch pages;
+the annunciator banner overlays whatever page is showing. `home` is always
+selectable.

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -17,6 +17,7 @@ from mfdhome.config.schema import (
     AlertsModel,
     DefsModel,
     DerivedModel,
+    DisplaysModel,
     ExprModel,
     GroupModel,
     LineModel,
@@ -37,6 +38,7 @@ from mfdhome.layout.anchors import Anchor, anchor_names, parse_anchor
 from mfdhome.layout.grid import grid_centers
 from mfdhome.layout.path import Point
 from mfdhome.layout.route import Elbow, Port, route
+from mfdhome.mfd.display import Display
 from mfdhome.model.alert import AlertDef, Severity, System
 from mfdhome.model.binding import ElementRef, EntityRef, Status
 from mfdhome.model.page import (
@@ -759,6 +761,28 @@ def _connect(
         elif isinstance(e, NodeElement) and degree[e.id] >= JUNCTION_DEGREE:
             e = replace(e, junction=True)
         out.append(e)
+    return out
+
+
+# --- displays -------------------------------------------------------------------------------
+
+
+def build_displays(
+    model: DisplaysModel, page_ids: Collection[str], issues: Issues
+) -> dict[str, Display]:
+    """Build displays; themes and pages must exist. ``home`` is always selectable."""
+    out = {}
+    for display_id, d in model.displays.items():
+        loc: Loc = ("displays", display_id)
+        if d.theme not in THEMES:
+            issues.add((*loc, "theme"), f"unknown theme {d.theme!r}; expected: {', '.join(THEMES)}")
+        checks: list[tuple[Loc, str]] = [((*loc, "home"), d.home)]
+        checks += [((*loc, "pages", i), page) for i, page in enumerate(d.pages)]
+        for where, page in checks:
+            if page not in page_ids:
+                issues.add(where, f"unknown page {page!r}")
+        pages = (d.home, *(p for p in d.pages if p != d.home))
+        out[display_id] = Display(display_id, d.theme, d.size[0], d.size[1], d.home, pages)
     return out
 
 

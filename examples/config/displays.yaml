@@ -1,0 +1,13 @@
+# Physical displays. Each shows one page at a time, chosen by the viewer from
+# 'pages' (which always includes 'home'). A display without 'pages' (like the
+# mirror) is fixed to its home page.
+displays:
+  workshop:
+    theme: lcd
+    size: [1280, 800]
+    home: status
+    pages: [status, electrical]
+  hallway:
+    theme: mirror
+    size: [1920, 1080]
+    home: electrical

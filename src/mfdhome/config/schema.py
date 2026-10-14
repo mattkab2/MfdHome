@@ -399,6 +399,21 @@ class AlertsModel(Strict):
     alerts: list[dict[str, Any]] = []
 
 
+class DisplayModel(Strict):
+    """One display: theme, pixel size, home page and the pages a viewer can select."""
+
+    theme: str
+    size: tuple[Annotated[int, Field(gt=0)], Annotated[int, Field(gt=0)]]
+    home: Ident
+    pages: list[Ident] = []
+
+
+class DisplaysModel(Strict):
+    """The displays file."""
+
+    displays: dict[Ident, DisplayModel] = {}
+
+
 class CanvasModel(Strict):
     """Logical canvas size."""
 

@@ -11,15 +11,25 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import MarkedYAMLError
 
-from mfdhome.config.build import Alerts, Defs, build_alerts, build_defs, build_page, validate
+from mfdhome.config.build import (
+    Alerts,
+    Defs,
+    build_alerts,
+    build_defs,
+    build_displays,
+    build_page,
+    validate,
+)
 from mfdhome.config.errors import ConfigError, Issue, Issues
-from mfdhome.config.schema import AlertsModel, DefsModel, PageModel
+from mfdhome.config.schema import AlertsModel, DefsModel, DisplaysModel, PageModel
+from mfdhome.mfd.display import Display
 from mfdhome.model.page import Page
 
 logger = logging.getLogger(__name__)
 
 DEFS_FILE = "defs.yaml"
 ALERTS_FILE = "alerts.yaml"
+DISPLAYS_FILE = "displays.yaml"
 PAGES_DIR = "pages"
 
 
@@ -30,6 +40,7 @@ class Config:
     defs: Defs
     pages: Mapping[str, Page]
     alerts: Alerts = field(default_factory=Alerts)
+    displays: Mapping[str, Display] = field(default_factory=dict)
 
 
 def _plain(node: Any) -> Any:
@@ -146,4 +157,19 @@ def load_config(directory: str | Path) -> Config:
         raise ConfigError(problems)
     if alerts_path.exists():
         alerts = load_alerts(alerts_path, defs, pages.keys())
-    return Config(defs, pages, alerts)
+    displays_path = directory / DISPLAYS_FILE
+    displays = load_displays(displays_path, pages.keys()) if displays_path.exists() else {}
+    return Config(defs, pages, alerts, displays)
+
+
+def load_displays(path: str | Path, page_ids: Collection[str]) -> dict[str, Display]:
+    """Load a displays file; every theme and page it names must exist."""
+    path = Path(path)
+    tree = _read(path)
+    issues = Issues(path, tree)
+    model = validate(DisplaysModel, _plain(tree) or {}, (), issues)
+    issues.raise_if_any()
+    assert model is not None
+    displays = build_displays(model, page_ids, issues)
+    issues.raise_if_any()
+    return displays
