@@ -7,9 +7,13 @@ canvas: {width: 1000, height: 600}
 elements:
   - {id: title, type: text, at: [80, 40], text: ELEC}
 
+  # The bus: everything meets here (a junction dot is drawn automatically).
+  - {id: bus, type: node, at: [500, 300]}
+
   - id: solar
     type: line
-    points: [[500, 80], [500, 300]]
+    from: [500, 80]
+    to: bus
     bind: {power: sensor.solar_power}
     flow: true
     name: {text: SOLAR, along: 0, anchor: top}
@@ -30,12 +34,13 @@ elements:
   # Battery power: positive = charging (bus -> battery), negative = discharging.
   - id: battery_feed
     type: line
-    points: [[500, 300], [230, 300]]
+    from: bus
+    to: battery.right
     bind: {power: sensor.battery_power}
     flow: true
     readouts: [{value: power, format: power, abs: true}]
 
-  - {id: bus_tie, type: line, points: [[500, 300], [630, 300]]}
+  - {id: bus_tie, type: line, from: bus, to: main_breaker.in}
 
   - id: main_breaker
     type: breaker
@@ -56,7 +61,8 @@ elements:
   # Positive grid power = import (grid -> house); negative = export.
   - id: grid
     type: line
-    points: [[880, 300], [670, 300]]
+    from: [880, 300]
+    to: main_breaker.out
     bind: {power: sensor.grid_power}
     flow: true
     name: {text: GRID, along: 0, anchor: right}
@@ -64,7 +70,8 @@ elements:
 
   - id: loads
     type: line
-    points: [[500, 300], [500, 500]]
+    from: bus
+    to: [500, 500]
     bind: {power: sensor.load_power}
     flow: true
     name: {text: LOADS, along: 1, anchor: bottom}

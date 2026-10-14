@@ -24,6 +24,7 @@ from mfdhome.model.page import (
     Element,
     LineElement,
     Name,
+    NodeElement,
     Page,
     Readout,
     SymbolElement,
@@ -219,7 +220,27 @@ def render_element(
             )
         case TileElement():
             body = _render_tile(element, state, theme, alerts)
+        case NodeElement():
+            body = _render_node(element, theme)
     return svg.element("g", {"id": element.id}, [body])
+
+
+#: Junction dot radius as a multiple of the theme's line width.
+JUNCTION_RADIUS = 1.5
+
+
+def _render_node(element: NodeElement, theme: Theme) -> str:
+    if not element.junction:
+        return ""
+    return svg.element(
+        "circle",
+        {
+            "cx": element.at[0],
+            "cy": element.at[1],
+            "r": theme.line_width * JUNCTION_RADIUS,
+            "fill": theme.color(Status.NORMAL),
+        },
+    )
 
 
 def attention_css(theme: Theme) -> str:
@@ -260,7 +281,11 @@ def render_page(
             "rect",
             {"x": 0, "y": 0, "width": page.width, "height": page.height, "fill": theme.background},
         ),
-        *(render_element(element, state, theme, alerts) for element in page.elements),
+        # Nodes last, so junction dots sit on top of the lines that meet there.
+        *(
+            render_element(element, state, theme, alerts)
+            for element in sorted(page.elements, key=lambda e: isinstance(e, NodeElement))
+        ),
     ]
     shown = alerts.banner()
     if shown is not None:

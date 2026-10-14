@@ -48,7 +48,8 @@ class SymbolSpec:
 
     ``channels`` lists every accepted channel; ``required`` must be bound;
     ``primary`` decides the no-data state; ``numeric`` channels count as no
-    data when their value is not a number. ``params`` validates and normalizes
+    data when their value is not a number. ``ports`` adds named connection
+    points beyond the box edges and corners every symbol has. ``params`` validates and normalizes
     type-specific settings, raising ``ValueError`` for bad input.
     """
 
@@ -59,6 +60,9 @@ class SymbolSpec:
     numeric: frozenset[str]
     box: Callable[[Point, Orientation], Box]
     draw: Callable[[SymbolInput, Theme], str]
+    ports: Mapping[str, Callable[[Point, Orientation], Point]] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
     params: Callable[[Mapping[str, object]], Mapping[str, object]] = field(default=_no_params)
 
 
@@ -79,6 +83,16 @@ def _breaker_params(raw: Mapping[str, object]) -> Mapping[str, object]:
     if isinstance(closed, str) or not isinstance(closed, (list, tuple, frozenset, set)):
         raise ValueError("'closed' must be a list of state strings")
     return MappingProxyType({"closed": frozenset(str(s).strip().lower() for s in closed)})
+
+
+def _breaker_in(at: Point, orientation: Orientation) -> Point:
+    half = breaker_box(*at).right - at[0]
+    return (at[0], at[1] - half) if orientation is Orientation.VERTICAL else (at[0] - half, at[1])
+
+
+def _breaker_out(at: Point, orientation: Orientation) -> Point:
+    half = breaker_box(*at).right - at[0]
+    return (at[0], at[1] + half) if orientation is Orientation.VERTICAL else (at[0] + half, at[1])
 
 
 def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:
@@ -109,6 +123,7 @@ REGISTRY: Mapping[str, SymbolSpec] = MappingProxyType(
             box=lambda at, _orientation: breaker_box(*at),
             draw=_draw_breaker,
             params=_breaker_params,
+            ports=MappingProxyType({"in": _breaker_in, "out": _breaker_out}),
         ),
     }
 )

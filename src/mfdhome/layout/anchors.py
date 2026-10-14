@@ -20,6 +20,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
+from mfdhome.layout.path import Point
+
 #: Baseline-to-baseline distance as a multiple of font size.
 LINE_SPACING = 1.3
 #: Approximate cap height as a fraction of font size, used to hang text below an edge.
@@ -153,6 +155,13 @@ def place_stack(
 
     dx, dy = offset
     return [Placement(x + dx, start + r + dy, _TEXT_ANCHOR[column], baseline) for r in rel]
+
+
+def box_point(box: Box, anchor: Anchor) -> Point:
+    """The point on ``box`` named by ``anchor``: an edge midpoint, corner or the center."""
+    x = {"left": box.left, "center": box.cx, "right": box.right}[anchor.column]
+    y = {"top": box.top, "center": box.cy, "bottom": box.bottom}[anchor.row]
+    return (x, y)
 
 
 def default_line_anchor(direction: tuple[float, float]) -> Anchor:

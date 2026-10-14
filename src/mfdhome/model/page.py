@@ -1,11 +1,12 @@
 """Page and element definitions, positioned on a logical canvas.
 
-There are four element kinds:
+There are five element kinds:
 
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
 - ``LineElement``: a power/flow line along a polyline;
 - ``TextElement``: a static label;
-- ``TileElement``: an annunciator tile showing one system's alerts.
+- ``TileElement``: an annunciator tile showing one system's alerts;
+- ``NodeElement``: a connection point lines can attach to.
 
 Symbols and lines bind HA entities to named *channels* declared by their type.
 Status rules, flow and readouts refer to channel names, not entity ids.
@@ -151,7 +152,20 @@ class TileElement:
     label: str | None = None
 
 
-type Element = SymbolElement | LineElement | TextElement | TileElement
+@dataclass(frozen=True)
+class NodeElement:
+    """A connection point that isn't equipment (e.g. a bus junction).
+
+    ``junction`` draws a dot; the config loader sets it when three or more
+    lines attach to the node.
+    """
+
+    id: str
+    at: Point
+    junction: bool = False
+
+
+type Element = SymbolElement | LineElement | TextElement | TileElement | NodeElement
 
 
 @dataclass(frozen=True)

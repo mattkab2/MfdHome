@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
-from dataclasses import dataclass, field
+from collections import Counter
+from collections.abc import Iterator, Mapping, Sequence
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any
 
@@ -19,6 +20,7 @@ from mfdhome.config.schema import (
     ExprModel,
     LineModel,
     NameModel,
+    NodeModel,
     PageModel,
     ReadoutModel,
     StatusModel,
@@ -31,6 +33,7 @@ from mfdhome.config.schema import (
 )
 from mfdhome.layout.anchors import Anchor, anchor_names, parse_anchor
 from mfdhome.layout.grid import grid_centers
+from mfdhome.layout.path import Point
 from mfdhome.model.alert import AlertDef, Severity, System
 from mfdhome.model.binding import EntityRef, Status
 from mfdhome.model.page import (
@@ -38,6 +41,7 @@ from mfdhome.model.page import (
     FlowSpec,
     LineElement,
     Name,
+    NodeElement,
     Orientation,
     Page,
     Readout,
@@ -47,6 +51,7 @@ from mfdhome.model.page import (
     TileElement,
 )
 from mfdhome.render.format import FORMATS, is_valid_format
+from mfdhome.symbols.geometry import port_point
 from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
 from mfdhome.symbols.tile import TILE_HEIGHT, TILE_WIDTH
 
@@ -230,8 +235,23 @@ def _anchor(name: str | None, loc: Loc, issues: Issues) -> Anchor | None:
         return None
 
 
+type Endpoint = tuple[float, float] | str
+
+
+@dataclass(frozen=True)
+class _PendingLine:
+    """A line whose ``from``/``to`` endpoints are resolved after every element is built."""
+
+    id: str
+    start: Endpoint
+    via: tuple[Point, ...]
+    end: Endpoint
+    loc: Loc
+
+
 class _ElementBuilder:
     def __init__(self, defs: Defs, alerts: Alerts, issues: Issues) -> None:
+        self.pending: list[_PendingLine] = []
         self.defs = defs
         self.alerts = alerts
         self.alert_ids = {a.id for a in alerts.alerts}
@@ -353,9 +373,14 @@ class _ElementBuilder:
         if model.flow is not None:
             self.bound_channel(model.flow.from_, bound, (*loc, "flow", "from"))
             flow = FlowSpec(model.flow.from_, model.flow.threshold)
+        if model.points is None:
+            assert model.from_ is not None and model.to is not None
+            self.pending.append(
+                _PendingLine(model.id, model.from_, tuple(model.via), model.to, loc)
+            )
         return LineElement(
             id=model.id,
-            points=tuple(model.points),
+            points=tuple(model.points or ()),
             bind=MappingProxyType(bound),
             name=self.name(model.name, (*loc, "name")),
             status=self.status(model.status, LINE_PRIMARY, bound, (*loc, "status")),
@@ -394,6 +419,9 @@ class _ElementBuilder:
                 if t is not None:
                     self.system(t.system, (*loc, "system"))
                 built = None if t is None else TileElement(t.id, t.at, t.system, t.label)
+            case "node":
+                node = validate(NodeModel, raw, loc, self.issues)
+                built = None if node is None else NodeElement(node.id, node.at)
             case "tile_grid":
                 grid = validate(TileGridModel, raw, loc, self.issues)
                 return [] if grid is None else self.tile_grid(grid, loc)
@@ -425,7 +453,57 @@ def build_page(
                 issues.add(("elements", i, "id"), f"duplicate element id {element.id!r}")
             seen.add(element.id)
             elements.append(element)
+    elements = _connect(elements, builder.pending, issues)
     return Page(model.page, model.title, model.canvas.width, model.canvas.height, tuple(elements))
+
+
+#: Lines attached to a node at which a junction dot is drawn.
+JUNCTION_DEGREE = 3
+
+
+def _endpoint(
+    end: Endpoint, by_id: Mapping[str, Element], loc: Loc, issues: Issues, degree: Counter[str]
+) -> Point | None:
+    if not isinstance(end, str):
+        return end
+    if end in by_id:
+        target, port = by_id[end], None
+    else:
+        element_id, _, port_name = end.rpartition(".")
+        if element_id not in by_id:
+            issues.add(loc, f"unknown element {end!r}; use a node id or 'element.port'")
+            return None
+        target, port = by_id[element_id], port_name
+    try:
+        point = port_point(target, port)
+    except ValueError as exc:
+        issues.add(loc, str(exc))
+        return None
+    if isinstance(target, NodeElement):
+        degree[target.id] += 1
+    return point
+
+
+def _connect(
+    elements: Sequence[Element], pending: Sequence[_PendingLine], issues: Issues
+) -> list[Element]:
+    """Resolve line endpoints to points and mark junction nodes."""
+    by_id = {e.id: e for e in elements}
+    degree: Counter[str] = Counter()
+    points: dict[str, tuple[Point, ...]] = {}
+    for line in pending:
+        start = _endpoint(line.start, by_id, (*line.loc, "from"), issues, degree)
+        end = _endpoint(line.end, by_id, (*line.loc, "to"), issues, degree)
+        if start is not None and end is not None:
+            points[line.id] = (start, *line.via, end)
+    out: list[Element] = []
+    for e in elements:
+        if isinstance(e, LineElement) and e.id in points:
+            e = replace(e, points=points[e.id])
+        elif isinstance(e, NodeElement) and degree[e.id] >= JUNCTION_DEGREE:
+            e = replace(e, junction=True)
+        out.append(e)
+    return out
 
 
 # --- alerts -----------------------------------------------------------------------------------

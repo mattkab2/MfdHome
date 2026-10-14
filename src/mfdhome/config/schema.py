@@ -207,12 +207,31 @@ class SymbolModel(_Bound):
     params: dict[str, Any] = {}
 
 
+Endpoint = Coord | str
+
+
 class LineModel(_Bound):
-    """A line along a polyline."""
+    """A line: explicit ``points``, or ``from``/``to`` endpoints with optional ``via`` bends.
+
+    An endpoint is a coordinate, a node id, or ``element.port``.
+    """
 
     type: Literal["line"]
-    points: Annotated[list[Coord], Field(min_length=2)]
+    points: Annotated[list[Coord], Field(min_length=2)] | None = None
+    from_: Endpoint | None = Field(default=None, alias="from")
+    to: Endpoint | None = None
+    via: list[Coord] = []
     flow: FlowModel | None = None
+
+    @model_validator(mode="after")
+    def _one_geometry(self) -> Self:
+        ends = (self.from_ is not None, self.to is not None)
+        if self.points is not None:
+            if any(ends) or self.via:
+                raise ValueError("give either 'points' or 'from'/'to' (with optional 'via')")
+        elif ends != (True, True):
+            raise ValueError("a line needs 'points', or both 'from' and 'to'")
+        return self
 
     @field_validator("flow", mode="before")
     @classmethod
@@ -232,6 +251,14 @@ class TextModel(Strict):
     at: Coord
     text: str
     align: Literal["start", "middle", "end"] = "middle"
+
+
+class NodeModel(Strict):
+    """A connection point (bus junction)."""
+
+    id: Ident
+    type: Literal["node"]
+    at: Coord
 
 
 class TileModel(Strict):
@@ -329,6 +356,7 @@ MODEL_NAMES = frozenset(
         "LineModel",
         "TextModel",
         "TileModel",
+        "NodeModel",
         "TileGridModel",
         "SystemModel",
         "AlertModel",
