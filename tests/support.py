@@ -1,14 +1,18 @@
-"""Test helpers: fixture loading and inline HA state builders."""
+"""Test helpers: fixture loading, inline HA state builders and alert boards."""
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from mfdhome.config import Config, load_config
+from mfdhome.mfd import EMPTY_BOARD, Board, acknowledge, evaluate_alerts, step
 from mfdhome.model import Page, StateSnapshot
+from mfdhome.render.alerts import AlertView
 from mfdhome.sources import load_fixture
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CONFIG = FIXTURES / "config"
+T0 = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def fixture_state(name: str) -> StateSnapshot:
@@ -29,3 +33,25 @@ def load_test_config() -> Config:
 def config_page(page_id: str) -> Page:
     """One page from the test config."""
     return load_test_config().pages[page_id]
+
+
+def board_from(*fixtures: str, acks: tuple[str, ...] = ()) -> Board:
+    """Step the test config's alerts through ``fixtures`` in order, a minute apart.
+
+    ``acks`` are acknowledged after the first fixture.
+    """
+    alerts = load_test_config().alerts.alerts
+    board = EMPTY_BOARD
+    for i, name in enumerate(fixtures):
+        board = step(
+            board, alerts, evaluate_alerts(alerts, fixture_state(name)), T0 + timedelta(minutes=i)
+        )
+        if i == 0 and acks:
+            board = acknowledge(board, "workshop", T0 + timedelta(seconds=30), ids=acks)
+    return board
+
+
+def view(board: Board, banner: bool = True) -> AlertView:
+    """The test config's alerts over ``board``."""
+    config = load_test_config()
+    return AlertView(config.alerts.alerts, config.alerts.systems, board, show_banner=banner)
