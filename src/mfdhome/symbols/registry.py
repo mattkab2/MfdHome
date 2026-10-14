@@ -74,34 +74,10 @@ def _draw_battery(inp: SymbolInput, theme: Theme) -> str:
 
 
 DEFAULT_CLOSED_STATES = frozenset({"on", "closed"})
-
-
-def _breaker_in(at: Point, orientation: Orientation) -> Port:
-    half = breaker_box(*at).right - at[0]
-    if orientation is Orientation.VERTICAL:
-        return Port((at[0], at[1] - half), (0.0, -1.0))
-    return Port((at[0] - half, at[1]), (-1.0, 0.0))
-
-
-def _breaker_out(at: Point, orientation: Orientation) -> Port:
-    half = breaker_box(*at).right - at[0]
-    if orientation is Orientation.VERTICAL:
-        return Port((at[0], at[1] + half), (0.0, 1.0))
-    return Port((at[0] + half, at[1]), (1.0, 0.0))
-
-
-def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:
-    state = inp.values["state"]
-    closed_states = inp.params.get("closed", DEFAULT_CLOSED_STATES)
-    assert isinstance(closed_states, frozenset)
-    closed = None if state.raw is None else str(state.raw).strip().lower() in closed_states
-    return breaker(inp.at[0], inp.at[1], closed, inp.status, inp.orientation, theme)
-
-
 DEFAULT_CONNECTED_STATES = frozenset({"on", "connected", "grid", "closed"})
 
-
 type ParamsValidator = Callable[[Mapping[str, object]], Mapping[str, object]]
+type PortFn = Callable[[Point, Orientation], Port]
 
 
 def _state_list_params(name: str, default: frozenset[str]) -> ParamsValidator:
@@ -119,34 +95,42 @@ def _state_list_params(name: str, default: frozenset[str]) -> ParamsValidator:
     return validate
 
 
-def _draw_ats(inp: SymbolInput, theme: Theme) -> str:
-    state = inp.values["state"]
-    connected_states = inp.params.get("connected", DEFAULT_CONNECTED_STATES)
-    assert isinstance(connected_states, frozenset)
-    connected = None if state.raw is None else str(state.raw).strip().lower() in connected_states
-    return transfer_switch(inp.at[0], inp.at[1], connected, inp.status, inp.orientation, theme)
+def _in_states(inp: SymbolInput, param: str, default: frozenset[str]) -> bool | None:
+    """Whether the ``state`` channel is one of the ``param`` states; ``None`` without data."""
+    raw = inp.values["state"].raw
+    states = inp.params.get(param, default)
+    assert isinstance(states, frozenset)
+    return None if raw is None else str(raw).strip().lower() in states
 
 
-def _ats_port(side: float) -> Callable[[Point, Orientation], Port]:
-    """The grid (side -1) or load (side +1) port; it follows orientation."""
+def _terminal(box: Callable[[Point, Orientation], Box], side: float) -> PortFn:
+    """A port at the start (side -1: left, or top when vertical) or end (+1) of ``box``."""
 
     def port(at: Point, orientation: Orientation) -> Port:
-        box = ats_box(*at, orientation)
+        b = box(at, orientation)
         if orientation is Orientation.VERTICAL:
-            y = box.top if side < 0 else box.bottom
-            return Port((at[0], y), (0.0, side))
-        x = box.left if side < 0 else box.right
-        return Port((x, at[1]), (side, 0.0))
+            return Port((at[0], b.top if side < 0 else b.bottom), (0.0, side))
+        return Port((b.left if side < 0 else b.right, at[1]), (side, 0.0))
 
     return port
 
 
-def _draw_load_panel(inp: SymbolInput, theme: Theme) -> str:
-    return load_panel(inp.at[0], inp.at[1], inp.status, theme)
+def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:
+    closed = _in_states(inp, "closed", DEFAULT_CLOSED_STATES)
+    return breaker(*inp.at, closed, inp.status, inp.orientation, theme)
 
 
-def _draw_panel(inp: SymbolInput, theme: Theme) -> str:
-    return solar_panel(inp.at[0], inp.at[1], inp.status, theme)
+def _draw_ats(inp: SymbolInput, theme: Theme) -> str:
+    connected = _in_states(inp, "connected", DEFAULT_CONNECTED_STATES)
+    return transfer_switch(*inp.at, connected, inp.status, inp.orientation, theme)
+
+
+def _breaker_box(at: Point, _orientation: Orientation) -> Box:
+    return breaker_box(*at)
+
+
+def _ats_box(at: Point, orientation: Orientation) -> Box:
+    return ats_box(*at, orientation)
 
 
 REGISTRY: Mapping[str, SymbolSpec] = {
@@ -156,10 +140,10 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         required=frozenset({"state"}),
         primary="state",
         numeric=frozenset(),
-        box=lambda at, orientation: ats_box(*at, orientation),
+        box=_ats_box,
         draw=_draw_ats,
         params=_state_list_params("connected", DEFAULT_CONNECTED_STATES),
-        ports={"grid": _ats_port(-1.0), "load": _ats_port(1.0)},
+        ports={"grid": _terminal(_ats_box, -1.0), "load": _terminal(_ats_box, 1.0)},
     ),
     "load_panel": SymbolSpec(
         type="load_panel",
@@ -168,7 +152,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         primary="power",
         numeric=frozenset({"power"}),
         box=lambda at, _orientation: load_panel_box(*at),
-        draw=_draw_load_panel,
+        draw=lambda inp, theme: load_panel(*inp.at, inp.status, theme),
     ),
     "solar_panel": SymbolSpec(
         type="solar_panel",
@@ -177,7 +161,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         primary="power",
         numeric=frozenset({"power"}),
         box=lambda at, _orientation: panel_box(*at),
-        draw=_draw_panel,
+        draw=lambda inp, theme: solar_panel(*inp.at, inp.status, theme),
     ),
     "battery": SymbolSpec(
         type="battery",
@@ -194,10 +178,10 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         required=frozenset({"state"}),
         primary="state",
         numeric=frozenset(),
-        box=lambda at, _orientation: breaker_box(*at),
+        box=_breaker_box,
         draw=_draw_breaker,
         params=_state_list_params("closed", DEFAULT_CLOSED_STATES),
-        ports={"in": _breaker_in, "out": _breaker_out},
+        ports={"in": _terminal(_breaker_box, -1.0), "out": _terminal(_breaker_box, 1.0)},
     ),
 }
 
