@@ -65,6 +65,8 @@ class Theme:
     (wall thickness) and ``max_line_weight`` (cap on any line's weight). These
     are applied after page styles, so a theme's limits always hold.
     ``hatch_spacing`` is the stripe period of a warning line's hatching.
+    ``core_inset`` is the gap between a flowing cased line's walls and its
+    solid core.
     ``unavailable_dots`` is the dash array for the no-data pattern; drawn with
     round caps, a zero-length dash ("0 6") gives round dots.
     """
@@ -84,10 +86,11 @@ class Theme:
     tile_fill: Mapping[Status, TileFill]
     status_weight: Mapping[Status, float] = field(default_factory=_ones)
     casing_allowed: bool = True
-    casing_width: float = 8.0
+    casing_width: float = 10.0
     casing_wall: float = 2.0
     max_line_weight: float = 3.0
     hatch_spacing: float = 4.0
+    core_inset: float = 1.0
 
     def color(self, status: Status) -> str:
         """Return the palette color for ``status``."""

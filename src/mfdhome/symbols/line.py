@@ -144,7 +144,9 @@ def line(
 
     A solid line is ``theme.line_width * weight`` wide. A cased line is a
     hollow pipe ``theme.casing_width * weight`` wide with ``theme.casing_wall``
-    walls. Severity patterns: caution dashes the stroke (or the pipe's walls);
+    walls; while ``flow`` is set (power above the flow threshold) its hollow
+    gets a solid core, and a blank hollow means no flow. Severity patterns:
+    caution dashes the stroke (or the pipe's walls);
     warning hatches the pipe's interior, forcing casing on so stripes have
     room; unavailable is dotted. ``flow`` draws a chevron at the midpoint
     pointing along (FORWARD) or against (REVERSE) the point order. ``line_id``
@@ -164,6 +166,10 @@ def line(
             parts = _hatch(line_id, pts, hollow, color, theme)
         else:
             parts = [_polyline(pts, {"stroke": theme.background, "stroke-width": hollow})]
+            core = hollow - 2 * theme.core_inset
+            if flow is not None and core > 0:
+                # Solid core: power is flowing. A blank pipe means no flow.
+                parts.append(_polyline(pts, {"stroke": color, "stroke-width": core}))
         size = max(ARROW_SIZE, outer * ARROW_CASING_RATIO)
         half = outer / 2
     else:

@@ -60,15 +60,15 @@ def test_breaker_open_vs_closed_and_vertical() -> None:
 class TestCasing:
     def test_cased_line_has_shell_and_hollow(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.NORMAL, None, LCD, casing=True)
-        assert f'stroke="{LCD.color(Status.NORMAL)}" stroke-width="8"' in parts.casing
-        assert f'stroke="{LCD.background}" stroke-width="4"' in parts.body
-        assert parts.half_width == 4
+        assert f'stroke="{LCD.color(Status.NORMAL)}" stroke-width="10"' in parts.casing
+        assert f'stroke="{LCD.background}" stroke-width="6"' in parts.body
+        assert parts.half_width == 5
 
     def test_weight_scales_casing_and_arrow(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, LCD, weight=2, casing=True)
-        assert 'stroke-width="16"' in parts.casing
-        assert 'stroke-width="12"' in parts.body  # walls stay 2 thick
-        assert 'points="70,0 30,20 30,-20"' in parts.body  # arrow 1.25 x outer width
+        assert 'stroke-width="20"' in parts.casing
+        assert 'stroke-width="16"' in parts.body  # walls stay 2 thick
+        assert 'points="75,0 25,25 25,-25"' in parts.body  # arrow 1.25 x outer width
 
     def test_uncased_line_is_solid_and_weighted(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.NORMAL, None, LCD, weight=0.5)
@@ -77,13 +77,13 @@ class TestCasing:
 
     def test_cased_unavailable_dots_scale_with_width(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.UNAVAILABLE, None, LCD, casing=True)
-        assert 'stroke-dasharray="0 16" stroke-linecap="round"' in parts.casing
+        assert 'stroke-dasharray="0 20" stroke-linecap="round"' in parts.casing
 
 
 class TestSeverityPatterns:
     def test_caution_dashes_the_walls(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.CAUTION, None, LCD, casing=True)
-        assert 'stroke-width="8" stroke-dasharray="12 8"' in parts.casing
+        assert 'stroke-width="10" stroke-dasharray="15 10"' in parts.casing
         assert "stroke-dasharray" not in parts.body  # the hollow stays continuous
 
     def test_caution_dashes_an_uncased_line(self) -> None:
@@ -94,7 +94,7 @@ class TestSeverityPatterns:
         parts = line(((0, 0), (100, 0)), Status.WARNING, None, LCD, line_id="g")
         assert parts.casing  # casing forced on so the stripes have room
         assert '<pattern id="hatch-g-0"' in parts.body
-        assert 'stroke="url(#hatch-g-0)" stroke-width="4"' in parts.body
+        assert 'stroke="url(#hatch-g-0)" stroke-width="6"' in parts.body
 
     def test_hatch_rotates_per_segment(self) -> None:
         pts = ((0, 0), (100, 0), (100, 100), (200, 200))
@@ -121,4 +121,28 @@ class TestSeverityPatterns:
     def test_lines_ignore_status_weight(self) -> None:
         normal = line(((0, 0), (100, 0)), Status.NORMAL, None, EINK_MONO, casing=True)
         warning = line(((0, 0), (100, 0)), Status.WARNING, None, EINK_MONO, casing=True)
-        assert 'stroke-width="8"' in normal.casing and 'stroke-width="8"' in warning.casing
+        assert 'stroke-width="10"' in normal.casing and 'stroke-width="10"' in warning.casing
+
+
+class TestCore:
+    PTS = ((0.0, 0.0), (100.0, 0.0))
+
+    def test_flowing_pipe_has_solid_core(self) -> None:
+        body = line(self.PTS, Status.ACTIVE, Flow.FORWARD, LCD, casing=True).body
+        blue = LCD.color(Status.ACTIVE)
+        # walls 2, hollow 6, core inset 1 on each side -> 4
+        assert f'stroke="{blue}" stroke-width="4"' in body
+
+    def test_idle_pipe_is_blank(self) -> None:
+        body = line(self.PTS, Status.NORMAL, None, LCD, casing=True).body
+        assert body.count("<polyline") == 1  # hollow only, no core
+
+    def test_caution_keeps_core_warning_keeps_hatch(self) -> None:
+        caution = line(self.PTS, Status.CAUTION, Flow.FORWARD, LCD, casing=True).body
+        assert f'stroke="{LCD.color(Status.CAUTION)}" stroke-width="4"' in caution
+        warning = line(self.PTS, Status.WARNING, Flow.FORWARD, LCD, casing=True).body
+        assert "url(#hatch" in warning and 'stroke-width="4"' not in warning
+
+    def test_uncased_line_has_no_core(self) -> None:
+        body = line(self.PTS, Status.ACTIVE, Flow.FORWARD, LCD).body
+        assert body.count("<polyline") == 1
