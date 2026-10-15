@@ -121,6 +121,11 @@ class Runtime:
             ids = [a.id for a in self.config.alerts.alerts if a.system == system]
         return self._set_board(acknowledge(self.board, by, now, ids), now, by)
 
+    def acknowledge_banner(self, by: str, now: datetime) -> bool:
+        """Acknowledge the alert the banner names (the most urgent caution/warning)."""
+        urgent = most_urgent(self.board, self.config.alerts.alerts)
+        return urgent is not None and self.acknowledge(by, now, ids=[urgent.id])
+
     def select(self, display_id: str, page_id: str) -> bool:
         """Show ``page_id`` on a display, if the display offers it."""
         display = self.config.displays.get(display_id)
@@ -178,9 +183,7 @@ class Runtime:
                 self.locked[display_id] = not self.locked[display_id]
                 return action
             case Action.ACK:
-                urgent = most_urgent(self.board, self.config.alerts.alerts)
-                acked = urgent is not None and self.acknowledge(display_id, now, ids=[urgent.id])
-                return action if acked else None
+                return action if self.acknowledge_banner(display_id, now) else None
             case Action.PREV | Action.NEXT:
                 target = display.step(current, -1 if action is Action.PREV else 1)
             case Action.ALERTS:

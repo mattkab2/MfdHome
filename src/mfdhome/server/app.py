@@ -22,7 +22,6 @@ import aiohttp
 from aiohttp import WSMsgType, web
 
 from mfdhome.config.load import load_config
-from mfdhome.mfd.alerts import most_urgent
 from mfdhome.mfd.keys import KEY_SLOTS, Action
 from mfdhome.model.page import Element, GroupElement, TileElement
 from mfdhome.model.state import StateSnapshot
@@ -116,21 +115,17 @@ class Hub:
             elif action is not None:
                 await self.push([display_id])
             return
-        if self.runtime.locked.get(display_id):
+        if kind != "ack" or self.runtime.locked.get(display_id):
             return
-        if kind == "ack":
-            if message.get("target") == "banner":
-                alert = most_urgent(self.runtime.board, self.runtime.config.alerts.alerts)
-                changed = alert is not None and self.runtime.acknowledge(
-                    display_id, now, ids=[alert.id]
-                )
-            elif isinstance(system := message.get("system"), str):
-                changed = self.runtime.acknowledge(display_id, now, system=system)
-            else:
-                changed = False
-            if changed:
-                logger.info("display %s acknowledged %s", display_id, message)
-                await self.push()  # acknowledgement is house-wide
+        if message.get("target") == "banner":
+            changed = self.runtime.acknowledge_banner(display_id, now)
+        elif isinstance(system := message.get("system"), str):
+            changed = self.runtime.acknowledge(display_id, now, system=system)
+        else:
+            return
+        if changed:
+            logger.info("display %s acknowledged %s", display_id, message)
+            await self.push()  # acknowledgement is house-wide
 
 
 async def _favicon(_request: web.Request) -> web.Response:
