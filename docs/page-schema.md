@@ -66,6 +66,7 @@ Any registered symbol type, centered at `at`:
 | `load_panel` | `power` (numeric) | none | none |
 | `electric_meter` | `power` (numeric), `energy` (numeric) | none | `label`: up to 5 characters drawn inside, default `kWh` |
 | `water_meter` | `flow` (numeric), `total` (numeric) | none | `label`, default `GAL` |
+| `smart_breaker` | `state`, `power` (numeric) | `state` | `closed`, as for `breaker` |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
@@ -77,6 +78,10 @@ Meters are a circle with their unit inside, read upright in either
 orientation. Their `in` and `out` ports are on the left and right (top and
 bottom when vertical). A meter's power follows the grid convention: negative
 means export.
+
+A `smart_breaker` is a remotely switched breaker, such as a battery system's
+smart circuit: the breaker symbol plus a small actuator box below the
+contact. Displays only show its state; they don't switch it.
 
 A `combiner` joins branch circuits (such as microinverter strings) onto one
 output. Each input runs through a small breaker mark to a bus bar. Its ports

@@ -1,4 +1,8 @@
-"""Breaker symbol: a square with a contact bar, closed (across) or open (swung)."""
+"""Breaker symbols: a square with a contact bar, closed (across) or open (swung).
+
+A smart breaker (remotely switched, such as a battery system's smart circuit)
+adds an actuator: a small box below the bar, linked to it by a stem.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +15,9 @@ from mfdhome.themes.theme import Theme
 
 SIZE = 40.0
 OPEN_RISE = 0.6  # open bar rises 0.6 * SIZE over its run (~31 degrees)
+ACTUATOR_WIDTH = 12.0
+ACTUATOR_HEIGHT = 8.0
+ACTUATOR_GAP = 8.0  # from the bar to the top of the actuator box
 
 
 def breaker_box(x: float, y: float) -> Box:
@@ -26,11 +33,13 @@ def breaker(
     status: Status,
     orientation: Orientation,
     theme: Theme,
+    actuator: bool = False,
 ) -> str:
     """Render a breaker centered at (x, y).
 
     ``closed=None`` (unknown) draws the box without a contact bar. Vertical
     breakers are the horizontal symbol rotated 90 degrees about the center.
+    ``actuator`` draws the smart-breaker mark, which stays in every state.
     """
     half = SIZE / 2
     outline = stroke(status, theme, theme.symbol_stroke_width)
@@ -60,6 +69,22 @@ def breaker(
                     "y2": end_y,
                     **stroke(status, theme, theme.line_width),
                     "stroke-linecap": "round",
+                },
+            )
+        )
+    if actuator:
+        top = y + ACTUATOR_GAP
+        parts.append(svg.element("line", {"x1": x, "y1": y, "x2": x, "y2": top, **outline}))
+        parts.append(
+            svg.element(
+                "rect",
+                {
+                    "x": x - ACTUATOR_WIDTH / 2,
+                    "y": top,
+                    "width": ACTUATOR_WIDTH,
+                    "height": ACTUATOR_HEIGHT,
+                    "fill": "none",
+                    **outline,
                 },
             )
         )

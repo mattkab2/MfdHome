@@ -138,6 +138,11 @@ def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:
     return breaker(*inp.at, closed, inp.status, inp.orientation, theme)
 
 
+def _draw_smart_breaker(inp: SymbolInput, theme: Theme) -> str:
+    closed = _in_states(inp, "closed", DEFAULT_CLOSED_STATES)
+    return breaker(*inp.at, closed, inp.status, inp.orientation, theme, actuator=True)
+
+
 def _draw_ats(inp: SymbolInput, theme: Theme) -> str:
     connected = _in_states(inp, "connected", DEFAULT_CONNECTED_STATES)
     return transfer_switch(*inp.at, connected, inp.status, inp.orientation, theme)
@@ -246,6 +251,17 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         draw=_draw_combiner,
         params=_combiner_params,
         ports_for=_combiner_ports,
+    ),
+    "smart_breaker": SymbolSpec(
+        type="smart_breaker",
+        channels=("state", "power"),
+        required=frozenset({"state"}),
+        primary="state",
+        numeric=frozenset({"power"}),
+        box=_breaker_box,
+        draw=_draw_smart_breaker,
+        params=_state_list_params("closed", DEFAULT_CLOSED_STATES),
+        ports={"in": _terminal(_breaker_box, -1.0), "out": _terminal(_breaker_box, 1.0)},
     ),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",
