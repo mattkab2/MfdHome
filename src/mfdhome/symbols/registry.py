@@ -28,6 +28,7 @@ from mfdhome.symbols.meter import meter, meter_box
 from mfdhome.symbols.panel import panel_box, solar_panel
 from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
 from mfdhome.symbols.transfer import panel_box as load_panel_box
+from mfdhome.symbols.valve import Body, ValveState, valve, valve_box
 from mfdhome.themes.theme import Theme
 
 #: Channels accepted by line elements; ``power`` is primary and numeric.
@@ -96,19 +97,27 @@ DEFAULT_CONNECTED_STATES = frozenset({"on", "connected", "grid", "closed"})
 type ParamsValidator = Callable[[Mapping[str, object]], Mapping[str, object]]
 
 
-def _state_list_params(name: str, default: frozenset[str]) -> ParamsValidator:
-    """Params with one optional entry: ``name``, a list of state strings (lowercased)."""
+def _state_lists(**defaults: frozenset[str]) -> ParamsValidator:
+    """Params whose entries are optional lists of state strings (lowercased)."""
 
     def validate(raw: Mapping[str, object]) -> Mapping[str, object]:
-        unknown = set(raw) - {name}
+        unknown = set(raw) - set(defaults)
         if unknown:
             raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
-        states = raw.get(name, default)
-        if isinstance(states, str) or not isinstance(states, (list, tuple, frozenset, set)):
-            raise ValueError(f"{name!r} must be a list of state strings")
-        return {name: frozenset(str(s).strip().lower() for s in states)}
+        out = {}
+        for name, default in defaults.items():
+            states = raw.get(name, default)
+            if isinstance(states, str) or not isinstance(states, (list, tuple, frozenset, set)):
+                raise ValueError(f"{name!r} must be a list of state strings")
+            out[name] = frozenset(str(s).strip().lower() for s in states)
+        return out
 
     return validate
+
+
+def _state_list_params(name: str, default: frozenset[str]) -> ParamsValidator:
+    """Params with one optional entry: ``name``, a list of state strings (lowercased)."""
+    return _state_lists(**{name: default})
 
 
 def _in_states(
@@ -210,6 +219,48 @@ def _draw_combiner(inp: SymbolInput, theme: Theme) -> str:
     return combiner(*inp.at, _inputs(inp.params), inp.status, inp.orientation, theme)
 
 
+DEFAULT_OPEN_STATES = frozenset({"open", "on"})
+DEFAULT_MOVING_STATES = frozenset({"opening", "closing"})
+
+
+def _valve_state(inp: SymbolInput) -> ValveState:
+    raw = inp.values["state"].raw
+    if raw is None:
+        return ValveState.UNKNOWN
+    state = str(raw).strip().lower()
+    for param, result in (("open", ValveState.OPEN), ("moving", ValveState.MOVING)):
+        states = inp.params[param]
+        assert isinstance(states, frozenset)
+        if state in states:
+            return result
+    return ValveState.CLOSED
+
+
+def _draw_valve(body: Body) -> Callable[[SymbolInput, Theme], str]:
+    def draw(inp: SymbolInput, theme: Theme) -> str:
+        return valve(*inp.at, body, _valve_state(inp), inp.status, inp.orientation, theme)
+
+    return draw
+
+
+def _valve_box(at: Point, orientation: Orientation) -> Box:
+    return valve_box(*at, orientation)
+
+
+def _valve_spec(type_name: str, body: Body) -> SymbolSpec:
+    return SymbolSpec(
+        type=type_name,
+        channels=("state", "position"),
+        required=frozenset({"state"}),
+        primary="state",
+        numeric=frozenset({"position"}),
+        box=_valve_box,
+        draw=_draw_valve(body),
+        params=_state_lists(open=DEFAULT_OPEN_STATES, moving=DEFAULT_MOVING_STATES),
+        ports={"in": _terminal(_valve_box, -1.0), "out": _terminal(_valve_box, 1.0)},
+    )
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -263,6 +314,8 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         params=_state_list_params("closed", DEFAULT_CLOSED_STATES),
         ports={"in": _terminal(_breaker_box, -1.0), "out": _terminal(_breaker_box, 1.0)},
     ),
+    "ball_valve": _valve_spec("ball_valve", Body.BALL),
+    "globe_valve": _valve_spec("globe_valve", Body.GLOBE),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",
         channels=("state",),
