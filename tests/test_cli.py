@@ -22,7 +22,7 @@ type ServerFactory = Callable[[Any], Awaitable[TestServer]]
 
 def test_check_ok(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["check", str(CONFIG)]) == 0
-    assert "config ok: 2 pages, 12 alerts" in capsys.readouterr().out
+    assert "config ok: 3 pages, 12 alerts" in capsys.readouterr().out
 
 
 def test_check_reports_unknown_entities(capsys: pytest.CaptureFixture[str]) -> None:

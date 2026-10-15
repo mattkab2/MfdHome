@@ -1,0 +1,12 @@
+[
+ {"entity_id": "sensor.pv_power", "state": "3400", "attributes": {"unit_of_measurement": "W"}},
+ {"entity_id": "sensor.net_power", "state": "-1200", "attributes": {"unit_of_measurement": "W"}},
+ {"entity_id": "switch.smart_circuit_1", "state": "off", "attributes": {}},
+ {"entity_id": "sensor.smart_circuit_1_power", "state": "0", "attributes": {"unit_of_measurement": "W"}},
+ {"entity_id": "sensor.water_flow", "state": "2.5", "attributes": {"unit_of_measurement": "gal/min"}},
+ {"entity_id": "valve.main_water", "state": "open", "attributes": {}},
+ {"entity_id": "valve.irrigation", "state": "closing", "attributes": {}},
+ {"entity_id": "water_heater.tank", "state": "eco", "attributes": {"current_temperature": 122, "unit_of_measurement": "°F"}},
+ {"entity_id": "binary_sensor.water_heater_burner", "state": "on", "attributes": {}},
+ {"entity_id": "valve.garden", "state": "open", "attributes": {}}
+]

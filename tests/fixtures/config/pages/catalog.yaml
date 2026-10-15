@@ -1,0 +1,100 @@
+# Symbol catalog: every symbol type that isn't on another test page, wired
+# through its named ports. Not shown on any display; rendered by the tests.
+page: catalog
+title: Catalog
+canvas: {width: 1000, height: 600}
+
+elements:
+  - {id: title, type: text, at: [80, 40], text: CATALOG}
+
+  # --- electrical: three branches -> combiner -> net meter -> smart circuit --
+  - {id: branch_a, type: line, from: [200, 123.33], to: combiner.in1}
+  - {id: branch_b, type: line, from: [200, 150], to: combiner.in2}
+  - {id: branch_c, type: line, from: [200, 176.67], to: combiner.in3}
+
+  - id: combiner
+    type: combiner
+    at: [300, 150]
+    params: {inputs: 3}
+    name: COMB
+    bind: {power: sensor.pv_power}
+    readouts: [{value: power, format: power}]
+
+  - {id: to_meter, type: line, from: combiner.out, to: net_meter.in}
+
+  - id: net_meter
+    type: electric_meter
+    at: [420, 150]
+    name: NET
+    bind: {power: sensor.net_power}   # negative: exporting
+    readouts: [{value: power, format: power}]
+
+  - {id: to_circuit, type: line, from: net_meter.out, to: ev_circuit.in}
+
+  - id: ev_circuit
+    type: smart_breaker
+    at: [560, 150]
+    name: EV
+    bind: {state: switch.smart_circuit_1, power: sensor.smart_circuit_1_power}
+    status: {map: {on: normal}, default: caution}
+
+  - {id: to_load, type: line, from: ev_circuit.out, to: [680, 150]}
+
+  # --- water: meter -> main valve -> branch -> irrigation / heater / taps --
+  - {id: service, type: line, from: [40, 380], to: water_meter.in}
+
+  - id: water_meter
+    type: water_meter
+    at: [120, 380]
+    name: WATER
+    bind: {flow: sensor.water_flow}
+    readouts: [{value: flow}]
+
+  - {id: to_main, type: line, from: water_meter.out, to: main_valve.in}
+
+  - id: main_valve
+    type: ball_valve
+    at: [230, 380]
+    name: MAIN
+    bind: {state: valve.main_water}
+    status: {map: {open: normal}, default: caution}
+
+  - {id: to_branch, type: line, from: main_valve.out, to: branch}
+  - {id: branch, type: node, at: [330, 380]}
+
+  - {id: to_irrigation, type: line, from: branch, to: irrigation.in}
+
+  - id: irrigation
+    type: globe_valve
+    at: [420, 380]
+    name: IRR
+    bind: {state: valve.irrigation}
+
+  - {id: to_heater, type: line, from: irrigation.out, to: heater.cold}
+
+  - id: heater
+    type: water_heater
+    at: [560, 460]
+    name: {text: WH, anchor: right}
+    bind:
+      temperature: {entity: water_heater.tank, attribute: current_temperature, unit: "°F"}
+      heating: binary_sensor.water_heater_burner
+    readouts: [{value: temperature, anchor: right}]
+
+  - {id: gas, type: line, from: [470, 486], to: heater.gas}
+  - {id: hot, type: line, from: heater.hot, to: [700, 340]}
+
+  - {id: to_garden, type: line, from: branch, to: garden.in}
+
+  - id: garden
+    type: hose_bib
+    at: [420, 500]
+    name: {text: GARDEN, anchor: bottom}
+    bind: {state: valve.garden}
+
+  - {id: to_sink, type: line, from: [800, 520], to: sink.in}
+
+  - id: sink
+    type: faucet
+    at: [800, 460]
+    name: SINK
