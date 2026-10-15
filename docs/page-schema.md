@@ -66,6 +66,7 @@ Any registered symbol type, centered at `at`:
 | `load_panel` | `power` (numeric) | none | none |
 | `electric_meter` | `power` (numeric), `energy` (numeric) | none | `label`: up to 5 characters drawn inside, default `kWh` |
 | `water_meter` | `flow` (numeric), `total` (numeric) | none | `label`, default `GAL` |
+| `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
 backup. Its grid contact faces left (top when vertical) and its load contact
@@ -76,6 +77,11 @@ Meters are a circle with their unit inside, read upright in either
 orientation. Their `in` and `out` ports are on the left and right (top and
 bottom when vertical). A meter's power follows the grid convention: negative
 means export.
+
+A `combiner` joins branch circuits (such as microinverter strings) onto one
+output. Each input runs through a small breaker mark to a bus bar. Its ports
+are `in1` to `inN` spaced evenly down the left edge (across the top when
+vertical, `in1` on the right) and `out` on the right (bottom).
 
 The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is

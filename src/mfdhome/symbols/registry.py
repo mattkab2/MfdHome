@@ -17,6 +17,13 @@ from mfdhome.model.binding import Status
 from mfdhome.model.page import Orientation
 from mfdhome.symbols.battery import battery, battery_box
 from mfdhome.symbols.breaker import breaker, breaker_box
+from mfdhome.symbols.combiner import (
+    MAX_INPUTS,
+    combiner,
+    combiner_box,
+    input_port,
+    output_port,
+)
 from mfdhome.symbols.meter import meter, meter_box
 from mfdhome.symbols.panel import panel_box, solar_panel
 from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
@@ -168,6 +175,36 @@ def _meter_box(at: Point, _orientation: Orientation) -> Box:
 _METER_PORTS = {"in": _terminal(_meter_box, -1.0), "out": _terminal(_meter_box, 1.0)}
 
 
+def _combiner_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    unknown = set(raw) - {"inputs"}
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    inputs = raw.get("inputs", 2)
+    if isinstance(inputs, bool) or not isinstance(inputs, int) or not 1 <= inputs <= MAX_INPUTS:
+        raise ValueError(f"'inputs' must be a whole number from 1 to {MAX_INPUTS}")
+    return {"inputs": inputs}
+
+
+def _inputs(params: Mapping[str, object]) -> int:
+    inputs = params.get("inputs", 2)
+    assert isinstance(inputs, int)
+    return inputs
+
+
+def _combiner_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
+    inputs = _inputs(params)
+
+    def port_in(index: int) -> PortFn:
+        return lambda at, orientation: input_port(*at, orientation, inputs, index)
+
+    ports = {f"in{i + 1}": port_in(i) for i in range(inputs)}
+    return {**ports, "out": lambda at, orientation: output_port(*at, orientation)}
+
+
+def _draw_combiner(inp: SymbolInput, theme: Theme) -> str:
+    return combiner(*inp.at, _inputs(inp.params), inp.status, inp.orientation, theme)
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -198,6 +235,17 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         draw=_draw_meter,
         params=_label_params("GAL"),
         ports=_METER_PORTS,
+    ),
+    "combiner": SymbolSpec(
+        type="combiner",
+        channels=("power",),
+        required=frozenset(),
+        primary="power",
+        numeric=frozenset({"power"}),
+        box=lambda at, orientation: combiner_box(*at, orientation),
+        draw=_draw_combiner,
+        params=_combiner_params,
+        ports_for=_combiner_ports,
     ),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",
