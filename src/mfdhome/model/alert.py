@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -44,6 +45,8 @@ class AlertDef:
 
     ``page`` optionally names the page the alert relates to (for a future
     "jump to page" control; alerts never switch pages on their own).
+    ``hold`` is how long the condition must hold before the alert is raised,
+    and stop holding before it clears (zero: immediately).
     """
 
     id: str
@@ -52,3 +55,4 @@ class AlertDef:
     message: str
     condition: AnyOf
     page: str | None = None
+    hold: timedelta = timedelta(0)

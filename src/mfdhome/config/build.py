@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Collection, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from datetime import timedelta
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
@@ -847,5 +848,8 @@ def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
             known = ", ".join(systems) or "none defined"
             issues.add((*loc, "system"), f"unknown system {a.system!r}; expected: {known}")
         condition = exprs.expr(a, loc, NO_CHANNELS)
-        alerts.append(AlertDef(a.id, Severity(a.severity), a.system, a.message, condition, a.page))
+        hold = a.hold or timedelta(0)
+        alerts.append(
+            AlertDef(a.id, Severity(a.severity), a.system, a.message, condition, a.page, hold)
+        )
     return Alerts(systems, tuple(alerts))

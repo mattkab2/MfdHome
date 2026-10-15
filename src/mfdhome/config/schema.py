@@ -390,6 +390,7 @@ class AlertModel(ExprModel):
     system: Ident
     message: str
     page: Ident | None = None
+    hold: Duration | None = Field(default=None, alias="for")
 
 
 class AlertsModel(Strict):

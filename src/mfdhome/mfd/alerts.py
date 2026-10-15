@@ -74,6 +74,41 @@ def evaluate_alerts(alerts: Iterable[AlertDef], state: StateSnapshot) -> frozens
     return frozenset(a.id for a in alerts if holds(a.condition, ctx))
 
 
+#: alert id -> when its condition started disagreeing with the board (pending a hold).
+type Pending = Mapping[str, datetime]
+
+_ACTIVE = (Phase.ACTIVE_UNACKED, Phase.ACTIVE_ACKED)
+
+
+def apply_holds(
+    alerts: Iterable[AlertDef],
+    raised: Collection[str],
+    board: Board,
+    pending: Pending,
+    now: datetime,
+) -> tuple[frozenset[str], Pending]:
+    """Debounce ``raised`` through each alert's ``hold``.
+
+    An alert whose condition disagrees with the board (holds while the alert
+    isn't active, or stopped holding while it is) only changes once the
+    disagreement has lasted ``hold``; a blip in between resets the wait.
+    Returns the ids to treat as raised and the updated pending times.
+    """
+    effective = set()
+    out = {}
+    for alert in alerts:
+        holds_now = alert.id in raised
+        active = board.get(alert.id, INACTIVE).phase in _ACTIVE
+        if holds_now != active and alert.hold:
+            start = pending.get(alert.id, now)
+            if now - start < alert.hold:
+                out[alert.id] = start
+                holds_now = active  # not yet: keep the board as it is
+        if holds_now:
+            effective.add(alert.id)
+    return frozenset(effective), out
+
+
 def _step_one(alert: AlertDef, current: AlertState, raised: bool, now: datetime) -> AlertState:
     match current.phase, raised:
         case Phase.INACTIVE, True:

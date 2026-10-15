@@ -486,9 +486,16 @@ alerts:
     severity: advisory
     system: GRID
     message: EXPORTING TO GRID
+    for: 1m                    # optional hold time, like 30, "30s", "5m"
     when: [{entity: sensor.grid_power, lt: -1000}]
 ```
 
+- **Hold time:** with `for:`, an alert is raised only once its condition has
+  held that long, and clears only once it has stopped holding that long. A
+  blip in between restarts the wait, so a reading hovering at a threshold
+  doesn't raise and clear over and over. Conditions are checked on every
+  change and at least every 30 seconds, so a hold can run up to 30 seconds
+  long. The alert's raise time is when the hold ran out.
 - An alert is raised while its condition holds. Conditions can only refer to
   `entity:` values, because alerts have no channels. They can `use` named
   conditions from `defs.yaml`, but only ones that also refer to entities.

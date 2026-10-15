@@ -11,7 +11,15 @@ from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 
 from mfdhome.config.load import Config
-from mfdhome.mfd.alerts import Board, acknowledge, evaluate_alerts, most_urgent, step
+from mfdhome.mfd.alerts import (
+    Board,
+    Pending,
+    acknowledge,
+    apply_holds,
+    evaluate_alerts,
+    most_urgent,
+    step,
+)
 from mfdhome.mfd.display import Display
 from mfdhome.mfd.history import AlertEvent, EventKind, board_events, prune
 from mfdhome.model.state import StateSnapshot
@@ -53,6 +61,7 @@ class Runtime:
         self._pruned_on: date | None = None
         self.connected: bool | None = None  # unknown until the first update
         self._was_connected = False
+        self.pending: Pending = {}  # alerts waiting out their hold time
         self.state: StateSnapshot = {}
         self.selected = {d.id: d.home for d in config.displays.values()}
         self.locked = dict.fromkeys(config.displays, False)
@@ -88,9 +97,12 @@ class Runtime:
         changed = False
         if connected:
             alerts = self.config.alerts.alerts
-            changed = self._set_board(
-                step(self.board, alerts, evaluate_alerts(alerts, self.state), now), now
+            raised, self.pending = apply_holds(
+                alerts, evaluate_alerts(alerts, self.state), self.board, self.pending, now
             )
+            changed = self._set_board(step(self.board, alerts, raised, now), now)
+        else:
+            self.pending = {}  # after reconnecting, conditions must hold afresh
         self._prune(now)
         return changed
 
