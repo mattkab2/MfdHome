@@ -82,5 +82,5 @@ def test_elbow_needs_auto_routing(tmp_path: Path) -> None:
 
 def test_arrow_sits_on_longest_leg() -> None:
     pts = ((0.0, 0.0), (200.0, 0.0), (200.0, 40.0))
-    body = line(pts, Status.ACTIVE, Flow.FORWARD, LCD).body
+    body = line(pts, Status.ACTIVE, Flow.FORWARD, LCD, casing=False).body
     assert 'points="110,0 90,10 90,-10"' in body  # middle of the 200-long leg, not the bend

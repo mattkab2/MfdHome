@@ -136,7 +136,7 @@ def line(
     status: Status,
     flow: Flow | None,
     theme: Theme,
-    casing: bool = False,
+    casing: bool,
     line_id: str = "line",
 ) -> LineParts:
     """Render a power line.

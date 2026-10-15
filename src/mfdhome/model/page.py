@@ -111,7 +111,7 @@ class SymbolElement:
 
 @dataclass(frozen=True)
 class LineElement:
-    """A line along ``points``.
+    """A line along ``points`` (set by routing when the page loads).
 
     Positive flow runs from the first point toward the last; negative flows
     backward (e.g. grid export). ``casing`` draws the line as a hollow pipe
@@ -119,7 +119,7 @@ class LineElement:
     """
 
     id: str
-    points: tuple[Point, ...]
+    points: tuple[Point, ...] = ()
     bind: Mapping[str, Binding] = field(default_factory=dict)
     name: Name | None = None
     status: StatusSpec = StatusSpec()

@@ -21,7 +21,7 @@ def test_element_escapes_and_drops_none() -> None:
 
 def test_unavailable_symbols_are_gray_and_dotted() -> None:
     fragments = [
-        line(((0, 0), (100, 0)), Status.UNAVAILABLE, None, LCD).body,
+        line(((0, 0), (100, 0)), Status.UNAVAILABLE, None, LCD, casing=False).body,
         battery(0, 0, None, Status.UNAVAILABLE, LCD),
         breaker(0, 0, None, Status.UNAVAILABLE, Orientation.HORIZONTAL, LCD),
     ]
@@ -31,15 +31,15 @@ def test_unavailable_symbols_are_gray_and_dotted() -> None:
 
 
 def test_line_flow_chevron_points_in_flow_direction() -> None:
-    forward = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, LCD).body
-    reverse = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.REVERSE, LCD).body
+    forward = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, LCD, casing=False).body
+    reverse = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.REVERSE, LCD, casing=False).body
     assert 'points="60,0 40,10 40,-10"' in forward
     assert 'points="40,0 60,-10 60,10"' in reverse
-    assert "polygon" not in line(((0, 0), (100, 0)), Status.NORMAL, None, LCD).body
+    assert "polygon" not in line(((0, 0), (100, 0)), Status.NORMAL, None, LCD, casing=False).body
 
 
 def test_degenerate_line_renders_nothing() -> None:
-    assert line(((0, 0),), Status.NORMAL, None, LCD) == LineParts("", "", 0.0)
+    assert line(((0, 0),), Status.NORMAL, None, LCD, casing=False) == LineParts("", "", 0.0)
 
 
 def test_battery_fill_is_clamped() -> None:
@@ -69,7 +69,7 @@ class TestCasing:
         assert 'points="62.5,0 37.5,12.5 37.5,-12.5"' in parts.body  # 1.25 x outer width
 
     def test_uncased_line_is_solid(self) -> None:
-        parts = line(((0, 0), (100, 0)), Status.NORMAL, None, LCD)
+        parts = line(((0, 0), (100, 0)), Status.NORMAL, None, LCD, casing=False)
         assert parts.casing == ""
         assert f'stroke-width="{LCD.line_width:g}"' in parts.body
 
@@ -86,11 +86,11 @@ class TestSeverityPatterns:
             assert 'stroke-width="4" stroke-dasharray="15 10"' in parts.body
 
     def test_caution_dashes_an_uncased_line(self) -> None:
-        parts = line(((0, 0), (100, 0)), Status.CAUTION, None, LCD)
+        parts = line(((0, 0), (100, 0)), Status.CAUTION, None, LCD, casing=False)
         assert 'stroke-dasharray="4.5 3"' in parts.body
 
     def test_warning_hatches_the_hollow_and_forces_casing(self) -> None:
-        parts = line(((0, 0), (100, 0)), Status.WARNING, None, LCD, line_id="g")
+        parts = line(((0, 0), (100, 0)), Status.WARNING, None, LCD, casing=False, line_id="g")
         assert parts.casing  # casing forced on so the stripes have room
         assert '<pattern id="hatch-g-0"' in parts.body
         assert 'stroke="url(#hatch-g-0)" stroke-width="6"' in parts.body
@@ -144,5 +144,5 @@ class TestCore:
         assert "url(#hatch" in warning and 'stroke-width="4"' not in warning
 
     def test_uncased_line_has_no_core(self) -> None:
-        body = line(self.PTS, Status.ACTIVE, Flow.FORWARD, LCD).body
+        body = line(self.PTS, Status.ACTIVE, Flow.FORWARD, LCD, casing=False).body
         assert body.count("<polyline") == 1

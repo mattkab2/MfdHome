@@ -407,7 +407,6 @@ class _ElementBuilder:
         )
         return LineElement(
             id=model.id,
-            points=(),  # routed once every element exists (see _connect)
             bind=bound,
             name=self.name(model.name, (*loc, "name")),
             status=self.status(model.status, LINE_PRIMARY, bound, (*loc, "status")),
