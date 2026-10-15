@@ -36,7 +36,6 @@ from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
 from mfdhome.render.controls import Controls, banner_box, soft_keys
 from mfdhome.render.format import format_value
-from mfdhome.render.lines import resolve_look
 from mfdhome.render.log import alert_log
 from mfdhome.render.resolve import Resolver
 from mfdhome.symbols import svg
@@ -181,8 +180,7 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
     flow = _flow(element, values)
     if flow is not None and status is Status.NORMAL:
         status = Status.ACTIVE
-    look = resolve_look(element, theme)
-    parts = line(element.points, status, flow, theme, look.weight, look.casing, element.id)
+    parts = line(element.points, status, flow, theme, element.casing, element.id)
 
     def default_anchor(along: float) -> Anchor:
         return default_line_anchor(point_along(element.points, along)[1])

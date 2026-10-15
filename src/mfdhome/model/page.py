@@ -95,28 +95,6 @@ class FlowSpec:
 
 
 @dataclass(frozen=True)
-class LineLook:
-    """Partial line appearance; ``None`` inherits.
-
-    ``weight`` is relative to the theme's base width; ``casing`` draws the
-    line as a hollow pipe (outer stroke in the status color, inner stroke in
-    the background color).
-    """
-
-    weight: float | None = None
-    casing: bool | None = None
-
-
-@dataclass(frozen=True)
-class LineStyle:
-    """A named connection style: base look plus per-theme variants (keyed by theme name)."""
-
-    name: str = "default"
-    base: LineLook = LineLook()
-    themes: Mapping[str, LineLook] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
 class SymbolElement:
     """A registered symbol type centered at ``at``."""
 
@@ -136,8 +114,8 @@ class LineElement:
     """A line along ``points``.
 
     Positive flow runs from the first point toward the last; negative flows
-    backward (e.g. grid export). ``style`` is the named style; ``look`` is the
-    element's own override (its ``weight`` multiplies the style's).
+    backward (e.g. grid export). ``casing`` draws the line as a hollow pipe
+    (the default); plain lines are for sensing and minor connections.
     """
 
     id: str
@@ -147,8 +125,7 @@ class LineElement:
     status: StatusSpec = StatusSpec()
     readouts: tuple[Readout, ...] = ()
     flow: FlowSpec | None = None
-    style: LineStyle = LineStyle()
-    look: LineLook = LineLook()
+    casing: bool = True
 
 
 @dataclass(frozen=True)

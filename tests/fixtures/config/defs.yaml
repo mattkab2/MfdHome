@@ -10,13 +10,6 @@ conditions:
       - {entity: sensor.grid_power, unavailable: true}
       - {entity: binary_sensor.grid_connected, eq: off}
 
-# Connection styles: relative weight and casing (hollow pipe, the default).
-# Color and pattern always come from status. Variants are keyed by theme name.
-line_styles:
-  feeder: {weight: 1}
-  bus: {weight: 1.5, themes: {mirror: {weight: 1.25}}}
-  signal: {weight: 0.5, casing: false}
-
 # Treat data as missing when HA has not heard from an entity for this long.
 stale_after:
   default: 15m

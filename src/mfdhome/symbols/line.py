@@ -2,9 +2,8 @@
 
 Line severity is carried by pattern as well as color, so it survives palettes
 without color: solid = normal/active (solid core while flowing), dashed core =
-caution, hatched = warning, dotted = unavailable. Stroke widths here are
-structural only (style weight); the theme's per-status weights apply to
-symbols, not lines.
+caution, hatched = warning, dotted = unavailable. Widths come from the theme
+alone; the theme's per-status weights apply to symbols, not lines.
 """
 
 from __future__ import annotations
@@ -137,16 +136,15 @@ def line(
     status: Status,
     flow: Flow | None,
     theme: Theme,
-    weight: float = 1.0,
     casing: bool = False,
     line_id: str = "line",
 ) -> LineParts:
     """Render a power line.
 
-    A solid line is ``theme.line_width * weight`` wide. A cased line is a
-    hollow pipe ``theme.casing_width * weight`` wide with ``theme.casing_wall``
-    walls; while ``flow`` is set (power above the flow threshold) its hollow
-    gets a solid core, and a blank hollow means no flow. Severity patterns:
+    A plain line is ``theme.line_width`` wide. A cased line is a hollow pipe
+    ``theme.casing_width`` wide with ``theme.casing_wall`` walls; while
+    ``flow`` is set (power above the flow threshold) its hollow gets a solid
+    core, and a blank hollow means no flow. Severity patterns:
     caution dashes the core (shown even without flow; an uncased line's stroke
     is dashed instead);
     warning hatches the pipe's interior, forcing casing on so stripes have
@@ -159,7 +157,7 @@ def line(
     color = theme.color(status)
     casing = casing or status is Status.WARNING
     if casing:
-        outer = theme.casing_width * weight
+        outer = theme.casing_width
         # Walls are solid except when unavailable (dotted); caution lives in the core.
         walls = _pattern(status, theme, outer) if status is Status.UNAVAILABLE else {}
         shell = _polyline(pts, {"stroke": color, "stroke-width": outer, **walls})
@@ -189,11 +187,11 @@ def line(
         size = max(ARROW_SIZE, outer * ARROW_CASING_RATIO)
         half = outer / 2
     else:
-        width = theme.line_width * weight
+        width = theme.line_width
         shell = ""
         attrs = {"stroke": color, "stroke-width": width, **_pattern(status, theme, width)}
         parts = [_polyline(pts, attrs)]
-        size = ARROW_SIZE * max(1.0, weight)
+        size = ARROW_SIZE
         half = width / 2
     if flow is not None:
         parts.append(_arrow(pts, flow, size, color))

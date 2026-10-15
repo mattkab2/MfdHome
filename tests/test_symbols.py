@@ -64,16 +64,14 @@ class TestCasing:
         assert f'stroke="{LCD.background}" stroke-width="6"' in parts.body
         assert parts.half_width == 5
 
-    def test_weight_scales_casing_and_arrow(self) -> None:
-        parts = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, LCD, weight=2, casing=True)
-        assert 'stroke-width="20"' in parts.casing
-        assert 'stroke-width="16"' in parts.body  # walls stay 2 thick
-        assert 'points="75,0 25,25 25,-25"' in parts.body  # arrow 1.25 x outer width
+    def test_arrow_scales_with_the_pipe(self) -> None:
+        parts = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, LCD, casing=True)
+        assert 'points="62.5,0 37.5,12.5 37.5,-12.5"' in parts.body  # 1.25 x outer width
 
-    def test_uncased_line_is_solid_and_weighted(self) -> None:
-        parts = line(((0, 0), (100, 0)), Status.NORMAL, None, LCD, weight=0.5)
+    def test_uncased_line_is_solid(self) -> None:
+        parts = line(((0, 0), (100, 0)), Status.NORMAL, None, LCD)
         assert parts.casing == ""
-        assert 'stroke-width="1.5"' in parts.body
+        assert f'stroke-width="{LCD.line_width:g}"' in parts.body
 
     def test_cased_unavailable_dots_scale_with_width(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.UNAVAILABLE, None, LCD, casing=True)

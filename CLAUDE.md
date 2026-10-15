@@ -76,7 +76,7 @@ examples/
 2. **HA access lives only in `sources/`.** Everything else works on state
    snapshots. Never import the HA client from `render/`, `symbols/`, or `model/`.
 3. **Bindings are declarative.** A page element binds to HA entities and maps
-   state to visual properties (color, line weight, flow arrow on/off, rotation,
+   state to visual properties (color, flow arrow on/off, rotation,
    text). Prefer adding a new binding type over writing ad-hoc logic in a page.
 4. **Themes, not conditionals.** Target differences (colors, stroke widths,
    animation allowed, palette size) belong in theme/target objects, not
@@ -94,8 +94,8 @@ examples/
    monochrome themes, and **lines carry it in pattern on every theme** (solid =
    normal, solid core = flowing, dashed core = caution, hatched = warning,
    dotted = unavailable).
-   Patterns are therefore reserved for status: styles and group frames can't
-   use them, and line weight is purely structural.
+   Patterns are therefore reserved for status: group frames can't use them,
+   and lines have no weights or styles of their own.
 
 ### MFD behavior
 
@@ -214,12 +214,10 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   anchors, plus type-specific ports such as a breaker's `in`/`out`) or to
   `node` elements; nodes with 3+ attached lines get a junction dot. Endpoints
   resolve at load time.
-- **Connection styles** are named and relative (`defs.yaml` `line_styles`:
-  weight, casing; never color or pattern). Casing (hollow pipe) is the
-  default. Resolution: defaults → style → style's per-theme variant →
-  element's own weight/casing → theme policy (`max_line_weight`,
-  `casing_allowed`), which always wins. Per-display overrides will slot in
-  before theme policy once display configurations exist (server milestone).
+- **Lines are hollow pipes (cased) by default**; `casing: false` on a line
+  draws it plain, for sensing and minor connections. There are no line
+  weights or named styles: widths come from the theme, so every pipe is the
+  same width, and color and pattern always carry status.
 - **Groups** contain items (symbols, tiles, nested groups) laid out by a grid;
   items have no connections of their own and connect through the group's
   ports. Item ids are scoped paths (`array.p3`); repetition is explicit

@@ -53,7 +53,6 @@ MIRROR = Theme(
     tile_fill={},
     casing_width=8.0,
     casing_wall=1.5,
-    max_line_weight=2.0,
 )
 
 _BLACK = "#000000"

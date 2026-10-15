@@ -52,8 +52,6 @@ from mfdhome.model.page import (
     GridLayout,
     GroupElement,
     LineElement,
-    LineLook,
-    LineStyle,
     LogElement,
     Name,
     NodeElement,
@@ -79,12 +77,11 @@ class Defs:
 
     thresholds: Mapping[str, Thresholds] = field(default_factory=dict)
     conditions: Mapping[str, AnyOf] = field(default_factory=dict)
-    line_styles: Mapping[str, LineStyle] = field(default_factory=dict)
     stale_after: StalePolicy = field(default_factory=StalePolicy)
 
     def merge(self, other: Defs) -> tuple[Defs, list[str]]:
         """Combine two sets of defs; returns the result and any duplicated names."""
-        kinds = ("thresholds", "conditions", "line_styles")
+        kinds = ("thresholds", "conditions")
         dupes = sorted(
             f"{kind}.{name}"
             for kind in kinds
@@ -93,7 +90,6 @@ class Defs:
         merged = Defs(
             thresholds={**self.thresholds, **other.thresholds},
             conditions={**self.conditions, **other.conditions},
-            line_styles={**self.line_styles, **other.line_styles},
             stale_after=self.stale_after,
         )
         return merged, dupes
@@ -234,18 +230,8 @@ def build_defs(
     exprs = _Exprs(model.conditions, base.conditions, issues, prefix)
     conditions = {name: exprs.use(name, (*prefix, "conditions", name)) for name in model.conditions}
     thresholds = {name: _thresholds(t) for name, t in model.thresholds.items()}
-    styles = {}
-    for name, style in model.line_styles.items():
-        for theme in style.themes:
-            if theme not in THEMES:
-                issues.add(
-                    (*prefix, "line_styles", name, "themes", theme),
-                    f"unknown theme {theme!r}; expected: {', '.join(THEMES)}",
-                )
-        variants = {t: LineLook(v.weight, v.casing) for t, v in style.themes.items()}
-        styles[name] = LineStyle(name, LineLook(style.weight, style.casing), variants)
     stale = model.stale_after or StaleModel()
-    return Defs(thresholds, conditions, styles, StalePolicy(stale.default, stale.entities))
+    return Defs(thresholds, conditions, StalePolicy(stale.default, stale.entities))
 
 
 # --- elements ---------------------------------------------------------------------------------
@@ -429,19 +415,8 @@ class _ElementBuilder:
             status=self.status(model.status, LINE_PRIMARY, bound, (*loc, "status")),
             readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
             flow=flow,
-            style=self.line_style(model.style, (*loc, "style")),
-            look=LineLook(model.weight, model.casing),
+            casing=model.casing,
         )
-
-    def line_style(self, name: str | None, loc: Loc) -> LineStyle:
-        if name is None:
-            return LineStyle()
-        style = self.defs.line_styles.get(name)
-        if style is None:
-            known = ", ".join(self.defs.line_styles) or "none defined"
-            self.issues.add(loc, f"unknown line style {name!r}; expected: {known}")
-            return LineStyle()
-        return style
 
     def tile_grid(self, model: TileGridModel, loc: Loc) -> list[Element]:
         """Shorthand for a frameless, unpadded group of tiles."""

@@ -206,25 +206,6 @@ class SymbolModel(_Bound):
     params: dict[str, Any] = {}
 
 
-Weight = Annotated[float, Field(gt=0)]
-
-
-class LineLookModel(Strict):
-    """Line appearance overrides: relative ``weight`` and ``casing``.
-
-    Color and pattern are not settable: they carry status.
-    """
-
-    weight: Weight | None = None
-    casing: bool | None = None
-
-
-class LineStyleModel(LineLookModel):
-    """A named line style with optional per-theme variants."""
-
-    themes: dict[str, LineLookModel] = {}
-
-
 Endpoint = Coord | str
 
 
@@ -245,9 +226,7 @@ class LineModel(_Bound):
         FlowModel | None,
         BeforeValidator(lambda v: {} if v is True else None if v is False else v),
     ] = None
-    style: Ident | None = None
-    weight: Weight | None = None
-    casing: bool | None = None
+    casing: bool = True
 
     @model_validator(mode="after")
     def _one_geometry(self) -> Self:
@@ -378,12 +357,11 @@ class StaleModel(Strict):
 
 
 class DefsModel(Strict):
-    """Shared definitions: thresholds, conditions, line styles and staleness limits."""
+    """Shared definitions: thresholds, conditions and staleness limits."""
 
     stale_after: StaleModel | None = None
     thresholds: dict[Ident, ThresholdsModel] = {}
     conditions: dict[Ident, ExprModel] = {}
-    line_styles: dict[Ident, LineStyleModel] = {}
 
 
 class SystemModel(Strict):

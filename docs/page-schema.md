@@ -4,7 +4,7 @@ Pages are YAML files. A config directory looks like this:
 
 ```
 config/
-  defs.yaml        # optional: shared thresholds, named conditions, line styles
+  defs.yaml        # optional: shared thresholds, named conditions, staleness
   alerts.yaml      # optional: systems and alerts (see "Alerts" below)
   displays.yaml    # optional: physical displays (see "Displays" below)
   pages/
@@ -142,9 +142,7 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
   via: [[700, 250]]          # optional bend points (otherwise auto-routed)
   elbow: vertical-first      # optional: horizontal-first | vertical-first
   route: straight            # optional: allow a diagonal instead of an elbow
-  style: feeder              # a named style from defs.yaml (see "Line styles")
-  weight: 1.5                # optional: multiplies the style's weight
-  casing: false              # optional: overrides the style's casing
+  casing: false              # optional: a plain line (default: a hollow pipe)
   bind: {power: sensor.grid_power}
   flow: true                 # or {from: power, threshold: 10}
   name: {text: GRID, along: 0, anchor: right}
@@ -153,6 +151,11 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
 ```
 
 Instead of `from`/`to`/`via`, a line can give explicit `points: [[x, y], ...]`.
+
+Lines are hollow pipes ("cased") by default; cased lines merge cleanly where
+they meet. `casing: false` draws a plain line, for sensing and minor
+connections. Widths come from the theme, so every pipe on a page is the same
+width; color and pattern can't be set, because they carry the line's status.
 
 #### Routing
 
@@ -472,30 +475,6 @@ A named condition used inside an AND-group is distributed back into DNF.
 Named conditions can refer to `channel:` values. Those channels are checked
 where the condition is used, so they must be bound on every element that uses
 it.
-
-## Line styles
-
-Named styles in `defs.yaml` describe the kind of connection. Each theme turns
-them into actual widths:
-
-```yaml
-line_styles:
-  feeder: {weight: 1}
-  bus:    {weight: 1.5, themes: {mirror: {weight: 1.25}}}
-  signal: {weight: 0.5, casing: false}
-```
-
-- **`weight`** is relative to the theme's base width.
-- **`casing`** draws the line as a hollow pipe and is on by default. Cased
-  lines merge cleanly where they meet.
-- **Color and pattern** can't be set by a style: they carry the line's status.
-
-A line's look is resolved in this order, with later steps winning:
-1. defaults: weight 1, cased
-2. the style
-3. the style's variant for the current theme
-4. the line's own `weight` (which multiplies) and `casing`
-5. the theme's limits: maximum weight, and whether casing is allowed
 
 ## Alerts
 
