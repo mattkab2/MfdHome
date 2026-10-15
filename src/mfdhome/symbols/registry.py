@@ -17,6 +17,7 @@ from mfdhome.model.binding import Status
 from mfdhome.model.page import Orientation
 from mfdhome.symbols.battery import battery, battery_box
 from mfdhome.symbols.breaker import breaker, breaker_box
+from mfdhome.symbols.meter import meter, meter_box
 from mfdhome.symbols.panel import panel_box, solar_panel
 from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
 from mfdhome.symbols.transfer import panel_box as load_panel_box
@@ -103,9 +104,11 @@ def _state_list_params(name: str, default: frozenset[str]) -> ParamsValidator:
     return validate
 
 
-def _in_states(inp: SymbolInput, param: str, default: frozenset[str]) -> bool | None:
-    """Whether the ``state`` channel is one of the ``param`` states; ``None`` without data."""
-    raw = inp.values["state"].raw
+def _in_states(
+    inp: SymbolInput, param: str, default: frozenset[str], channel: str = "state"
+) -> bool | None:
+    """Whether ``channel`` is one of the ``param`` states; ``None`` without data."""
+    raw = inp.values[channel].raw
     states = inp.params.get(param, default)
     assert isinstance(states, frozenset)
     return None if raw is None else str(raw).strip().lower() in states
@@ -133,6 +136,38 @@ def _draw_ats(inp: SymbolInput, theme: Theme) -> str:
     return transfer_switch(*inp.at, connected, inp.status, inp.orientation, theme)
 
 
+#: Longest meter label that fits inside the circle.
+MAX_METER_LABEL = 5
+
+
+def _label_params(default: str) -> ParamsValidator:
+    """Params with one optional entry: ``label``, a short text drawn inside the symbol."""
+
+    def validate(raw: Mapping[str, object]) -> Mapping[str, object]:
+        unknown = set(raw) - {"label"}
+        if unknown:
+            raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+        label = raw.get("label", default)
+        if not isinstance(label, str) or not 0 < len(label) <= MAX_METER_LABEL:
+            raise ValueError(f"'label' must be text of 1 to {MAX_METER_LABEL} characters")
+        return {"label": label}
+
+    return validate
+
+
+def _draw_meter(inp: SymbolInput, theme: Theme) -> str:
+    label = inp.params["label"]
+    assert isinstance(label, str)
+    return meter(*inp.at, label, inp.status, theme)
+
+
+def _meter_box(at: Point, _orientation: Orientation) -> Box:
+    return meter_box(*at)
+
+
+_METER_PORTS = {"in": _terminal(_meter_box, -1.0), "out": _terminal(_meter_box, 1.0)}
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -142,6 +177,28 @@ def _ats_box(at: Point, orientation: Orientation) -> Box:
 
 
 REGISTRY: Mapping[str, SymbolSpec] = {
+    "electric_meter": SymbolSpec(
+        type="electric_meter",
+        channels=("power", "energy"),
+        required=frozenset(),
+        primary="power",
+        numeric=frozenset({"power", "energy"}),
+        box=_meter_box,
+        draw=_draw_meter,
+        params=_label_params("kWh"),
+        ports=_METER_PORTS,
+    ),
+    "water_meter": SymbolSpec(
+        type="water_meter",
+        channels=("flow", "total"),
+        required=frozenset(),
+        primary="flow",
+        numeric=frozenset({"flow", "total"}),
+        box=_meter_box,
+        draw=_draw_meter,
+        params=_label_params("GAL"),
+        ports=_METER_PORTS,
+    ),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",
         channels=("state",),

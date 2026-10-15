@@ -64,11 +64,18 @@ Any registered symbol type, centered at `at`:
 | `solar_panel` | `power` (numeric) | `power` | none |
 | `transfer_switch` | `state` | `state` | `connected`: states that mean grid-connected, default `[on, connected, grid, closed]` |
 | `load_panel` | `power` (numeric) | none | none |
+| `electric_meter` | `power` (numeric), `energy` (numeric) | none | `label`: up to 5 characters drawn inside, default `kWh` |
+| `water_meter` | `flow` (numeric), `total` (numeric) | none | `label`, default `GAL` |
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
 backup. Its grid contact faces left (top when vertical) and its load contact
 right (bottom). The blade is closed to the grid when connected and swung open
 when islanded.
+
+Meters are a circle with their unit inside, read upright in either
+orientation. Their `in` and `out` ports are on the left and right (top and
+bottom when vertical). A meter's power follows the grid convention: negative
+means export.
 
 The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is
