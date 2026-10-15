@@ -63,7 +63,9 @@ mfdhome serve CONFIG --port 8099 --board var/board.json
   change in Home Assistant. Data that stops arriving goes dotted after its
   `stale_after` limit. If Home Assistant is unreachable, everything shows as
   unavailable until it reconnects, and the display shows "OFFLINE" while its
-  own connection to the server is down.
+  own connection to the server is down. Alerts are frozen while Home
+  Assistant is unreachable, so a network blip doesn't raise or clear
+  anything; the history records the connection being lost and restored.
 
 ## E-paper displays
 

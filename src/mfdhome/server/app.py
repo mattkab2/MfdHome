@@ -235,11 +235,13 @@ async def refresh_loop(
     changed: asyncio.Event,
     tick: float = 30.0,
     settle: float = 0.2,
+    connected: Callable[[], bool] = lambda: True,
 ) -> None:
     """Feed the runtime and push frames after HA changes and every ``tick`` seconds.
 
     Changes are coalesced over ``settle`` seconds. The periodic tick catches
-    entities going stale, which produces no event.
+    entities going stale, which produces no event. ``connected`` reports
+    whether Home Assistant is reachable (alerts are frozen while it isn't).
     """
     while True:
         try:
@@ -248,7 +250,7 @@ async def refresh_loop(
         except TimeoutError:
             pass
         changed.clear()
-        hub.runtime.update(snapshot(), hub.clock())
+        hub.runtime.update(snapshot(), hub.clock(), connected())
         await hub.push()
 
 
@@ -285,7 +287,10 @@ async def serve(
         logger.info("serving %d displays on http://%s:%d", len(runtime.config.displays), host, port)
         try:
             await asyncio.gather(
-                ha.run(on_change), refresh_loop(app["hub"], lambda: ha.snapshot, changed)
+                ha.run(on_change),
+                refresh_loop(
+                    app["hub"], lambda: ha.snapshot, changed, connected=lambda: ha.connected
+                ),
             )
         finally:
             await runner.cleanup()

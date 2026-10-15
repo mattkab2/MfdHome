@@ -134,3 +134,21 @@ def test_runtime_records_and_prunes_daily(tmp_path: Path) -> None:
     assert store.load() == runtime.history  # file and memory agree
     runtime.acknowledge("workshop", at(1), ids=["grid_lost"])
     assert runtime.history[-1] == AlertEvent(at(1), EventKind.ACKED, "grid_lost", "workshop")
+
+
+def test_board_is_frozen_while_home_assistant_is_away() -> None:
+    runtime = Runtime(load_test_config())
+    grid_down = snapshot_from_ha_states([ha_state("binary_sensor.grid_connected", "off")])
+    runtime.update({}, T0, connected=False)  # starting up before HA answers: no event
+    assert runtime.history == [] and runtime.board == {}
+    runtime.update(grid_down, at(1))
+    lit = dict(runtime.board)
+    assert "grid_lost" in lit
+    # Disconnected: everything reads unavailable, but nothing is raised or cleared.
+    assert not runtime.update({}, at(2), connected=False)
+    assert runtime.update({}, at(3), connected=False) is False and runtime.board == lit
+    assert runtime.state == {}  # displays still show the outage as no data
+    runtime.update(grid_down, at(4))
+    kinds = [(e.kind, e.at) for e in runtime.history if e.alert_id is None]
+    assert kinds == [(EventKind.CONNECTION_LOST, at(2)), (EventKind.CONNECTION_RESTORED, at(4))]
+    assert runtime.board == lit  # the same alerts, not re-raised

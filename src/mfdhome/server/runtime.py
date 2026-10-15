@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from mfdhome.config.load import Config
 from mfdhome.mfd.alerts import Board, acknowledge, evaluate_alerts, most_urgent, step
 from mfdhome.mfd.display import Display
-from mfdhome.mfd.history import AlertEvent, board_events, prune
+from mfdhome.mfd.history import AlertEvent, EventKind, board_events, prune
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import SEVERITY_STATUS, AlertView
 from mfdhome.render.controls import Controls
@@ -51,6 +51,8 @@ class Runtime:
         self.board: Board = store.load() if store else {}
         self.history: list[AlertEvent] = history_store.load() if history_store else []
         self._pruned_on: date | None = None
+        self.connected: bool | None = None  # unknown until the first update
+        self._was_connected = False
         self.state: StateSnapshot = {}
         self.selected = {d.id: d.home for d in config.displays.values()}
         self.locked = dict.fromkeys(config.displays, False)
@@ -60,17 +62,35 @@ class Runtime:
         """Configured displays by id."""
         return dict(self.config.displays)
 
-    def update(self, raw: StateSnapshot, now: datetime) -> bool:
+    def update(self, raw: StateSnapshot, now: datetime, connected: bool = True) -> bool:
         """Take a new snapshot: mark stale entities, step alerts, save the board if it changed.
 
         Returns whether the board changed. Call it on every HA change and on a
         periodic tick (entities go stale without any event).
+
+        While Home Assistant is disconnected (``connected`` false) the board is
+        frozen: every entity reads as unavailable, and stepping would raise or
+        clear alerts across the house for a mere network blip. Losing and
+        regaining the connection are recorded in the history instead.
         """
         self.state = mark_stale(raw, self.config.defs.stale_after, now)
-        alerts = self.config.alerts.alerts
-        changed = self._set_board(
-            step(self.board, alerts, evaluate_alerts(alerts, self.state), now), now
-        )
+        # Lost only once it was up; restored only after a loss (not at startup).
+        kind = None
+        if self.connected and not connected:
+            kind = EventKind.CONNECTION_LOST
+        elif self.connected is False and connected and self._was_connected:
+            kind = EventKind.CONNECTION_RESTORED
+        if kind is not None:
+            logger.info("Home Assistant %s", kind.value.replace("_", " "))
+            self.record([AlertEvent(now, kind)])
+        self.connected = connected
+        self._was_connected = self._was_connected or connected
+        changed = False
+        if connected:
+            alerts = self.config.alerts.alerts
+            changed = self._set_board(
+                step(self.board, alerts, evaluate_alerts(alerts, self.state), now), now
+            )
         self._prune(now)
         return changed
 
