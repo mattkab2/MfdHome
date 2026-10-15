@@ -1,4 +1,4 @@
-"""Power line symbol: a polyline, solid or cased, with an optional flow chevron.
+"""Line symbol: a polyline, cased (hollow pipe) or plain, with an optional flow chevron.
 
 Line severity is carried by pattern as well as color, so it survives palettes
 without color: solid = normal/active (solid core while flowing), dashed core =

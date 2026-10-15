@@ -1,14 +1,14 @@
 """Page and element definitions, positioned on a logical canvas.
 
-There are six element kinds:
+There are seven element kinds:
 
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
 - ``LineElement``: a power/flow line along a polyline;
 - ``TextElement``: a static label;
-- ``LogElement``: the alert log (history), paged by the display's keys;
 - ``TileElement``: an annunciator tile showing one system's alerts;
 - ``NodeElement``: a connection point lines can attach to;
-- ``GroupElement``: a container laying out items that connect only through it.
+- ``GroupElement``: a container laying out items that connect only through it;
+- ``LogElement``: the alert log (history), paged by the display's keys.
 
 Symbols and lines bind HA entities to named *channels* declared by their type.
 Status rules, flow and readouts refer to channel names, not entity ids.

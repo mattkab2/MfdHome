@@ -352,12 +352,13 @@ def render_page(
 ) -> str:
     """Render ``page`` with ``state`` for ``target`` as a standalone SVG document.
 
-    ``alerts`` supplies alert definitions and the shared board for tiles,
-    alert-driven element status and the annunciator banner along the bottom of
-    the canvas (while a caution or warning is unacknowledged). ``controls`` adds the soft keys to
-    that strip, with the banner between them. ``as_of`` (a short text such as
-    "AS OF 14:05", supplied by the caller) is drawn at the right end of the
-    banner's space, which the banner then leaves free.
+    ``alerts`` supplies alert definitions, the shared board and its history for
+    tiles, alert logs, alert-driven element status and the annunciator banner
+    along the bottom of the canvas (while a caution or warning is
+    unacknowledged). ``controls`` adds the soft keys to that strip, with the
+    banner between them. ``as_of`` (a short text such as "AS OF 14:05",
+    supplied by the caller) is drawn at the right end of the banner's space,
+    which the banner then leaves free.
 
     Output is deterministic: no clock, randomness or I/O, and fixed element and
     attribute order.

@@ -1,9 +1,9 @@
 """Loading and validating page definition files (YAML).
 
-A config directory holds an optional ``defs.yaml`` (shared thresholds and
-named conditions), an optional ``alerts.yaml`` (systems and alerts) and one
-file per page under ``pages/``. See
-``docs/page-schema.md`` for the format.
+A config directory holds an optional ``defs.yaml`` (shared thresholds, named
+conditions and staleness limits), an optional ``alerts.yaml`` (systems and
+alerts), an optional ``displays.yaml`` and one file per page under
+``pages/``. See ``docs/page-schema.md`` for the format.
 """
 
 from mfdhome.config.build import Alerts, Defs

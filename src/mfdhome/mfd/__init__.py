@@ -1,6 +1,7 @@
-"""MFD behavior: alert latching, acknowledgement and attention order.
+"""MFD behavior: alert latching, hold times, acknowledgement and attention order;
+alert history events; displays, their pages and what each key does.
 
-Page selection per display comes with the server milestone.
+Everything here is pure: callers supply the clock.
 """
 
 from mfdhome.mfd.alerts import (

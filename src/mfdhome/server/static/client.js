@@ -1,5 +1,6 @@
 // mfdhome display client: shows the live SVG, patches changed groups, and
-// sends acknowledgements (tap the banner or a tile) back over the WebSocket.
+// sends taps back over the WebSocket: key presses (by position) and
+// acknowledgements (the banner or a tile).
 "use strict";
 
 const body = document.body;

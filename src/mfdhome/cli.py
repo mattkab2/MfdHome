@@ -88,6 +88,7 @@ def scrub(states: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def cmd_check(args: argparse.Namespace) -> int:
+    """``mfdhome check``: validate a config, optionally against HA's entities."""
     try:
         config = load_config(args.config)
     except ConfigError as exc:
@@ -112,6 +113,7 @@ def cmd_check(args: argparse.Namespace) -> int:
 
 
 def cmd_dump_states(args: argparse.Namespace) -> int:
+    """``mfdhome dump-states``: write HA's current states as JSON."""
     states = asyncio.run(fetch_states())
     if args.scrub:
         states = scrub(states)
@@ -125,6 +127,7 @@ def cmd_dump_states(args: argparse.Namespace) -> int:
 
 
 def cmd_render(args: argparse.Namespace) -> int:
+    """``mfdhome render``: render one display once, as PNG (e-paper) or SVG."""
     try:
         config = load_config(args.config)
     except ConfigError as exc:
@@ -155,6 +158,7 @@ def cmd_render(args: argparse.Namespace) -> int:
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
+    """``mfdhome serve``: run the live display server."""
     url, token = ha_credentials()
     config = args.config or os.environ.get("MFD_CONFIG")
     if not config:
@@ -176,6 +180,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 def parser() -> argparse.ArgumentParser:
+    """The ``mfdhome`` argument parser."""
     p = argparse.ArgumentParser(prog="mfdhome", description=__doc__)
     p.add_argument("-v", "--verbose", action="store_true", help="log debug output")
     sub = p.add_subparsers(dest="command", required=True)

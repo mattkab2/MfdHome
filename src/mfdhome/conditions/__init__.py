@@ -1,4 +1,4 @@
-"""Pure condition logic shared by page element status and (later) alerts.
+"""Pure condition logic shared by page element status and alerts.
 
 Conditions are kept in disjunctive normal form: a rule's ``when`` is an OR of
 AND-groups of single-value predicates.

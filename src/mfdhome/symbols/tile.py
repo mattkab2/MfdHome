@@ -1,4 +1,4 @@
-"""Annunciator tile and banner symbols."""
+"""Annunciator tile and banner symbols, and the "as of" stamp beside the banner."""
 
 from __future__ import annotations
 
@@ -40,6 +40,7 @@ def tile_box(x: float, y: float) -> Box:
 
 
 def attention_group(parts: list[str], attention: bool, theme: Theme) -> str:
+    """Group ``parts``, animated with the theme's attention cue when ``attention`` is set."""
     animated = attention and theme.attention.animated
     return svg.element("g", {"class": ATTENTION_CLASS if animated else None}, parts)
 

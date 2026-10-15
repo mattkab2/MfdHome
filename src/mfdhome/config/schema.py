@@ -1,4 +1,4 @@
-"""Pydantic schema for page and defs YAML files.
+"""Pydantic schema for the page, defs, alerts and displays YAML files.
 
 These models only check the shape of the input. ``build`` turns them into the
 frozen model types and does the checks that need context (symbol registry,

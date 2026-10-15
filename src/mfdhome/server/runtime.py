@@ -1,4 +1,5 @@
-"""The live runtime: state in, alert board kept current, displays rendered.
+"""The live runtime: state in, alert board and history kept current, keys handled,
+displays rendered.
 
 The clock is always passed in, so this is testable without real time; the
 server supplies ``datetime.now(UTC)``.
@@ -127,7 +128,11 @@ class Runtime:
         return urgent is not None and self.acknowledge(by, now, ids=[urgent.id])
 
     def select(self, display_id: str, page_id: str) -> bool:
-        """Show ``page_id`` on a display, if the display offers it."""
+        """Show ``page_id`` on a display, if the display offers it.
+
+        Displays change pages with their keys; this is for one-off renders
+        (``mfdhome render --page``).
+        """
         display = self.config.displays.get(display_id)
         if display is None or not display.can_show(page_id):
             return False
