@@ -30,7 +30,11 @@ def port_names(element: Element) -> list[str]:
     """Port names valid on ``element`` (empty for nodes, which connect at their point)."""
     if isinstance(element, NodeElement) or element_box(element) is None:
         return []
-    extra = list(get_symbol(element.type).ports) if isinstance(element, SymbolElement) else []
+    extra = (
+        list(get_symbol(element.type).named_ports(element.params))
+        if isinstance(element, SymbolElement)
+        else []
+    )
     edges = [a.value for a in Anchor if a is not Anchor.CENTER]
     return [*extra, *edges, "top", "bottom", "left", "right"]
 
@@ -53,7 +57,7 @@ def find_port(element: Element, port: str | None) -> Port:
     if port is None:
         raise ValueError(f"connecting to {element.id!r} needs a port: {valid}")
     if isinstance(element, SymbolElement):
-        named = get_symbol(element.type).ports.get(port)
+        named = get_symbol(element.type).named_ports(element.params).get(port)
         if named is not None:
             return named(element.at, element.orientation)
     try:

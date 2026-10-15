@@ -27,6 +27,8 @@ LINE_CHANNELS = ("power",)
 LINE_PRIMARY = "power"
 LINE_NUMERIC = frozenset({"power"})
 
+type PortFn = Callable[[Point, Orientation], Port]
+
 
 @dataclass(frozen=True)
 class SymbolInput:
@@ -52,8 +54,10 @@ class SymbolSpec:
     ``channels`` lists every accepted channel; ``required`` must be bound;
     ``primary`` decides the no-data state; ``numeric`` channels count as no
     data when their value is not a number. ``ports`` adds named connection
-    points beyond the box edges and corners every symbol has. ``params`` validates and normalizes
-    type-specific settings, raising ``ValueError`` for bad input.
+    points beyond the box edges and corners every symbol has; ``ports_for``
+    replaces it for types whose ports depend on their (normalized) params.
+    ``params`` validates and normalizes type-specific settings, raising
+    ``ValueError`` for bad input.
     """
 
     type: str
@@ -63,8 +67,13 @@ class SymbolSpec:
     numeric: frozenset[str]
     box: Callable[[Point, Orientation], Box]
     draw: Callable[[SymbolInput, Theme], str]
-    ports: Mapping[str, Callable[[Point, Orientation], Port]] = field(default_factory=lambda: {})
+    ports: Mapping[str, PortFn] = field(default_factory=lambda: {})
     params: Callable[[Mapping[str, object]], Mapping[str, object]] = field(default=_no_params)
+    ports_for: Callable[[Mapping[str, object]], Mapping[str, PortFn]] | None = None
+
+    def named_ports(self, params: Mapping[str, object]) -> Mapping[str, PortFn]:
+        """The type's named ports for an element with ``params``."""
+        return self.ports if self.ports_for is None else self.ports_for(params)
 
 
 def _draw_battery(inp: SymbolInput, theme: Theme) -> str:
@@ -77,7 +86,6 @@ DEFAULT_CLOSED_STATES = frozenset({"on", "closed"})
 DEFAULT_CONNECTED_STATES = frozenset({"on", "connected", "grid", "closed"})
 
 type ParamsValidator = Callable[[Mapping[str, object]], Mapping[str, object]]
-type PortFn = Callable[[Point, Orientation], Port]
 
 
 def _state_list_params(name: str, default: frozenset[str]) -> ParamsValidator:
