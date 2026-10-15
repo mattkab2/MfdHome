@@ -250,6 +250,38 @@ What a tile shows:
 | Attention cue | Shown while a caution or warning is unacknowledged: flash, pulse or ring, depending on the theme. |
 | Unavailable | Dotted: every entity the system's alerts read has no data. |
 
+### Alert log
+
+The alert history, newest first, in a box (`at` is its top-left corner):
+
+```yaml
+- id: log
+  type: alert_log
+  at: [40, 56]
+  size: [920, 480]
+  systems: [GRID, BATT]      # optional: only these systems (default: all)
+```
+
+- **One row per change:** each raise, clear and acknowledgement of a caution
+  or warning (RAISED, CLEARED, ACK and the display that acknowledged);
+  advisories read START and END. An alert that stays raised adds nothing
+  until it changes.
+- **Flapping:** an alert raised again within 5 minutes of clearing folds into
+  one FLAPPING xN row with its first raise time, until it stays clear or is
+  acknowledged. A `for:` hold time on the alert stops most flapping at the
+  source.
+- **Batches:** a thin rule separates events more than a minute apart, so
+  alerts raised together read as one block.
+- **Home Assistant outages** show as CONNECTION LOST and RESTORED rows (only
+  in logs without `systems`). Alerts are frozen while disconnected.
+- **Paging:** rows that don't fit go on further pages. On a page with a log
+  the middle keys are PG UP (older) and PG DN (newer); the header shows which
+  rows are on screen. The log always reopens on its newest entries.
+- Times are in the server's local time; the date shows where the day changes.
+
+List the log page last in a display's `pages`: the home (alerts) page comes
+first, so PREV from it lands on the log.
+
 ### Groups
 
 A group lays out items inside itself. Items have no positions or connections of

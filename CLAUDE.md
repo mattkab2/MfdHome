@@ -41,14 +41,17 @@ src/mfdhome/
                # palette, stroke weights, tile fill, attention style, fonts
   render/      # Pure render functions: (page, state, theme, target) -> SVG string;
                # resolve.py resolves status/derived channels bottom-up through
-               # groups. panels.py (e-paper panel profiles) and raster.py (SVG ->
+               # groups. log.py builds and draws the alert log. panels.py
+               # (e-paper panel profiles) and raster.py (SVG ->
                # PNG via resvg, quantized to the panel palette)
   sources/     # State providers: HA websocket client (ha.py), JSON fixtures,
                # staleness marking
-  mfd/         # MFD behavior: alert latching, house-wide acknowledgement and
-               # attention order (pure, caller supplies the clock); page
-               # selection per display
-  server/      # Live runtime (alert loop, persisted board, page selection) and
+  mfd/         # MFD behavior: alert latching, hold times, house-wide
+               # acknowledgement and attention order (pure, caller supplies the
+               # clock); history events (history.py); page selection per
+               # display and what each key does per page (keys.py)
+  server/      # Live runtime (alert loop, persisted board and history, page
+               # selection, log paging) and
                # the aiohttp display server (HTML shell + WebSocket frames,
                # static/client.js), and PNG snapshots + key presses for e-paper
                # displays (images.py).
@@ -254,12 +257,28 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   (`online_image`), possibly a Pi Zero; both use the same routes. The "as of"
   stamp in the bottom strip shows when content last changed, not fetch time,
   so unchanged pages don't redraw; the device marks failed fetches itself.
-- **Soft keys** `[PREV][ALERTS] banner [LOCK][NEXT]` share the bottom 40-unit
-  strip with the banner (no page space lost). PREV/NEXT step through `pages`
-  (wrapping); ALERTS jumps to `alerts_page` and is lit while a caution/warning
-  is unacknowledged; LOCK is a tap toggle with no auto-relock, enforced by
-  the server, in memory (displays start unlocked). `controls: soft | none`
-  per display (default soft with more than one page).
+- **Soft keys** share the bottom 40-unit strip with the banner (no page
+  space lost). **Keys are positions 1-4** (like bezel buttons; soft keys,
+  the WebSocket and the e-paper key route all send positions) and
+  `mfd.keys` decides their action per page: 1 = PREV and 4 = NEXT always;
+  the middle two are ALERTS/LOCK, **ACK/LOCK on the display's alerts page**
+  (acknowledges the banner's alert, so hardware buttons can acknowledge),
+  and **PG UP/PG DN on a page with an alert log**. PREV/NEXT wrap through
+  `pages`; ALERTS (and ACK) light while a caution/warning is
+  unacknowledged; LOCK is a tap toggle with no auto-relock, enforced by the
+  server, in memory (displays start unlocked; a locked display can't change
+  pages, so the lock can't get stuck). `controls: soft | none` per display
+  (default soft with more than one page).
+- **Alert history** records only changes (raise, clear, acknowledge, and
+  Home Assistant connection lost/restored) to `var/history.jsonl`, kept 14
+  days by default. **Alerts are frozen while Home Assistant is
+  disconnected.** Alerts may have a **`for:` hold time** (must hold that
+  long to raise, and stop holding that long to clear).
+- **Alert log** (`alert_log` element): one row per change, newest first;
+  advisories read START/END; repeat raise/clear cycles within 5 minutes
+  fold into one FLAPPING row per alert; batches separated by rules; paged
+  with PG UP/PG DN, always reopening on the newest entries. The log page is
+  listed last in `pages`, so it sits just before the alerts (home) page.
 
 ## Next milestone
 
@@ -277,6 +296,8 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - Flow animation, if wanted: animate chevrons only, never "marching dashes"
   (dashes mean caution).
 - Hardware buttons for the mirror (e-ink buttons use the key route).
+- An alert timeline page (rows per system across a time window) as a
+  graphical companion to the log, if the log proves hard to scan.
 - Immediate e-ink refresh on new alerts (a wake signal to the device, e.g.
   through Home Assistant's ESPHome integration); today alerts appear at the
   next scheduled fetch.
