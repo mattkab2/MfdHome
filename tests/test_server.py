@@ -1,4 +1,4 @@
-"""The display server: pages, live frames, acknowledgement, selection and PNG snapshots."""
+"""The display server: pages, live frames, keys, acknowledgement and PNG snapshots."""
 
 import asyncio
 import io
@@ -56,7 +56,7 @@ async def test_display_token(aiohttp_client: ClientFactory) -> None:
     )
 
 
-async def test_live_frames_ack_and_select(aiohttp_client: ClientFactory) -> None:
+async def test_live_frames_ack_and_keys(aiohttp_client: ClientFactory) -> None:
     runtime = islanded()
     client = await aiohttp_client(create_app(runtime, clock=lambda: T0))
     workshop = await client.ws_connect("/display/workshop/ws")
@@ -77,10 +77,11 @@ async def test_live_frames_ack_and_select(aiohttp_client: ClientFactory) -> None
     final = await workshop.receive_json()
     assert 'id="banner"' not in final["svg"]
 
-    await workshop.send_json({"type": "select", "page": "electrical"})
-    selected = await workshop.receive_json()
+    await workshop.send_json({"type": "select", "page": "electrical"})  # not a message type
+    await workshop.send_json({"type": "key", "key": "4"})  # NEXT
+    selected = await workshop.receive_json()  # the only frame: select did nothing
     assert 'data-page="electrical"' in selected["svg"] and selected["tiles"] == {}
-    await hallway.send_json({"type": "select", "page": "status"})  # mirror is fixed
+    await hallway.send_json({"type": "key", "key": "4"})  # the mirror has one page
     await workshop.close()
     await hallway.close()
     assert runtime.selected["hallway"] == "electrical"
@@ -114,12 +115,11 @@ async def test_keys_and_lock_enforcement(aiohttp_client: ClientFactory) -> None:
     assert 'data-page="electrical"' in (await ws.receive_json())["svg"]
     await ws.send_json({"type": "key", "key": "3"})  # LOCK
     assert ">LOCKED<" in (await ws.receive_json())["svg"]
-    # While locked: keys, acknowledgements and selection are all ignored.
+    # While locked: keys and acknowledgements are all ignored.
     for message in (
         {"type": "key", "key": "2"},  # ALERTS
         {"type": "ack", "target": "banner"},
         {"type": "ack", "system": "GRID"},
-        {"type": "select", "page": "status"},
     ):
         await ws.send_json(message)
     await ws.send_json({"type": "key", "key": "3"})  # unlock

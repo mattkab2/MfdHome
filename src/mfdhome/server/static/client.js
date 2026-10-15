@@ -71,7 +71,4 @@ function connect() {
   };
 }
 
-// Direct page selection (debugging): window.mfdSelect("electrical").
-window.mfdSelect = (page) => send({ type: "select", page });
-
 connect();

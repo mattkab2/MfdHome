@@ -103,7 +103,7 @@ class Hub:
                 await ws.send_json(frame)
 
     async def handle(self, display_id: str, message: dict[str, Any]) -> None:
-        """Apply a message from a display: a key, an acknowledgement or a page.
+        """Apply a message from a display: a key or an acknowledgement.
 
         A locked display ignores everything except its LOCK key.
         """
@@ -131,12 +131,6 @@ class Hub:
             if changed:
                 logger.info("display %s acknowledged %s", display_id, message)
                 await self.push()  # acknowledgement is house-wide
-        elif (
-            kind == "select"
-            and isinstance(page := message.get("page"), str)
-            and self.runtime.select(display_id, page)
-        ):
-            await self.push([display_id])
 
 
 async def _favicon(_request: web.Request) -> web.Response:
