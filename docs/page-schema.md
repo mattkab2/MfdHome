@@ -70,6 +70,8 @@ Any registered symbol type, centered at `at`:
 | `ball_valve` | `state`, `position` (numeric) | `state` | `open`: states that mean open, default `[open, on]`; `moving`: default `[opening, closing]` |
 | `globe_valve` | `state`, `position` (numeric) | `state` | as for `ball_valve` |
 | `water_heater` | `temperature` (numeric), `heating` | none | `heating`: states that mean the burner is lit, default `[on, heating]` |
+| `hose_bib` | `state` | none | `open`: states that mean running, default `[open, on]` |
+| `faucet` | `state` | none | as for `hose_bib` |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
@@ -103,6 +105,11 @@ flame at its base, drawn solid while `heating` and outlined otherwise. Its
 ports are `cold` (top, left of center), `hot` (top, right) and `gas` (left
 side, by the burner). Home Assistant water heaters report temperature as an
 attribute: `temperature: {entity: water_heater.tank, attribute: current_temperature}`.
+
+A `hose_bib` (outdoor spigot: T handle, threaded spout) is fed through its
+`in` port on the left; a `faucet` (gooseneck spout, side lever) through `in`
+at the bottom. Neither needs a binding. Bind `state` to a smart valve and a
+drop shows under the spout while it's open.
 
 The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is

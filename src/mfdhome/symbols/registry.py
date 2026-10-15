@@ -26,6 +26,7 @@ from mfdhome.symbols.combiner import (
 )
 from mfdhome.symbols.meter import meter, meter_box
 from mfdhome.symbols.panel import panel_box, solar_panel
+from mfdhome.symbols.tap import faucet, faucet_inlet, hose_bib, hose_bib_inlet, tap_box
 from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
 from mfdhome.symbols.transfer import panel_box as load_panel_box
 from mfdhome.symbols.valve import Body, ValveState, valve, valve_box
@@ -276,6 +277,28 @@ def _draw_water_heater(inp: SymbolInput, theme: Theme) -> str:
     return water_heater(*inp.at, heating, inp.status, theme)
 
 
+def _tap_spec(
+    type_name: str,
+    draw: Callable[[float, float, bool, Status, Theme], str],
+    inlet: Callable[[Point], Port],
+) -> SymbolSpec:
+    def draw_tap(inp: SymbolInput, theme: Theme) -> str:
+        running = _in_states(inp, "open", DEFAULT_OPEN_STATES) is True
+        return draw(*inp.at, running, inp.status, theme)
+
+    return SymbolSpec(
+        type=type_name,
+        channels=("state",),
+        required=frozenset(),
+        primary="state",
+        numeric=frozenset(),
+        box=lambda at, _orientation: tap_box(*at),
+        draw=draw_tap,
+        params=_state_list_params("open", DEFAULT_OPEN_STATES),
+        ports={"in": lambda at, _orientation: inlet(at)},
+    )
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -346,6 +369,8 @@ REGISTRY: Mapping[str, SymbolSpec] = {
             "gas": lambda at, _orientation: gas_port(at),
         },
     ),
+    "hose_bib": _tap_spec("hose_bib", hose_bib, hose_bib_inlet),
+    "faucet": _tap_spec("faucet", faucet, faucet_inlet),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",
         channels=("state",),
