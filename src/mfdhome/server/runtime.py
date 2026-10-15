@@ -201,7 +201,6 @@ class Runtime:
             self.config.alerts.alerts,
             self.config.alerts.systems,
             self.board,
-            show_banner=True,
             history=self.history,
             log_page=self.log_page[display_id],
             tz=self.tz,

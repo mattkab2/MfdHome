@@ -96,8 +96,8 @@ class TestSystemView:
 
 
 class TestBanner:
-    def test_off_unless_requested(self) -> None:
-        assert view(warn=Phase.ACTIVE_UNACKED).banner() is None
+    def test_only_for_unacknowledged_cautions_and_warnings(self) -> None:
+        assert view(warn=Phase.ACTIVE_ACKED, adv=Phase.ACTIVE_UNACKED).banner() is None
 
     def test_picks_most_urgent_and_counts_others(self) -> None:
         v = AlertView(
@@ -108,14 +108,13 @@ class TestBanner:
                 "other": AlertState(Phase.ACTIVE_UNACKED, T0),
                 "adv": AlertState(Phase.ACTIVE_UNACKED, T0),
             },
-            show_banner=True,
         )
         banner = v.banner()
         assert banner is not None
         assert (banner.alert.id, banner.others) == ("other", 1)
 
     def test_rendered_at_bottom_with_attention(self) -> None:
-        v = AlertView(ALERTS, SYSTEMS, {"warn": AlertState(Phase.ACTIVE_UNACKED, T0)}, True)
+        v = AlertView(ALERTS, SYSTEMS, {"warn": AlertState(Phase.ACTIVE_UNACKED, T0)})
         svg = render_page(Page("p", "P", 400, 300), LIVE, LCD, TARGET, v)
         assert '<g id="banner"><g class="attn"><rect x="0" y="260" width="400" height="40"' in svg
         assert ">WARN<" in svg and "+" not in svg.split('id="banner"')[1]
@@ -203,7 +202,7 @@ class TestAttentionCss:
 
     def test_eink_output_never_animates(self) -> None:
         page = Page("p", "P", 400, 300, (TileElement("t", (100, 100), "GRID"),))
-        v = AlertView(ALERTS, SYSTEMS, {"warn": AlertState(Phase.ACTIVE_UNACKED, T0)}, True)
+        v = AlertView(ALERTS, SYSTEMS, {"warn": AlertState(Phase.ACTIVE_UNACKED, T0)})
         svg = render_page(page, LIVE, EINK_MONO, TARGET, v)
         assert not re.search(r"animation|@keyframes|<animate|<style", svg)
 

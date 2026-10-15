@@ -57,7 +57,6 @@ class AlertView:
     alerts: tuple[AlertDef, ...] = ()
     systems: Mapping[str, System] = field(default_factory=dict)
     board: Board = field(default_factory=dict)
-    show_banner: bool = False
     history: Sequence[AlertEvent] = ()
     log_page: int = 0
     tz: tzinfo | None = UTC
@@ -99,9 +98,7 @@ class AlertView:
         return SEVERITY_STATUS[max((a.severity for a in relevant), key=lambda s: s.rank)]
 
     def banner(self) -> Banner | None:
-        """The banner to show, if enabled and a caution/warning is unacknowledged."""
-        if not self.show_banner:
-            return None
+        """The banner to show, if a caution/warning is unacknowledged."""
         pending = [a for a in attention_order(self.board, self.alerts) if a.severity.needs_ack]
         return Banner(pending[0], len(pending) - 1) if pending else None
 

@@ -51,7 +51,7 @@ def board_from(*fixtures: str, acks: tuple[str, ...] = ()) -> Board:
     return board
 
 
-def view(board: Board, banner: bool = True) -> AlertView:
+def view(board: Board) -> AlertView:
     """The test config's alerts over ``board``."""
     config = load_test_config()
-    return AlertView(config.alerts.alerts, config.alerts.systems, board, show_banner=banner)
+    return AlertView(config.alerts.alerts, config.alerts.systems, board)
