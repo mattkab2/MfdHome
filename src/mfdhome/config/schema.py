@@ -372,7 +372,6 @@ class AlertModel(ExprModel):
     severity: Literal["advisory", "caution", "warning"]
     system: Ident
     message: str
-    page: Ident | None = None
     hold: Duration | None = Field(default=None, alias="for")
 
 

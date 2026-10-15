@@ -18,13 +18,11 @@ alerts:
   - id: grid_lost
     severity: warning
     system: GRID
-    page: electrical
     message: GRID POWER LOST
     when: [{use: grid_lost}]
   - id: battery_low
     severity: caution
     system: BATT
-    page: electrical
     message: BATTERY LOW
     any:
       - {entity: sensor.battery_soc, le: 25}
@@ -44,20 +42,20 @@ def write(path: Path, body: str) -> Path:
     return path
 
 
-def errors(path: Path, **kwargs: object) -> list[str]:
+def errors(path: Path, defs: Defs | None = None) -> list[str]:
     with pytest.raises(ConfigError) as info:
-        load_alerts(path, **kwargs)  # type: ignore[arg-type]
+        load_alerts(path, defs)
     return [f"{i.line}: {i.loc}: {i.message}" for i in info.value.issues]
 
 
 def test_load_alerts(tmp_path: Path) -> None:
     defs = load_defs(write(tmp_path / "defs.yaml", DEFS))
-    alerts = load_alerts(write(tmp_path / "alerts.yaml", ALERTS), defs, page_ids={"electrical"})
+    alerts = load_alerts(write(tmp_path / "alerts.yaml", ALERTS), defs)
     assert alerts.systems == {"GRID": System("GRID", "GRID"), "BATT": System("BATT", "BATTERY")}
-    assert [(a.id, a.severity, a.system, a.page) for a in alerts.alerts] == [
-        ("grid_lost", Severity.WARNING, "GRID", "electrical"),
-        ("battery_low", Severity.CAUTION, "BATT", "electrical"),
-        ("exporting", Severity.ADVISORY, "GRID", None),
+    assert [(a.id, a.severity, a.system) for a in alerts.alerts] == [
+        ("grid_lost", Severity.WARNING, "GRID"),
+        ("battery_low", Severity.CAUTION, "BATT"),
+        ("exporting", Severity.ADVISORY, "GRID"),
     ]
     grid_lost = alerts.by_id()["grid_lost"]
     assert holds(grid_lost.condition, EvalContext(snapshot_from_ha_states([])))
@@ -77,29 +75,21 @@ def test_alert_errors(tmp_path: Path) -> None:
         """\
         systems: {GRID: {label: GRID}}
         alerts:
-          - {id: a, severity: warning, system: GRID, message: A, page: nowhere,
+          - {id: a, severity: warning, system: GRID, message: A,
              when: [{channel: state, eq: off}]}
-          - {id: a, severity: caution, system: HVAC, message: B, page: electrical,
+          - {id: a, severity: caution, system: HVAC, message: B,
              when: [{use: missing}]}
           - {id: c, severity: caution, system: GRID, message: C,
              when: [{entity: sensor.x, eq: 1}]}
-          - {id: d, severity: severe, system: GRID, message: D, page: electrical, when: []}
+          - {id: d, severity: severe, system: GRID, message: D, when: []}
         """,
     )
-    msgs = errors(path, page_ids={"electrical"})
+    msgs = errors(path)
     assert "4: alerts[0].when[0].channel: alerts have no channels; use 'entity'" in msgs
     assert "5: alerts[1].id: duplicate alert id 'a'" in msgs
     assert "5: alerts[1].system: unknown system 'HVAC'; expected: GRID" in msgs
     assert "6: alerts[1].when[0].use: unknown condition 'missing'" in msgs
     assert any(m.startswith("9: alerts[3].severity: Input should be") for m in msgs)
-
-
-def test_unknown_page_is_checked_after_pages_load(tmp_path: Path) -> None:
-    write(tmp_path / "defs.yaml", DEFS)
-    write(tmp_path / "alerts.yaml", ALERTS)
-    with pytest.raises(ConfigError) as info:
-        load_config(tmp_path)  # no pages at all
-    assert [i.loc for i in info.value.issues] == ["alerts[0].page", "alerts[1].page"]
 
 
 def test_named_condition_with_channel_rejected_in_alerts(tmp_path: Path) -> None:

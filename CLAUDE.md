@@ -286,8 +286,8 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 
 ## Future work (not yet scheduled)
 
-- Preemption (switching displays to an alert's page) may return later, once
-  page selection and bezel buttons exist.
+- Preemption (switching displays to an alert's page) may return later; alerts
+  would then need a `page` field again (removed while unused).
 - Adaptive group layouts (e.g. "flow" to wrap at a width, "fit" to fill a
   box), so large alert sets and arrays don't need manual layout. In addition
   to, not replacing, manual positioning and the fixed grid.

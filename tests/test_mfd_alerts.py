@@ -27,7 +27,7 @@ def at(minutes: int) -> datetime:
 
 
 def alert(id_: str, severity: Severity = Severity.WARNING) -> AlertDef:
-    return AlertDef(id_, severity, "SYS", id_.upper(), TRUE, "page")
+    return AlertDef(id_, severity, "SYS", id_.upper(), TRUE)
 
 
 WARN = alert("warn")
@@ -139,7 +139,6 @@ def test_evaluate_alerts() -> None:
         "BATT",
         "LOW",
         AnyOf.single(Condition(EntityRef("sensor.soc"), Op.LT, 20)),
-        "page",
     )
     snap = snapshot_from_ha_states([ha_state("sensor.soc", "15")])
     assert evaluate_alerts([low, WARN], snap) == {"low", "warn"}

@@ -43,8 +43,6 @@ class System:
 class AlertDef:
     """An alert: raised while ``condition`` holds.
 
-    ``page`` optionally names the page the alert relates to (for a future
-    "jump to page" control; alerts never switch pages on their own).
     ``hold`` is how long the condition must hold before the alert is raised,
     and stop holding before it clears (zero: immediately).
     """
@@ -54,5 +52,4 @@ class AlertDef:
     system: str
     message: str
     condition: AnyOf
-    page: str | None = None
     hold: timedelta = timedelta(0)

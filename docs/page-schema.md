@@ -491,7 +491,6 @@ alerts:
   - id: grid_lost
     severity: warning          # advisory | caution | warning
     system: GRID
-    page: electrical           # optional: the page the alert relates to
     message: GRID POWER LOST
     when: [{use: grid_lost}]   # same any/when forms as status rules
   - id: exporting
@@ -511,7 +510,7 @@ alerts:
 - An alert is raised while its condition holds. Conditions can only refer to
   `entity:` values, because alerts have no channels. They can `use` named
   conditions from `defs.yaml`, but only ones that also refer to entities.
-- `page` is optional. Alerts never switch a display's page.
+- Alerts never switch a display's page.
 - Cautions and warnings **latch**: they stay raised until someone acknowledges
   them, even after the condition clears. Advisories clear on their own.
 - One acknowledgement covers the whole house.

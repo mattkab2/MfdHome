@@ -14,7 +14,6 @@ alerts:
   - id: grid_lost
     severity: warning
     system: GRID
-    page: electrical
     message: GRID POWER LOST
     when: [{use: grid_lost}]
   - id: grid_exporting
@@ -26,33 +25,28 @@ alerts:
   - id: battery_critical
     severity: warning
     system: BATT
-    page: electrical
     message: BATTERY CRITICAL
     when: [{entity: sensor.battery_soc, le: 10}]
   - id: battery_low
     severity: caution
     system: BATT
-    page: electrical
     message: BATTERY LOW
     when: [{entity: sensor.battery_soc, le: 25}]
 
   - id: water_shutoff_closed
     severity: caution
     system: WATER
-    page: status
     message: MAIN WATER SHUT OFF
     when: [{entity: valve.main_water, eq: closed}]
   - id: water_pressure_low
     severity: caution
     system: WATER
-    page: status
     message: WATER PRESSURE LOW
     when: [{entity: sensor.water_pressure, lt: 30}]
 
   - id: leak_detected
     severity: warning
     system: LEAK
-    page: status
     message: LEAK DETECTED
     any:
       - {entity: binary_sensor.leak_kitchen, eq: on}
@@ -61,21 +55,18 @@ alerts:
   - id: hvac_fault
     severity: caution
     system: HVAC
-    page: status
     message: HVAC FAULT
     when: [{entity: binary_sensor.hvac_fault, eq: on}]
 
   - id: wan_down
     severity: warning
     system: NET
-    page: status
     message: INTERNET DOWN
     when: [{entity: binary_sensor.wan_online, eq: off}]
 
   - id: alarm_triggered
     severity: warning
     system: SEC
-    page: status
     message: ALARM TRIGGERED
     when: [{entity: alarm_control_panel.house, eq: triggered}]
   - id: front_door_open
@@ -87,6 +78,5 @@ alerts:
   - id: high_wind
     severity: caution
     system: WX
-    page: status
     message: HIGH WIND
     when: [{entity: sensor.wind_speed, gt: 60}]

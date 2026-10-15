@@ -85,13 +85,8 @@ def load_defs(path: str | Path) -> Defs:
     return defs
 
 
-def load_alerts(
-    path: str | Path, defs: Defs | None = None, page_ids: Collection[str] | None = None
-) -> Alerts:
-    """Load an alerts file (``systems`` and ``alerts``).
-
-    If ``page_ids`` is given, each alert's ``page`` must be one of them.
-    """
+def load_alerts(path: str | Path, defs: Defs | None = None) -> Alerts:
+    """Load an alerts file (``systems`` and ``alerts``)."""
     path = Path(path)
     tree = _read(path)
     issues = Issues(path, tree)
@@ -99,10 +94,6 @@ def load_alerts(
     issues.raise_if_any()
     assert model is not None
     alerts = build_alerts(model, defs or Defs(), issues)
-    if page_ids is not None:
-        for i, alert in enumerate(alerts.alerts):
-            if alert.page is not None and alert.page not in page_ids:
-                issues.add(("alerts", i, "page"), f"unknown page {alert.page!r}")
     issues.raise_if_any()
     return alerts
 
@@ -124,8 +115,7 @@ def load_page(path: str | Path, defs: Defs | None = None, alerts: Alerts | None 
 def load_config(directory: str | Path) -> Config:
     """Load ``defs.yaml`` and ``alerts.yaml`` (both optional) and ``pages/*.yaml``.
 
-    Problems in all page files are collected and raised together. Alert
-    ``page`` references are checked against the loaded pages.
+    Problems in all page files are collected and raised together.
     """
     directory = Path(directory)
     defs_path = directory / DEFS_FILE
@@ -155,8 +145,6 @@ def load_config(directory: str | Path) -> Config:
         sources[page.id] = path
     if problems:
         raise ConfigError(problems)
-    if alerts_path.exists():
-        alerts = load_alerts(alerts_path, defs, pages.keys())
     displays_path = directory / DISPLAYS_FILE
     displays = load_displays(displays_path, pages.keys()) if displays_path.exists() else {}
     return Config(defs, pages, alerts, displays)
