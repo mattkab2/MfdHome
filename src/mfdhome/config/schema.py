@@ -210,13 +210,12 @@ Endpoint = Coord | str
 
 
 class LineModel(_Bound):
-    """A line: explicit ``points``, or ``from``/``to`` endpoints with optional ``via`` bends.
+    """A line from ``from`` to ``to``: auto-routed, or through ``via`` bends.
 
     An endpoint is a coordinate, a node id, or ``element.port``.
     """
 
     type: Literal["line"]
-    points: Annotated[list[Coord], Field(min_length=2)] | None = None
     from_: Endpoint | None = Field(default=None, alias="from")
     to: Endpoint | None = None
     via: list[Coord] = []
@@ -230,13 +229,9 @@ class LineModel(_Bound):
 
     @model_validator(mode="after")
     def _one_geometry(self) -> Self:
-        ends = (self.from_ is not None, self.to is not None)
-        if self.points is not None:
-            if any(ends) or self.via:
-                raise ValueError("give either 'points' or 'from'/'to' (with optional 'via')")
-        elif ends != (True, True):
-            raise ValueError("a line needs 'points', or both 'from' and 'to'")
-        if self.elbow is not None and (self.via or self.route == "straight" or self.points):
+        if self.from_ is None or self.to is None:
+            raise ValueError("a line needs both 'from' and 'to'")
+        if self.elbow is not None and (self.via or self.route == "straight"):
             raise ValueError("'elbow' only applies to auto-routed 'from'/'to' lines (no 'via')")
         return self
 

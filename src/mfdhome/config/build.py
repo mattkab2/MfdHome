@@ -394,22 +394,21 @@ class _ElementBuilder:
         if model.flow is not None:
             self.bound_channel(model.flow.from_, bound, (*loc, "flow", "from"))
             flow = FlowSpec(model.flow.from_, model.flow.threshold)
-        if model.points is None:
-            assert model.from_ is not None and model.to is not None
-            self.pending.append(
-                _PendingLine(
-                    model.id,
-                    model.from_,
-                    tuple(model.via),
-                    model.to,
-                    loc,
-                    straight=model.route == "straight",
-                    elbow=Elbow(model.elbow) if model.elbow else None,
-                )
+        assert model.from_ is not None and model.to is not None
+        self.pending.append(
+            _PendingLine(
+                model.id,
+                model.from_,
+                tuple(model.via),
+                model.to,
+                loc,
+                straight=model.route == "straight",
+                elbow=Elbow(model.elbow) if model.elbow else None,
             )
+        )
         return LineElement(
             id=model.id,
-            points=tuple(model.points or ()),
+            points=(),  # routed once every element exists (see _connect)
             bind=bound,
             name=self.name(model.name, (*loc, "name")),
             status=self.status(model.status, LINE_PRIMARY, bound, (*loc, "status")),

@@ -86,7 +86,7 @@ def test_endpoint_errors(tmp_path: Path) -> None:
         - {id: l1, type: line, from: nowhere, to: bus}
         - {id: l2, type: line, from: bat, to: bat.side}
         - {id: l3, type: line, from: bus.left, to: t.right}
-        - {id: l4, type: line, points: [[0, 0], [1, 1]], from: bus}
+        - {id: l4, type: line, points: [[0, 0], [1, 1]]}
         - {id: l5, type: line, from: bus}
         """,
     )
@@ -98,5 +98,5 @@ def test_endpoint_errors(tmp_path: Path) -> None:
     assert any(m.startswith("elements[4].to: unknown port 'side' on 'bat'") for m in msgs)
     assert "elements[5].from: node 'bus' has no ports; connect to 'bus'" in msgs
     assert "elements[5].to: 't' cannot be connected to" in msgs
-    assert any("give either 'points' or 'from'/'to'" in m for m in msgs)
-    assert any("a line needs 'points', or both 'from' and 'to'" in m for m in msgs)
+    assert "elements[6].points: Extra inputs are not permitted" in msgs  # use from/via/to
+    assert any("a line needs both 'from' and 'to'" in m for m in msgs)

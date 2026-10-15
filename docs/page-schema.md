@@ -150,7 +150,8 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
   readouts: [{value: power, format: power, abs: true}]
 ```
 
-Instead of `from`/`to`/`via`, a line can give explicit `points: [[x, y], ...]`.
+A line always runs `from` one endpoint `to` another. Give `via` points for an
+exact polyline; endpoints can be plain coordinates.
 
 Lines are hollow pipes ("cased") by default; cased lines merge cleanly where
 they meet. `casing: false` draws a plain line, for sensing and minor

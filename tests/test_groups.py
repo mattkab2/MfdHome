@@ -117,7 +117,7 @@ class TestLoading:
               status: {thresholds: {caution_low: 1}}
               items:
                 - {id: a, type: solar_panel, at: [5, 5], bind: {power: sensor.a}}
-                - {id: l, type: line, points: [[0, 0], [1, 1]]}
+                - {id: l, type: line, from: [0, 0], to: [1, 1], route: straight}
                 - {id: b, type: solar_panel, bind: {power: sensor.b}}
                 - {id: b, type: solar_panel, bind: {power: sensor.c}}
             """,
@@ -158,8 +158,8 @@ class TestLoading:
             ARRAY
             + textwrap.dedent(
                 """\
-            - {id: feed, type: line, points: [[0, 0], [1, 0]], bind: {power: array.power}}
-            - {id: entity, type: line, points: [[0, 0], [1, 0]], bind: {power: sensor.grid}}
+            - {id: feed, type: line, from: [0, 0], to: [1, 0], bind: {power: array.power}}
+            - {id: entity, type: line, from: [0, 0], to: [1, 0], bind: {power: sensor.grid}}
             """
             ),
         )
@@ -176,10 +176,10 @@ class TestLoading:
             + textwrap.dedent(
                 """\
             - {id: n, type: node, at: [0, 0]}
-            - {id: f1, type: line, points: [[0, 0], [1, 0]], bind: {power: array.voltage}}
-            - {id: f2, type: line, points: [[0, 0], [1, 0]], bind: {power: n.power}}
+            - {id: f1, type: line, from: [0, 0], to: [1, 0], bind: {power: array.voltage}}
+            - {id: f2, type: line, from: [0, 0], to: [1, 0], bind: {power: n.power}}
             - {id: bat, type: battery, at: [0, 0], bind: {level: sensor.soc, power: array.power}}
-            - {id: f3, type: line, points: [[0, 0], [1, 0]], bind: {power: bat.power}}
+            - {id: f3, type: line, from: [0, 0], to: [1, 0], bind: {power: bat.power}}
             """
             ),
         )

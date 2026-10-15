@@ -55,7 +55,8 @@ class TestValidPages:
             """\
             - id: grid
               type: line
-              points: [[0, 0], [10, 0]]
+              from: [0, 0]
+              to: [10, 0]
               bind: {power: sensor.grid_power}
               flow: true
               name: GRID
@@ -216,11 +217,12 @@ class TestErrors:
             """\
             - id: g
               type: line
-              points: [[0, 0], [1, 0]]
+              from: [0, 0]
+              to: [1, 0]
               colour: red
             """,
         )
-        assert errors(path) == ["8: elements[0].colour: Extra inputs are not permitted"]
+        assert errors(path) == ["9: elements[0].colour: Extra inputs are not permitted"]
 
     def test_unknown_and_missing_channels(self, tmp_path: Path) -> None:
         path = page_file(
@@ -387,7 +389,8 @@ class TestErrors:
             """\
             - id: g
               type: line
-              points: [[0, 0], [1, 0]]
+              from: [0, 0]
+              to: [1, 0]
               status:
                 thresholds: {warning_high: 5000}
                 rules: [{level: caution, when: [{use: high}]}]

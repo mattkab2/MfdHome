@@ -61,7 +61,8 @@ class TestTransforms:
                 elements:
                   - id: g
                     type: line
-                    points: [[0, 0], [1, 0]]
+                    from: [0, 0]
+                    to: [1, 0]
                     bind: {power: {entity: sensor.grid, scale: -1, unit: W}}
                 """
             )
@@ -84,11 +85,13 @@ class TestTransforms:
                   - {id: b, type: battery, at: [0, 0], bind: {level: sensor.soc}}
                   - id: a
                     type: line
-                    points: [[0, 0], [1, 0]]
+                    from: [0, 0]
+                    to: [1, 0]
                     bind: {power: {entity: sensor.x, scale: 0}}
                   - id: c
                     type: line
-                    points: [[0, 0], [1, 0]]
+                    from: [0, 0]
+                    to: [1, 0]
                     bind: {power: {entity: b.level, scale: 2}}
                 """
             )

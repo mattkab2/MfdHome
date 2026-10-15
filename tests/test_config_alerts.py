@@ -148,7 +148,8 @@ def test_tiles_grid_and_alert_status(tmp_path: Path) -> None:
         - {id: solo, type: tile, at: [500, 300], system: BATT, label: BATTERY SYS}
         - id: feed
           type: line
-          points: [[0, 0], [1, 0]]
+          from: [0, 0]
+          to: [1, 0]
           status: {systems: [GRID], alerts: [battery_low]}
         """,
     )
@@ -177,7 +178,8 @@ def test_tile_reference_errors(tmp_path: Path) -> None:
         - {id: t, type: tile, at: [0, 0], system: WX}
         - id: l
           type: line
-          points: [[0, 0], [1, 0]]
+          from: [0, 0]
+          to: [1, 0]
           status: {systems: [NET], alerts: [nope]}
         """,
     )
@@ -187,8 +189,8 @@ def test_tile_reference_errors(tmp_path: Path) -> None:
     assert any(m.startswith("5: elements[0].columns: Input should be greater") for m in msgs)
     assert "6: elements[1].tiles[1]: unknown system 'HVAC'; expected: GRID, BATT" in msgs
     assert "7: elements[2].system: unknown system 'WX'; expected: GRID, BATT" in msgs
-    assert "11: elements[3].status.systems[0]: unknown system 'NET'; expected: GRID, BATT" in msgs
-    assert "11: elements[3].status.alerts[0]: unknown alert 'nope'" in msgs
+    assert "12: elements[3].status.systems[0]: unknown system 'NET'; expected: GRID, BATT" in msgs
+    assert "12: elements[3].status.alerts[0]: unknown alert 'nope'" in msgs
 
 
 def test_tiles_without_alerts_file_explain_why(tmp_path: Path) -> None:
