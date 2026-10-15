@@ -8,15 +8,17 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from mfdhome.config.load import Config
 from mfdhome.mfd.alerts import Board, acknowledge, evaluate_alerts, most_urgent, step
 from mfdhome.mfd.display import Display
+from mfdhome.mfd.history import AlertEvent, board_events, prune
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import SEVERITY_STATUS, AlertView
 from mfdhome.render.controls import Controls
 from mfdhome.render.page import render_page
+from mfdhome.server.history import HistoryStore
 from mfdhome.server.store import BoardStore
 from mfdhome.sources.staleness import mark_stale
 from mfdhome.themes.builtin import THEMES
@@ -24,14 +26,31 @@ from mfdhome.themes.target import Target
 
 logger = logging.getLogger(__name__)
 
+#: How long alert history is kept by default.
+HISTORY_DAYS = 14
+
 
 class Runtime:
-    """Holds the current state, the shared alert board and each display's page."""
+    """Holds the current state, the shared alert board, its history and each display's page.
 
-    def __init__(self, config: Config, store: BoardStore | None = None) -> None:
+    ``history`` is every event in the last ``keep`` (oldest first), loaded from
+    ``history_store`` and appended to it as the board changes.
+    """
+
+    def __init__(
+        self,
+        config: Config,
+        store: BoardStore | None = None,
+        history_store: HistoryStore | None = None,
+        keep: timedelta = timedelta(days=HISTORY_DAYS),
+    ) -> None:
         self.config = config
         self.store = store
+        self.history_store = history_store
+        self.keep = keep
         self.board: Board = store.load() if store else {}
+        self.history: list[AlertEvent] = history_store.load() if history_store else []
+        self._pruned_on: date | None = None
         self.state: StateSnapshot = {}
         self.selected = {d.id: d.home for d in config.displays.values()}
         self.locked = dict.fromkeys(config.displays, False)
@@ -49,7 +68,11 @@ class Runtime:
         """
         self.state = mark_stale(raw, self.config.defs.stale_after, now)
         alerts = self.config.alerts.alerts
-        return self._set_board(step(self.board, alerts, evaluate_alerts(alerts, self.state), now))
+        changed = self._set_board(
+            step(self.board, alerts, evaluate_alerts(alerts, self.state), now), now
+        )
+        self._prune(now)
+        return changed
 
     def acknowledge(
         self, by: str, now: datetime, ids: Iterable[str] | None = None, system: str | None = None
@@ -57,7 +80,7 @@ class Runtime:
         """Acknowledge ``ids``, a ``system``'s alerts, or (neither given) everything."""
         if system is not None:
             ids = [a.id for a in self.config.alerts.alerts if a.system == system]
-        return self._set_board(acknowledge(self.board, by, now, ids))
+        return self._set_board(acknowledge(self.board, by, now, ids), now, by)
 
     def select(self, display_id: str, page_id: str) -> bool:
         """Show ``page_id`` on a display, if the display offers it."""
@@ -106,9 +129,30 @@ class Runtime:
         theme = THEMES[display.theme]
         return render_page(page, self.state, theme, target, view, controls, as_of)
 
-    def _set_board(self, board: Board) -> bool:
+    def record(self, events: list[AlertEvent]) -> None:
+        """Add events to the history (and its file)."""
+        if not events:
+            return
+        self.history.extend(events)
+        if self.history_store is not None:
+            self.history_store.append(events)
+
+    def _prune(self, now: datetime) -> None:
+        """Drop history older than ``keep``, at most once a day."""
+        if self._pruned_on == now.date():
+            return
+        self._pruned_on = now.date()
+        kept = prune(self.history, now, self.keep)
+        if len(kept) != len(self.history):
+            self.history = kept
+            if self.history_store is not None:
+                self.history_store.replace(kept)
+
+    def _set_board(self, board: Board, now: datetime, by: str | None = None) -> bool:
         if board == self.board:
             return False
+        known = self.config.alerts.by_id()
+        self.record(board_events(self.board, board, now, known, by))
         self.board = board
         if self.store is not None:
             self.store.save(board)

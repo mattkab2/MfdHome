@@ -25,7 +25,7 @@ from mfdhome.render.panels import PANELS
 from mfdhome.render.raster import rasterize
 from mfdhome.server.app import serve
 from mfdhome.server.images import stamp_text
-from mfdhome.server.runtime import Runtime
+from mfdhome.server.runtime import HISTORY_DAYS, Runtime
 from mfdhome.sources.fixture import load_fixture
 from mfdhome.sources.ha import HomeAssistant
 from mfdhome.themes.builtin import THEMES
@@ -167,6 +167,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
             host=args.host,
             port=args.port,
             board_path=args.board,
+            history_path=args.history,
+            history_days=args.history_days,
             display_token=os.environ.get("MFD_DISPLAY_TOKEN") or None,
         )
     )
@@ -205,6 +207,15 @@ def parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="0.0.0.0", help="address to listen on (LAN only)")
     serve.add_argument("--port", type=int, default=8099)
     serve.add_argument("--board", default="var/board.json", help="where to keep the alert board")
+    serve.add_argument(
+        "--history", default="var/history.jsonl", help="where to keep the alert history"
+    )
+    serve.add_argument(
+        "--history-days",
+        type=int,
+        default=HISTORY_DAYS,
+        help=f"days of alert history to keep (default {HISTORY_DAYS})",
+    )
     serve.set_defaults(run=cmd_serve)
     return p
 

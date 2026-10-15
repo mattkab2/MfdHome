@@ -48,6 +48,10 @@ mfdhome serve CONFIG --port 8099 --board var/board.json
   every URL needs `?token=<that value>`; put it in each kiosk's URL.
 - **Alert board:** latched and acknowledged alerts are saved to the `--board`
   file and survive restarts.
+- **Alert history:** every raise, clear and acknowledgement is appended to the
+  `--history` file (`var/history.jsonl`, one JSON event per line) and kept
+  for `--history-days` days (default 14). Only changes are recorded, so an
+  alert that stays raised adds nothing until it clears.
 - **Acknowledging:** tap the banner to acknowledge the alert it names, or tap
   an annunciator tile to acknowledge that system's alerts. Acknowledgements
   count for the whole house.

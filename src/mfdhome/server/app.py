@@ -13,7 +13,7 @@ import hmac
 import logging
 from collections import defaultdict
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from html import escape
 from importlib.resources import files
 from typing import Any
@@ -26,8 +26,9 @@ from mfdhome.mfd.alerts import most_urgent
 from mfdhome.model.page import Element, GroupElement, TileElement
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.controls import KEYS
+from mfdhome.server.history import HistoryStore
 from mfdhome.server.images import PanelImages
-from mfdhome.server.runtime import Runtime
+from mfdhome.server.runtime import HISTORY_DAYS, Runtime
 from mfdhome.server.store import BoardStore
 from mfdhome.sources.ha import HomeAssistant
 from mfdhome.themes.builtin import THEMES
@@ -259,10 +260,17 @@ async def serve(
     host: str = "0.0.0.0",
     port: int = 8099,
     board_path: str = "var/board.json",
+    history_path: str = "var/history.jsonl",
+    history_days: int = HISTORY_DAYS,
     display_token: str | None = None,
 ) -> None:
     """Run everything: HA client, runtime, refresh loop and web server."""
-    runtime = Runtime(load_config(config_dir), BoardStore(board_path))
+    runtime = Runtime(
+        load_config(config_dir),
+        BoardStore(board_path),
+        HistoryStore(history_path),
+        timedelta(days=history_days),
+    )
     app = create_app(runtime, display_token)
     runner = web.AppRunner(app)
     await runner.setup()
