@@ -29,6 +29,13 @@ from mfdhome.symbols.panel import panel_box, solar_panel
 from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
 from mfdhome.symbols.transfer import panel_box as load_panel_box
 from mfdhome.symbols.valve import Body, ValveState, valve, valve_box
+from mfdhome.symbols.water_heater import (
+    cold_port,
+    gas_port,
+    heater_box,
+    hot_port,
+    water_heater,
+)
 from mfdhome.themes.theme import Theme
 
 #: Channels accepted by line elements; ``power`` is primary and numeric.
@@ -261,6 +268,14 @@ def _valve_spec(type_name: str, body: Body) -> SymbolSpec:
     )
 
 
+DEFAULT_HEATING_STATES = frozenset({"on", "heating"})
+
+
+def _draw_water_heater(inp: SymbolInput, theme: Theme) -> str:
+    heating = _in_states(inp, "heating", DEFAULT_HEATING_STATES, channel="heating")
+    return water_heater(*inp.at, heating, inp.status, theme)
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -316,6 +331,21 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     ),
     "ball_valve": _valve_spec("ball_valve", Body.BALL),
     "globe_valve": _valve_spec("globe_valve", Body.GLOBE),
+    "water_heater": SymbolSpec(
+        type="water_heater",
+        channels=("temperature", "heating"),
+        required=frozenset(),
+        primary="temperature",
+        numeric=frozenset({"temperature"}),
+        box=lambda at, _orientation: heater_box(*at),
+        draw=_draw_water_heater,
+        params=_state_list_params("heating", DEFAULT_HEATING_STATES),
+        ports={
+            "cold": lambda at, _orientation: cold_port(at),
+            "hot": lambda at, _orientation: hot_port(at),
+            "gas": lambda at, _orientation: gas_port(at),
+        },
+    ),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",
         channels=("state",),
