@@ -542,20 +542,26 @@ the annunciator banner overlays whatever page is showing. `home` (and
 ### Soft keys
 
 With `controls: soft`, four keys share the bottom 40-unit strip with the
-banner, so they cost no page space:
+banner, so they cost no page space. Like the bezel keys of an MFD, keys are
+positions (1 to 4, left to right) whose labels change with the page:
 
 ```
-[◀ PREV][ALERTS]   banner   [LOCK][NEXT ▶]
+alerts page:    [◀ PREV][ ACK ]    banner   [ LOCK  ][NEXT ▶]
+log pages:      [◀ PREV][▲ PG UP]  banner   [▼ PG DN][NEXT ▶]
+other pages:    [◀ PREV][ALERTS]   banner   [ LOCK  ][NEXT ▶]
 ```
 
 | Key | What it does |
 |---|---|
-| PREV / NEXT | Step through `pages` in order, wrapping around. |
+| PREV / NEXT | Step through `pages` in order, wrapping around. Always keys 1 and 4, so every page can be left. |
 | ALERTS | Jumps to `alerts_page`. It lights in the alert's color, with the attention cue, while a caution or warning is unacknowledged. |
-| LOCK | Toggles the lock. While locked, every tap except LOCK is ignored (enforced by the server), and the key reads LOCKED. |
+| ACK | On the alerts page, in place of ALERTS: acknowledges the alert the banner names, one per press. Lit like ALERTS. |
+| LOCK | Toggles the lock. While locked, every key except LOCK (and every tap) is ignored, enforced by the server, and the key reads LOCKED. |
+| PG UP / PG DN | On a page with an alert log: older and newer entries. |
 
-Lock state isn't saved, so displays start unlocked. Acknowledging still
-happens by tapping the banner or a tile.
+Lock state isn't saved, so displays start unlocked. A locked display can't
+change pages, so it never reaches a page without LOCK. Besides ACK, alerts
+can be acknowledged by tapping the banner or a tile.
 
 ### E-paper panels
 

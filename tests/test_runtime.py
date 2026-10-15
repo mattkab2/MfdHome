@@ -10,6 +10,7 @@ import pytest
 from mfdhome.config import ConfigError, load_config
 from mfdhome.config.load import load_displays
 from mfdhome.mfd import AlertState, Display, Phase
+from mfdhome.mfd.keys import DEFAULT_ACTIONS, Action
 from mfdhome.model import StateSnapshot, snapshot_from_ha_states
 from mfdhome.server.runtime import Runtime
 from mfdhome.server.store import BoardStore, board_from_json, board_to_json
@@ -169,22 +170,46 @@ class TestSoftKeys:
 
     def test_press(self, tmp_path: Path) -> None:
         rt = TestRuntime().runtime(tmp_path)
-        assert rt.press("workshop", "next") and rt.selected["workshop"] == "electrical"
-        assert rt.press("workshop", "next") and rt.selected["workshop"] == "status"  # wraps
-        assert rt.press("workshop", "prev") and rt.selected["workshop"] == "electrical"
-        assert rt.press("workshop", "alerts") and rt.selected["workshop"] == "status"
-        assert not rt.press("workshop", "alerts")  # already there
-        assert rt.press("workshop", "lock") and rt.locked["workshop"]
-        assert not rt.press("workshop", "next")  # locked
+
+        def press(key: str) -> Action | None:
+            return rt.press("workshop", key, T0)
+
+        assert press("4") is Action.NEXT and rt.selected["workshop"] == "electrical"
+        assert press("4") is Action.NEXT and rt.selected["workshop"] == "status"  # wraps
+        assert press("1") is Action.PREV and rt.selected["workshop"] == "electrical"
+        assert press("2") is Action.ALERTS and rt.selected["workshop"] == "status"
+        assert press("2") is None  # ACK on the alerts page, with nothing to acknowledge
+        assert press("3") is Action.LOCK and rt.locked["workshop"]
+        assert press("4") is None  # locked
         assert rt.selected["workshop"] == "status"
-        assert rt.press("workshop", "lock") and not rt.locked["workshop"]
-        assert not rt.press("workshop", "bogus") and not rt.press("nope", "next")
+        assert press("3") is Action.LOCK and not rt.locked["workshop"]
+        assert press("next") is None and press("5") is None
+        assert rt.press("nope", "4", T0) is None
+
+    def test_key_actions_follow_the_page(self, tmp_path: Path) -> None:
+        rt = TestRuntime().runtime(tmp_path)
+        assert rt.actions("workshop") == (Action.PREV, Action.ACK, Action.LOCK, Action.NEXT)
+        rt.press("workshop", "4", T0)
+        assert rt.actions("workshop") == DEFAULT_ACTIONS
+
+    def test_ack_key_acknowledges_the_banner_alert(self, tmp_path: Path) -> None:
+        rt = TestRuntime().runtime(tmp_path)
+        rt.update(states("electrical_islanded"), T0)
+        assert rt.press("workshop", "2", T0) is Action.ACK
+        assert rt.board["grid_lost"].phase is Phase.ACTIVE_ACKED  # the most urgent first
+        assert rt.board["grid_lost"].acked_by == "workshop"
+        assert rt.board["battery_low"].phase is Phase.ACTIVE_UNACKED
+        assert rt.press("workshop", "2", T0) is Action.ACK  # then the next one
+        assert rt.press("workshop", "2", T0) is None  # nothing left
 
     def test_render_shows_keys_only_where_configured(self, tmp_path: Path) -> None:
         rt = TestRuntime().runtime(tmp_path)
         rt.update(states("electrical_islanded"), T0)
         workshop = rt.render("workshop")
-        assert '<g id="controls">' in workshop and '<g id="key-alerts"><g class="attn">' in workshop
+        assert '<g id="controls">' in workshop and '<g id="key-2"><g class="attn">' in workshop
+        assert ">ACK<" in workshop  # status is the alerts page
         assert '<g id="controls">' not in rt.render("hallway")
-        rt.press("workshop", "lock")
+        rt.press("workshop", "4", T0)
+        assert ">ALERTS<" in rt.render("workshop")
+        rt.press("workshop", "3", T0)
         assert ">LOCKED<" in rt.render("workshop")

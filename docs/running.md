@@ -55,10 +55,12 @@ mfdhome serve CONFIG --port 8099 --board var/board.json
 - **Acknowledging:** tap the banner to acknowledge the alert it names, or tap
   an annunciator tile to acknowledge that system's alerts. Acknowledgements
   count for the whole house.
-- **Soft keys:** displays with more than one page get PREV, ALERTS, LOCK and
-  NEXT keys at the bottom. ALERTS jumps to the alerts page and is lit while
-  something needs acknowledging. LOCK ignores every tap except LOCK until it's
-  tapped again. A display with one page (like the mirror) has no keys.
+- **Soft keys:** displays with more than one page get four keys at the
+  bottom: PREV and NEXT at the ends, and two that depend on the page (ALERTS
+  and LOCK; ACK and LOCK on the alerts page; PG UP and PG DN on log pages).
+  ALERTS jumps to the alerts page and, like ACK, is lit while something
+  needs acknowledging. LOCK ignores every tap except LOCK until it's tapped
+  again. A display with one page (like the mirror) has no keys.
 - **Live behavior:** displays update within a fraction of a second of a
   change in Home Assistant. Data that stops arriving goes dotted after its
   `stale_after` limit. If Home Assistant is unreachable, everything shows as
@@ -75,7 +77,7 @@ fetches on a timer:
 | Route | What it does |
 |---|---|
 | `GET /display/<id>.png` | The current page, at the display's `size`, in the panel's colors only. |
-| `POST /display/<id>/key/<key>` | Presses `prev`, `next`, `alerts` or `lock`, like the soft keys (the lock applies too). |
+| `POST /display/<id>/key/<1-4>` | Presses key 1 to 4 (left to right), like the soft keys: what it does depends on the page shown, and the lock applies. |
 
 Both take `?token=...` when `MFD_DISPLAY_TOKEN` is set.
 
@@ -87,9 +89,11 @@ Both take `?token=...` when `MFD_DISPLAY_TOKEN` is set.
   keeps the same image. A device that fails to fetch should mark that itself
   (the ESPHome example below draws OFFLINE), because a frozen image looks
   exactly like a quiet house.
-- **Keys:** the PREV/ALERTS/LOCK/NEXT labels are drawn along the bottom strip
-  when the display has more than one page. Mount the buttons beneath them.
-  Acknowledging alerts happens on an interactive display (tablet).
+- **Keys:** the key labels are drawn along the bottom strip when the display
+  has more than one page; mount the four buttons beneath them. Buttons send
+  their position, and the label above each says what it does on that page,
+  including ACK on the alerts page, so alerts can be acknowledged without a
+  touchscreen.
 - **Refresh:** a page change from a button press shows on the next fetch, so
   have the device fetch right after a press. Alerts appear at the next
   scheduled fetch. Pick an interval that suits the panel: a minute or two for
@@ -174,20 +178,20 @@ script:
 binary_sensor:
   - platform: gpio
     pin: {number: GPIO32, mode: INPUT_PULLUP, inverted: true}
-    name: PREV
-    on_press: {script.execute: {id: press, key: prev}}
+    name: Key 1                    # PREV
+    on_press: {script.execute: {id: press, key: "1"}}
   - platform: gpio
     pin: {number: GPIO33, mode: INPUT_PULLUP, inverted: true}
-    name: ALERTS
-    on_press: {script.execute: {id: press, key: alerts}}
+    name: Key 2                    # ALERTS / ACK / PG UP
+    on_press: {script.execute: {id: press, key: "2"}}
   - platform: gpio
     pin: {number: GPIO34, mode: INPUT, inverted: true}   # needs an external pull-up
-    name: LOCK
-    on_press: {script.execute: {id: press, key: lock}}
+    name: Key 3                    # LOCK / PG DN
+    on_press: {script.execute: {id: press, key: "3"}}
   - platform: gpio
     pin: {number: GPIO35, mode: INPUT, inverted: true}   # needs an external pull-up
-    name: NEXT
-    on_press: {script.execute: {id: press, key: next}}
+    name: Key 4                    # NEXT
+    on_press: {script.execute: {id: press, key: "4"}}
 ```
 
 A Raspberry Pi (or any other device) uses the same two routes: fetch the PNG

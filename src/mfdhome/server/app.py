@@ -23,9 +23,9 @@ from aiohttp import WSMsgType, web
 
 from mfdhome.config.load import load_config
 from mfdhome.mfd.alerts import most_urgent
+from mfdhome.mfd.keys import KEY_SLOTS, Action
 from mfdhome.model.page import Element, GroupElement, TileElement
 from mfdhome.model.state import StateSnapshot
-from mfdhome.render.controls import KEYS
 from mfdhome.server.history import HistoryStore
 from mfdhome.server.images import PanelImages
 from mfdhome.server.runtime import HISTORY_DAYS, Runtime
@@ -103,17 +103,22 @@ class Hub:
                 await ws.send_json(frame)
 
     async def handle(self, display_id: str, message: dict[str, Any]) -> None:
-        """Apply a message from a display: a soft key, an acknowledgement or a page.
+        """Apply a message from a display: a key, an acknowledgement or a page.
 
         A locked display ignores everything except its LOCK key.
         """
         now = self.clock()
         kind, key = message.get("type"), message.get("key")
-        if self.runtime.locked.get(display_id) and not (kind == "key" and key == "lock"):
+        if kind == "key":
+            action = self.runtime.press(display_id, key, now) if isinstance(key, str) else None
+            if action is Action.ACK:
+                await self.push()  # acknowledgement is house-wide
+            elif action is not None:
+                await self.push([display_id])
             return
-        if kind == "key" and isinstance(key, str) and self.runtime.press(display_id, key):
-            await self.push([display_id])
-        elif kind == "ack":
+        if self.runtime.locked.get(display_id):
+            return
+        if kind == "ack":
             if message.get("target") == "banner":
                 alert = most_urgent(self.runtime.board, self.runtime.config.alerts.alerts)
                 changed = alert is not None and self.runtime.acknowledge(
@@ -209,8 +214,8 @@ def create_app(
     async def key(request: web.Request) -> web.Response:
         display_id = display_of(request)
         name = request.match_info["key"]
-        if name not in KEYS:
-            raise web.HTTPNotFound(text=f"no key {name!r}; expected: {', '.join(KEYS)}")
+        if name not in KEY_SLOTS:
+            raise web.HTTPNotFound(text=f"no key {name!r}; expected: {', '.join(KEY_SLOTS)}")
         await hub.handle(display_id, {"type": "key", "key": name})
         return web.Response(status=204)
 

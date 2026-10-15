@@ -22,6 +22,7 @@ from mfdhome.mfd.alerts import (
 )
 from mfdhome.mfd.display import Display
 from mfdhome.mfd.history import AlertEvent, EventKind, board_events, prune
+from mfdhome.mfd.keys import Action, KeyActions, key_actions, slot_index
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import SEVERITY_STATUS, AlertView
 from mfdhome.render.controls import Controls
@@ -122,28 +123,43 @@ class Runtime:
         self.selected[display_id] = page_id
         return True
 
-    def press(self, display_id: str, key: str) -> bool:
-        """A soft key: ``prev``/``next`` step through pages, ``alerts`` jumps to the
-        alerts page, ``lock`` toggles the lock. Returns whether anything changed.
+    def actions(self, display_id: str) -> KeyActions:
+        """What each key does on the display's current page."""
+        display = self.config.displays[display_id]
+        return key_actions(display, self.selected[display_id])
 
-        While locked, only ``lock`` does anything.
+    def press(self, display_id: str, key: str, now: datetime) -> Action | None:
+        """Press key ``key`` (position ``"1"`` to ``"4"``) on a display.
+
+        PREV/NEXT step through pages, ALERTS jumps to the alerts page, ACK
+        acknowledges the alert the banner names, LOCK toggles the lock; while
+        locked, only LOCK does anything. Returns the action if it changed
+        something.
         """
         display = self.config.displays.get(display_id)
-        if display is None or (self.locked[display_id] and key != "lock"):
-            return False
+        slot = slot_index(key)
+        if display is None or slot is None:
+            return None
+        action = self.actions(display_id)[slot]
+        if self.locked[display_id] and action is not Action.LOCK:
+            return None
         current = self.selected[display_id]
-        match key:
-            case "lock":
+        match action:
+            case Action.LOCK:
                 self.locked[display_id] = not self.locked[display_id]
-                return True
-            case "prev" | "next":
-                target = display.step(current, -1 if key == "prev" else 1)
-            case "alerts":
+                return action
+            case Action.ACK:
+                urgent = most_urgent(self.board, self.config.alerts.alerts)
+                acked = urgent is not None and self.acknowledge(display_id, now, ids=[urgent.id])
+                return action if acked else None
+            case Action.PREV | Action.NEXT:
+                target = display.step(current, -1 if action is Action.PREV else 1)
+            case Action.ALERTS:
                 target = display.alerts_page
             case _:
-                return False
+                return None
         self.selected[display_id] = target
-        return target != current
+        return action if target != current else None
 
     def render(self, display_id: str, as_of: str | None = None) -> str:
         """The SVG a display should show now, with an optional "as of" stamp."""
@@ -157,7 +173,7 @@ class Runtime:
         if display.controls:
             urgent = most_urgent(self.board, self.config.alerts.alerts)
             alert_status = None if urgent is None else SEVERITY_STATUS[urgent.severity]
-            controls = Controls(alert_status, self.locked[display_id])
+            controls = Controls(alert_status, self.locked[display_id], self.actions(display_id))
         theme = THEMES[display.theme]
         return render_page(page, self.state, theme, target, view, controls, as_of)
 
