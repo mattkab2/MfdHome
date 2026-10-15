@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import UTC, tzinfo
 
 from mfdhome.conditions.values import read
 from mfdhome.mfd.alerts import INACTIVE, Board, Phase, attention_order
+from mfdhome.mfd.history import AlertEvent
 from mfdhome.model.alert import AlertDef, Severity, System
 from mfdhome.model.binding import EntityRef, Status
 from mfdhome.model.state import StateSnapshot
@@ -46,12 +48,19 @@ class Banner:
 
 @dataclass(frozen=True)
 class AlertView:
-    """Alert definitions, systems and the shared board, as one render input."""
+    """Alert definitions, systems, the shared board and its history, as one render input.
+
+    ``log_page`` is which page of the alert log to show (0: newest). ``tz`` is
+    the zone log times are shown in (``None``: the machine's local time).
+    """
 
     alerts: tuple[AlertDef, ...] = ()
     systems: Mapping[str, System] = field(default_factory=dict)
     board: Board = field(default_factory=dict)
     show_banner: bool = False
+    history: Sequence[AlertEvent] = ()
+    log_page: int = 0
+    tz: tzinfo | None = UTC
 
     def phase(self, alert_id: str) -> Phase:
         """Current phase of an alert."""

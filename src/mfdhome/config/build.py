@@ -22,6 +22,7 @@ from mfdhome.config.schema import (
     ExprModel,
     GroupModel,
     LineModel,
+    LogModel,
     NameModel,
     NodeModel,
     PageModel,
@@ -53,6 +54,7 @@ from mfdhome.model.page import (
     LineElement,
     LineLook,
     LineStyle,
+    LogElement,
     Name,
     NodeElement,
     Orientation,
@@ -378,7 +380,8 @@ class _ElementBuilder:
     def symbol(self, model: SymbolModel, loc: Loc) -> SymbolElement | None:
         spec = REGISTRY.get(model.type)
         if spec is None:
-            known = ", ".join(["line", "text", "tile", "tile_grid", *sorted(REGISTRY)])
+            builtin = ["line", "text", "tile", "tile_grid", "node", "group", "alert_log"]
+            known = ", ".join([*builtin, *sorted(REGISTRY)])
             self.issues.add((*loc, "type"), f"unknown type {model.type!r}; expected: {known}")
             return None
         bound = self.bind(model, spec.channels, spec.required, loc)
@@ -539,6 +542,16 @@ class _ElementBuilder:
             case "group":
                 g = validate(GroupModel, raw, loc, self.issues)
                 built = None if g is None else self.group(g, loc)
+            case "alert_log":
+                log = validate(LogModel, raw, loc, self.issues)
+                if log is not None:
+                    for i, system in enumerate(log.systems):
+                        self.system(system, (*loc, "systems", i))
+                built = (
+                    None
+                    if log is None
+                    else LogElement(log.id, log.at, log.size, tuple(log.systems))
+                )
             case "tile_grid":
                 grid = validate(TileGridModel, raw, loc, self.issues)
                 return [] if grid is None else self.tile_grid(grid, loc)

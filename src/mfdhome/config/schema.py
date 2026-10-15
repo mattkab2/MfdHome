@@ -290,6 +290,16 @@ class TileModel(Strict):
     label: str | None = None
 
 
+class LogModel(Strict):
+    """The alert log: a box (top-left ``at``, ``size``), optionally limited to some systems."""
+
+    id: Ident
+    type: Literal["alert_log"]
+    at: Coord
+    size: tuple[Annotated[float, Field(gt=0)], Annotated[float, Field(gt=0)]]
+    systems: list[Ident] = []
+
+
 class TileGridModel(Strict):
     """A grid of tiles; ``at`` is the grid's top-left corner. Expanded at load time."""
 

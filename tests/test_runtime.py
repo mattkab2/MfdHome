@@ -31,7 +31,7 @@ class TestDisplays:
     def test_load(self) -> None:
         displays = load_config(CONFIG).displays
         assert displays["workshop"] == Display(
-            "workshop", "lcd", 1280, 800, "status", ("status", "electrical"), True, "status"
+            "workshop", "lcd", 1280, 800, "status", ("status", "electrical", "log"), True, "status"
         )
         hallway = displays["hallway"]
         assert hallway.pages == ("electrical",) and not hallway.controls  # fixed, no keys
@@ -174,9 +174,9 @@ class TestSoftKeys:
         def press(key: str) -> Action | None:
             return rt.press("workshop", key, T0)
 
+        assert press("1") is Action.PREV and rt.selected["workshop"] == "log"  # wraps back
+        assert press("4") is Action.NEXT and rt.selected["workshop"] == "status"  # and forward
         assert press("4") is Action.NEXT and rt.selected["workshop"] == "electrical"
-        assert press("4") is Action.NEXT and rt.selected["workshop"] == "status"  # wraps
-        assert press("1") is Action.PREV and rt.selected["workshop"] == "electrical"
         assert press("2") is Action.ALERTS and rt.selected["workshop"] == "status"
         assert press("2") is None  # ACK on the alerts page, with nothing to acknowledge
         assert press("3") is Action.LOCK and rt.locked["workshop"]

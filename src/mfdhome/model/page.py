@@ -5,6 +5,7 @@ There are six element kinds:
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
 - ``LineElement``: a power/flow line along a polyline;
 - ``TextElement``: a static label;
+- ``LogElement``: the alert log (history), paged by the display's keys;
 - ``TileElement``: an annunciator tile showing one system's alerts;
 - ``NodeElement``: a connection point lines can attach to;
 - ``GroupElement``: a container laying out items that connect only through it.
@@ -186,6 +187,20 @@ class NodeElement:
     junction: bool = False
 
 
+@dataclass(frozen=True)
+class LogElement:
+    """The alert log: history events newest first, in a box at ``at`` (top-left) of ``size``.
+
+    ``systems`` limits it to those systems' alerts (empty: every system, plus
+    Home Assistant connection events).
+    """
+
+    id: str
+    at: Point
+    size: tuple[float, float]
+    systems: tuple[str, ...] = ()
+
+
 class Frame(StrEnum):
     """How a group's boundary is drawn. Never dashed or dotted: patterns carry status."""
 
@@ -246,7 +261,15 @@ class GroupElement:
     readouts: tuple[Readout, ...] = ()
 
 
-type Element = SymbolElement | LineElement | TextElement | TileElement | NodeElement | GroupElement
+type Element = (
+    SymbolElement
+    | LineElement
+    | TextElement
+    | TileElement
+    | NodeElement
+    | GroupElement
+    | LogElement
+)
 
 
 @dataclass(frozen=True)

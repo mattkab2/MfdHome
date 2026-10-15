@@ -23,6 +23,7 @@ from mfdhome.model.page import (
     Frame,
     GroupElement,
     LineElement,
+    LogElement,
     Name,
     NodeElement,
     Page,
@@ -36,6 +37,7 @@ from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
 from mfdhome.render.controls import Controls, banner_box, soft_keys
 from mfdhome.render.format import format_value
 from mfdhome.render.lines import resolve_look
+from mfdhome.render.log import alert_log
 from mfdhome.render.resolve import Resolver
 from mfdhome.symbols import svg
 from mfdhome.symbols.geometry import element_box
@@ -286,6 +288,8 @@ def _render_layers(element: Element, c: _Ctx) -> tuple[str, str]:
             body = _render_tile(element, c)
         case NodeElement():
             body = _render_node(element, theme)
+        case LogElement():
+            body = alert_log(element, c.alerts, theme)
     return underlay, svg.element("g", {"id": element.id}, [body])
 
 

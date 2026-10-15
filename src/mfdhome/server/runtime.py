@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
 
 from mfdhome.config.load import Config
 from mfdhome.mfd.alerts import (
@@ -23,9 +23,11 @@ from mfdhome.mfd.alerts import (
 from mfdhome.mfd.display import Display
 from mfdhome.mfd.history import AlertEvent, EventKind, board_events, prune
 from mfdhome.mfd.keys import Action, KeyActions, key_actions, slot_index
+from mfdhome.model.page import LogElement
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import SEVERITY_STATUS, AlertView
 from mfdhome.render.controls import Controls
+from mfdhome.render.log import log_rows, page_count
 from mfdhome.render.page import render_page
 from mfdhome.server.history import HistoryStore
 from mfdhome.server.store import BoardStore
@@ -43,7 +45,8 @@ class Runtime:
     """Holds the current state, the shared alert board, its history and each display's page.
 
     ``history`` is every event in the last ``keep`` (oldest first), loaded from
-    ``history_store`` and appended to it as the board changes.
+    ``history_store`` and appended to it as the board changes. Log times are
+    shown in ``tz`` (``None``: the machine's local time).
     """
 
     def __init__(
@@ -52,11 +55,13 @@ class Runtime:
         store: BoardStore | None = None,
         history_store: HistoryStore | None = None,
         keep: timedelta = timedelta(days=HISTORY_DAYS),
+        tz: tzinfo | None = None,
     ) -> None:
         self.config = config
         self.store = store
         self.history_store = history_store
         self.keep = keep
+        self.tz = tz
         self.board: Board = store.load() if store else {}
         self.history: list[AlertEvent] = history_store.load() if history_store else []
         self._pruned_on: date | None = None
@@ -66,6 +71,7 @@ class Runtime:
         self.state: StateSnapshot = {}
         self.selected = {d.id: d.home for d in config.displays.values()}
         self.locked = dict.fromkeys(config.displays, False)
+        self.log_page = dict.fromkeys(config.displays, 0)  # 0: newest; reset on page change
 
     @property
     def displays(self) -> dict[str, Display]:
@@ -120,21 +126,44 @@ class Runtime:
         display = self.config.displays.get(display_id)
         if display is None or not display.can_show(page_id):
             return False
-        self.selected[display_id] = page_id
+        self._show(display_id, page_id)
         return True
+
+    def _show(self, display_id: str, page_id: str) -> None:
+        if page_id != self.selected[display_id]:
+            self.log_page[display_id] = 0  # a log always opens on its newest entries
+        self.selected[display_id] = page_id
+
+    def _log(self, display_id: str) -> LogElement | None:
+        """The alert log on the display's current page, if it has one."""
+        page = self.config.pages[self.selected[display_id]]
+        return next((e for e in page.elements if isinstance(e, LogElement)), None)
 
     def actions(self, display_id: str) -> KeyActions:
         """What each key does on the display's current page."""
         display = self.config.displays[display_id]
-        return key_actions(display, self.selected[display_id])
+        paged = self._log(display_id) is not None
+        return key_actions(display, self.selected[display_id], paged)
+
+    def _turn_log(self, display_id: str, delta: int) -> bool:
+        """Move the log ``delta`` pages older (positive) or newer, within its pages."""
+        log = self._log(display_id)
+        if log is None:
+            return False
+        alerts = self.config.alerts.by_id()
+        pages = page_count(log, len(log_rows(self.history, alerts, log.systems)))
+        current = self.log_page[display_id]
+        target = min(max(current + delta, 0), pages - 1)
+        self.log_page[display_id] = target
+        return target != current
 
     def press(self, display_id: str, key: str, now: datetime) -> Action | None:
         """Press key ``key`` (position ``"1"`` to ``"4"``) on a display.
 
         PREV/NEXT step through pages, ALERTS jumps to the alerts page, ACK
-        acknowledges the alert the banner names, LOCK toggles the lock; while
-        locked, only LOCK does anything. Returns the action if it changed
-        something.
+        acknowledges the alert the banner names, PG UP/PG DN page the alert
+        log, LOCK toggles the lock; while locked, only LOCK does anything.
+        Returns the action if it changed something.
         """
         display = self.config.displays.get(display_id)
         slot = slot_index(key)
@@ -156,9 +185,12 @@ class Runtime:
                 target = display.step(current, -1 if action is Action.PREV else 1)
             case Action.ALERTS:
                 target = display.alerts_page
+            case Action.PAGE_UP | Action.PAGE_DOWN:
+                turned = self._turn_log(display_id, 1 if action is Action.PAGE_UP else -1)
+                return action if turned else None
             case _:
                 return None
-        self.selected[display_id] = target
+        self._show(display_id, target)
         return action if target != current else None
 
     def render(self, display_id: str, as_of: str | None = None) -> str:
@@ -166,7 +198,13 @@ class Runtime:
         display = self.config.displays[display_id]
         page = self.config.pages[self.selected[display_id]]
         view = AlertView(
-            self.config.alerts.alerts, self.config.alerts.systems, self.board, show_banner=True
+            self.config.alerts.alerts,
+            self.config.alerts.systems,
+            self.board,
+            show_banner=True,
+            history=self.history,
+            log_page=self.log_page[display_id],
+            tz=self.tz,
         )
         target = Target(display.id, display.width, display.height)
         controls = None

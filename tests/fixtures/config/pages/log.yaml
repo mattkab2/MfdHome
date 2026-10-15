@@ -1,0 +1,13 @@
+# Alert log: every raise, clear and acknowledgement, newest first. On a
+# display, the middle keys become PG UP / PG DN here. List it last in a
+# display's pages so it sits just before the alerts (home) page.
+page: log
+title: Alert log
+canvas: {width: 1000, height: 600}
+
+elements:
+  - {id: title, type: text, at: [80, 30], text: LOG}
+  - id: log
+    type: alert_log
+    at: [40, 56]
+    size: [920, 480]
