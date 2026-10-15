@@ -99,4 +99,4 @@ def test_endpoint_errors(tmp_path: Path) -> None:
     assert "elements[5].from: node 'bus' has no ports; connect to 'bus'" in msgs
     assert "elements[5].to: 't' cannot be connected to" in msgs
     assert "elements[6].points: Extra inputs are not permitted" in msgs  # use from/via/to
-    assert any("a line needs both 'from' and 'to'" in m for m in msgs)
+    assert "elements[7].to: Field required" in msgs

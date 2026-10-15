@@ -216,8 +216,8 @@ class LineModel(_Bound):
     """
 
     type: Literal["line"]
-    from_: Endpoint | None = Field(default=None, alias="from")
-    to: Endpoint | None = None
+    from_: Endpoint = Field(alias="from")
+    to: Endpoint
     via: list[Coord] = []
     route: Literal["auto", "straight"] = "auto"
     elbow: Literal["horizontal-first", "vertical-first"] | None = None
@@ -228,9 +228,7 @@ class LineModel(_Bound):
     casing: bool = True
 
     @model_validator(mode="after")
-    def _one_geometry(self) -> Self:
-        if self.from_ is None or self.to is None:
-            raise ValueError("a line needs both 'from' and 'to'")
+    def _elbow_needs_auto_route(self) -> Self:
         if self.elbow is not None and (self.via or self.route == "straight"):
             raise ValueError("'elbow' only applies to auto-routed 'from'/'to' lines (no 'via')")
         return self

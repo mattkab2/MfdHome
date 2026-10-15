@@ -394,7 +394,6 @@ class _ElementBuilder:
         if model.flow is not None:
             self.bound_channel(model.flow.from_, bound, (*loc, "flow", "from"))
             flow = FlowSpec(model.flow.from_, model.flow.threshold)
-        assert model.from_ is not None and model.to is not None
         self.pending.append(
             _PendingLine(
                 model.id,
