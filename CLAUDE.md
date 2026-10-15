@@ -209,7 +209,9 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - **Connections route with at most one elbow**, following port directions,
   unless `via` gives bends explicitly. **A flowing cased line has a solid
   core**, using the same threshold as its flow arrow; a blank (hollow) core
-  means no flow.
+  means no flow. **The flow arrow is a harpoon beside the line**, set off
+  from its edge (never over the core), level with the first readout on the
+  opposite side, never wrapping a bend.
 - **Lines attach to elements** by `element.port` (edge/corner ports named like
   anchors, plus type-specific ports such as a breaker's `in`/`out`) or to
   `node` elements; nodes with 3+ attached lines get a junction dot. Endpoints
@@ -291,7 +293,7 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - Adaptive group layouts (e.g. "flow" to wrap at a width, "fit" to fill a
   box), so large alert sets and arrays don't need manual layout. In addition
   to, not replacing, manual positioning and the fixed grid.
-- Flow animation, if wanted: animate chevrons only, never "marching dashes"
+- Flow animation, if wanted: animate the arrows only, never "marching dashes"
   (dashes mean caution).
 - Hardware buttons for the mirror (e-ink buttons use the key route).
 - An alert timeline page (rows per system across a time window) as a

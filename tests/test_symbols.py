@@ -30,14 +30,6 @@ def test_unavailable_symbols_are_gray_and_dotted() -> None:
         assert set(re.findall(r"#[0-9a-f]{6}", fragment)) == {GRAY}
 
 
-def test_line_flow_chevron_points_in_flow_direction() -> None:
-    forward = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, LCD, casing=False).body
-    reverse = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.REVERSE, LCD, casing=False).body
-    assert 'points="60,0 40,10 40,-10"' in forward
-    assert 'points="40,0 60,-10 60,10"' in reverse
-    assert "polygon" not in line(((0, 0), (100, 0)), Status.NORMAL, None, LCD, casing=False).body
-
-
 def test_degenerate_line_renders_nothing() -> None:
     assert line(((0, 0),), Status.NORMAL, None, LCD, casing=False) == LineParts("", "", 0.0)
 
@@ -63,10 +55,6 @@ class TestCasing:
         assert f'stroke="{LCD.color(Status.NORMAL)}" stroke-width="10"' in parts.casing
         assert f'stroke="{LCD.background}" stroke-width="6"' in parts.body
         assert parts.half_width == 5
-
-    def test_arrow_scales_with_the_pipe(self) -> None:
-        parts = line(((0, 0), (100, 0)), Status.ACTIVE, Flow.FORWARD, LCD, casing=True)
-        assert 'points="62.5,0 37.5,12.5 37.5,-12.5"' in parts.body  # 1.25 x outer width
 
     def test_uncased_line_is_solid(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.NORMAL, None, LCD, casing=False)

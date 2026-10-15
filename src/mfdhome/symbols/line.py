@@ -1,4 +1,4 @@
-"""Line symbol: a polyline, cased (hollow pipe) or plain, with an optional flow chevron.
+"""Line symbol: a polyline, cased (hollow pipe) or plain, with an optional flow arrow.
 
 Line severity is carried by pattern as well as color, so it survives palettes
 without color: solid = normal/active (solid core while flowing), dashed core =
@@ -20,9 +20,15 @@ from mfdhome.symbols import svg
 from mfdhome.symbols.style import dotted
 from mfdhome.themes.theme import Theme
 
-ARROW_SIZE = 10.0
-#: Arrow half-length relative to a cased line's outer width.
-ARROW_CASING_RATIO = 1.25
+#: The flow arrow's proportions, as multiples of the line's drawn width (at
+#: least ``ARROW_MIN_WIDTH``): gap from the line's edge, overall length, head
+#: length, head depth and shaft thickness.
+ARROW_MIN_WIDTH = 8.0
+ARROW_GAP = 0.4
+ARROW_LENGTH = 3.0
+ARROW_HEAD = 1.4
+ARROW_DEPTH = 0.8
+ARROW_SHAFT = 0.2
 #: Inner (hollow) width never drops below this, so a cased line stays visibly hollow.
 MIN_HOLLOW = 1.0
 #: Caution dashes, as multiples of the drawn width: dash, gap.
@@ -58,16 +64,88 @@ def _polyline(pts: Sequence[Point], attrs: dict[str, svg.AttrValue]) -> str:
     )
 
 
-def _arrow(pts: Sequence[Point], flow: Flow, size: float, color: str) -> str:
-    """A chevron at the middle of the longest segment, so it never sits on a bend."""
-    a, b = max(pairwise(pts), key=lambda seg: math.dist(*seg))
-    (mx, my), (dx, dy) = point_along((a, b), 0.5)
+def _arrow_spot(
+    pts: Sequence[Point], at: float | None, length: float, margin: float
+) -> tuple[Point, Point]:
+    """Where the flow arrow goes: its center and the segment's direction (in point order).
+
+    At fraction ``at`` of the line's length if given, slid along that segment
+    so the arrow (``length`` long, kept ``margin`` from either end) never
+    wraps a bend; otherwise, or if that segment is too short, the middle of
+    the longest segment.
+    """
+    segments = [(a, b) for a, b in pairwise(pts) if math.dist(a, b) > 0]
+    if at is not None:
+        (px, py), _ = point_along(pts, at)
+        for (ax, ay), (bx, by) in segments:
+            seg = math.dist((ax, ay), (bx, by))
+            dx, dy = (bx - ax) / seg, (by - ay) / seg
+            u = (px - ax) * dx + (py - ay) * dy
+            on_segment = abs((px - ax) * dy - (py - ay) * dx) < 1e-6 and -1e-6 <= u <= seg + 1e-6
+            room = length / 2 + margin
+            if on_segment and seg >= 2 * room:
+                u = min(max(u, room), seg - room)
+                return (ax + dx * u, ay + dy * u), (dx, dy)
+    a, b = max(segments, key=lambda s: math.dist(*s), default=(pts[0], pts[-1]))
+    return point_along((a, b), 0.5)
+
+
+def _arrow(
+    pts: Sequence[Point],
+    flow: Flow,
+    half: float,
+    color: str,
+    at: float | None,
+    avoid: Point | None,
+) -> str:
+    """A harpoon beside the line: a shaft parallel to it, set off from its edge,
+    with a half-arrowhead at the downstream end flaring away from the line.
+
+    It sits on the side away from ``avoid`` (the direction of the line's
+    labels; by default above horizontal lines and right of vertical ones),
+    so it never covers the line's core or its labels.
+    """
+    width = max(2 * half, ARROW_MIN_WIDTH)
+    length = width * ARROW_LENGTH
+    (cx, cy), (dx, dy) = _arrow_spot(pts, at, length, half + width * ARROW_GAP)
+    nx, ny = -dy, dx
+    default = (0.0, -1.0) if abs(dx) >= abs(dy) else (1.0, 0.0)
+    ax, ay = avoid if avoid is not None and abs(nx * avoid[0] + ny * avoid[1]) > 1e-9 else default
+    if nx * ax + ny * ay > 0:
+        nx, ny = -nx, -ny
     if flow is Flow.REVERSE:
         dx, dy = -dx, -dy
-    tip = (mx + dx * size, my + dy * size)
-    left = (mx - dx * size - dy * size, my - dy * size + dx * size)
-    right = (mx - dx * size + dy * size, my - dy * size - dx * size)
-    return svg.element("polygon", {"points": svg.points((tip, left, right)), "fill": color})
+
+    def at_(u: float, v: float) -> Point:
+        return (cx + dx * u + nx * v, cy + dy * u + ny * v)
+
+    inner = half + width * ARROW_GAP
+    head, depth = width * ARROW_HEAD, width * ARROW_DEPTH
+    shaft = max(1.0, width * ARROW_SHAFT)
+    tail, tip = at_(-length / 2, inner + shaft / 2), at_(length / 2 - head, inner + shaft / 2)
+    return svg.element(
+        "line",
+        {
+            "x1": tail[0],
+            "y1": tail[1],
+            "x2": tip[0],
+            "y2": tip[1],
+            "stroke": color,
+            "stroke-width": shaft,
+        },
+    ) + svg.element(
+        "polygon",
+        {
+            "points": svg.points(
+                (
+                    at_(length / 2, inner),
+                    at_(length / 2 - head, inner),
+                    at_(length / 2 - head, inner + depth),
+                )
+            ),
+            "fill": color,
+        },
+    )
 
 
 def _pattern(status: Status, theme: Theme, width: float) -> dict[str, svg.AttrValue]:
@@ -138,6 +216,8 @@ def line(
     theme: Theme,
     casing: bool,
     line_id: str = "line",
+    arrow_at: float | None = None,
+    arrow_avoid: Point | None = None,
 ) -> LineParts:
     """Render a power line.
 
@@ -148,9 +228,11 @@ def line(
     caution dashes the core (shown even without flow; an uncased line's stroke
     is dashed instead);
     warning hatches the pipe's interior, forcing casing on so stripes have
-    room; unavailable is dotted. ``flow`` draws a chevron at the midpoint
-    pointing along (FORWARD) or against (REVERSE) the point order. ``line_id``
-    keeps hatch pattern ids unique on the page.
+    room; unavailable is dotted. ``flow`` draws a harpoon beside the line
+    pointing along (FORWARD) or against (REVERSE) the point order, at
+    fraction ``arrow_at`` of its length (default: the middle of the longest
+    segment) on the side away from ``arrow_avoid`` (see ``_arrow``).
+    ``line_id`` keeps hatch pattern ids unique on the page.
     """
     if len(pts) < 2:
         return LineParts("", "", 0.0)
@@ -184,15 +266,13 @@ def line(
             elif core > 0 and flow is not None:
                 # Solid core: power is flowing. A blank pipe means no flow.
                 parts.append(_polyline(pts, {"stroke": color, "stroke-width": core}))
-        size = max(ARROW_SIZE, outer * ARROW_CASING_RATIO)
         half = outer / 2
     else:
         width = theme.line_width
         shell = ""
         attrs = {"stroke": color, "stroke-width": width, **_pattern(status, theme, width)}
         parts = [_polyline(pts, attrs)]
-        size = ARROW_SIZE
         half = width / 2
     if flow is not None:
-        parts.append(_arrow(pts, flow, size, color))
+        parts.append(_arrow(pts, flow, half, color, arrow_at, arrow_avoid))
     return LineParts(shell, "".join(parts), half)

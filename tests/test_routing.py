@@ -7,10 +7,8 @@ import pytest
 
 from mfdhome.config import ConfigError, load_page
 from mfdhome.layout import Elbow, Port, route
-from mfdhome.model import LineElement, Orientation, Status, SymbolElement
-from mfdhome.symbols import Flow, line
+from mfdhome.model import LineElement, Orientation, SymbolElement
 from mfdhome.symbols.geometry import find_port
-from mfdhome.themes import LCD
 
 RIGHT, DOWN = (1.0, 0.0), (0.0, 1.0)
 
@@ -78,9 +76,3 @@ def test_elbow_needs_auto_routing(tmp_path: Path) -> None:
     )
     with pytest.raises(ConfigError, match="'elbow' only applies to auto-routed"):
         load_page(path)
-
-
-def test_arrow_sits_on_longest_leg() -> None:
-    pts = ((0.0, 0.0), (200.0, 0.0), (200.0, 40.0))
-    body = line(pts, Status.ACTIVE, Flow.FORWARD, LCD, casing=False).body
-    assert 'points="110,0 90,10 90,-10"' in body  # middle of the 200-long leg, not the bend

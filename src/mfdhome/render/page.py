@@ -16,7 +16,7 @@ from mfdhome.layout.anchors import (
     default_line_anchor,
     place_stack,
 )
-from mfdhome.layout.path import point_along
+from mfdhome.layout.path import Point, point_along
 from mfdhome.model.binding import Status
 from mfdhome.model.page import (
     Element,
@@ -180,7 +180,18 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
     flow = _flow(element, values)
     if flow is not None and status is Status.NORMAL:
         status = Status.ACTIVE
-    parts = line(element.points, status, flow, theme, element.casing, element.id)
+    # The flow arrow sits level with the first readout, on the other side of the line.
+    readout = element.readouts[0] if element.readouts else None
+    parts = line(
+        element.points,
+        status,
+        flow,
+        theme,
+        element.casing,
+        element.id,
+        arrow_at=readout.along if readout else None,
+        arrow_avoid=_toward(readout.anchor) if readout and readout.anchor else None,
+    )
 
     def default_anchor(along: float) -> Anchor:
         return default_line_anchor(point_along(element.points, along)[1])
@@ -193,6 +204,13 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
     )
     gap = max(LINE_GAP, parts.half_width + LABEL_CLEARANCE)
     return parts.casing, parts.body + "".join(_draw_labels(labels, box_at, gap, theme))
+
+
+def _toward(anchor: Anchor) -> Point:
+    """The direction from a line to text at ``anchor`` (e.g. up for ``top``)."""
+    x = {"left": -1.0, "center": 0.0, "right": 1.0}[anchor.column]
+    y = {"top": -1.0, "center": 0.0, "bottom": 1.0}[anchor.row]
+    return (x, y)
 
 
 #: Minimum space between a line's edge and its labels.

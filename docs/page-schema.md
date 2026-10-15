@@ -169,12 +169,20 @@ elbow:
   head-on. If neither end has a direction, it goes horizontal first.
 
 `elbow` forces which leg comes first, and `route: straight` draws a diagonal
-instead. The flow arrow sits at the middle of the longest leg.
+instead.
 
-Lines have one channel, `power` (numeric, primary). With `flow`, a chevron is
+Lines have one channel, `power` (numeric, primary). With `flow`, an arrow is
 drawn when `|power| > threshold`: positive flows from the first point toward the
 last, negative flows backward (e.g. grid export). A flowing line with normal
 status is drawn in the active color (Gruvbox blue).
+
+The arrow is a harpoon (⇀) beside the line: a shaft parallel to it, set off
+from its edge, with a half-arrowhead flaring away from the line at the
+downstream end. It never covers the line's core, so the status patterns
+always show in full. It sits level with the line's first readout, on the
+other side of the line (below horizontal lines and left of vertical ones for
+default readout positions), sliding along the leg if needed so it never wraps
+a bend. A line without readouts gets it at the middle of its longest leg.
 
 #### Ports
 
