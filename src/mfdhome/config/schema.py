@@ -389,7 +389,6 @@ class DisplayModel(Strict):
     size: tuple[Annotated[int, Field(gt=0)], Annotated[int, Field(gt=0)]]
     home: Ident
     pages: list[Ident] = []
-    controls: Literal["soft", "none"] | None = None  # default: soft with more than one page
     alerts_page: Ident | None = None  # default: home
     panel: str | None = None  # e-paper panel profile: served as PNG snapshots
 

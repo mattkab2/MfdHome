@@ -531,7 +531,6 @@ displays:
     size: [1280, 800]          # pixels
     home: status               # shown at startup
     pages: [status, electrical]   # what a viewer can select
-    controls: soft             # soft keys; default: soft when there is more than one page
     alerts_page: status        # where the ALERTS key goes; default: home
   hallway:
     theme: mirror
@@ -552,7 +551,8 @@ the annunciator banner overlays whatever page is showing. `home` (and
 
 ### Soft keys
 
-With `controls: soft`, four keys share the bottom 40-unit strip with the
+Every display with more than one page has four keys; a display with one
+page (like the mirror) has none. The keys share the bottom 40-unit strip with the
 banner, so they cost no page space. Like the bezel keys of an MFD, keys are
 positions (1 to 4, left to right) whose labels change with the page:
 

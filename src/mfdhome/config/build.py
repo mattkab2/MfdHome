@@ -778,9 +778,8 @@ def build_displays(
         pages = (d.home, *(p for p in d.pages if p != d.home))
         if alerts_page not in pages:
             pages = (*pages, alerts_page)
-        controls = d.controls == "soft" if d.controls is not None else len(pages) > 1
         out[display_id] = Display(
-            display_id, d.theme, d.size[0], d.size[1], d.home, pages, controls, alerts_page, d.panel
+            display_id, d.theme, d.size[0], d.size[1], d.home, pages, alerts_page, d.panel
         )
     return out
 

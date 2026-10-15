@@ -12,8 +12,8 @@ class Display:
     It shows one page at a time, chosen by the viewer from ``pages`` (which
     always includes ``home``). A display with a single page, such as a mirror,
     is fixed to it. ``theme`` names a built-in theme; ``width``/``height`` are
-    its pixel size. ``controls`` draws the soft keys (PREV, ALERTS, LOCK, NEXT);
-    ALERTS jumps to ``alerts_page``. A display with a ``panel`` (an e-paper
+    its pixel size. Displays with more than one page have the four keys
+    (``controls``); ALERTS jumps to ``alerts_page``. A display with a ``panel`` (an e-paper
     panel profile name) is served as PNG snapshots quantized to that panel.
     """
 
@@ -23,9 +23,13 @@ class Display:
     height: int
     home: str
     pages: tuple[str, ...]
-    controls: bool = False
     alerts_page: str = ""
     panel: str | None = None
+
+    @property
+    def controls(self) -> bool:
+        """Whether the display has keys: only when there is a page to change to."""
+        return len(self.pages) > 1
 
     def step(self, current: str, delta: int) -> str:
         """The page ``delta`` places from ``current`` in ``pages``, wrapping."""

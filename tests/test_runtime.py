@@ -31,7 +31,7 @@ class TestDisplays:
     def test_load(self) -> None:
         displays = load_config(CONFIG).displays
         assert displays["workshop"] == Display(
-            "workshop", "lcd", 1280, 800, "status", ("status", "electrical", "log"), True, "status"
+            "workshop", "lcd", 1280, 800, "status", ("status", "electrical", "log"), "status"
         )
         hallway = displays["hallway"]
         assert hallway.pages == ("electrical",) and not hallway.controls  # fixed, no keys
@@ -151,13 +151,17 @@ class TestSoftKeys:
         path.write_text(
             "displays:\n"
             "  a: {theme: lcd, size: [10, 10], home: electrical, alerts_page: status}\n"
-            "  b: {theme: lcd, size: [10, 10], home: status, pages: [electrical], controls: none}\n"
-            "  c: {theme: lcd, size: [10, 10], home: status, controls: soft}\n"
+            "  b: {theme: lcd, size: [10, 10], home: status}\n"
         )
         displays = load_displays(path, {"status", "electrical"})
-        a, b, c = displays["a"], displays["b"], displays["c"]
+        a, b = displays["a"], displays["b"]
         assert a.pages == ("electrical", "status") and a.controls  # alerts page is selectable
-        assert not b.controls and c.controls
+        assert not b.controls  # one page: nothing to change to, no keys
+        path.write_text(
+            "displays:\n  a: {theme: lcd, size: [1, 1], home: status, controls: none}\n"
+        )
+        with pytest.raises(ConfigError, match="controls: Extra inputs are not permitted"):
+            load_displays(path, {"status"})
         path.write_text(
             "displays:\n  a: {theme: lcd, size: [1, 1], home: status, alerts_page: x}\n"
         )

@@ -265,8 +265,8 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   `pages`; ALERTS (and ACK) light while a caution/warning is
   unacknowledged; LOCK is a tap toggle with no auto-relock, enforced by the
   server, in memory (displays start unlocked; a locked display can't change
-  pages, so the lock can't get stuck). `controls: soft | none` per display
-  (default soft with more than one page).
+  pages, so the lock can't get stuck). Keys are always shown on displays
+  with more than one page and never on single-page ones (the mirror).
 - **Alert history** records only changes (raise, clear, acknowledge, and
   Home Assistant connection lost/restored) to `var/history.jsonl`, kept 14
   days by default. **Alerts are frozen while Home Assistant is
