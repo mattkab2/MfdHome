@@ -30,7 +30,6 @@ BATCH_GAP = timedelta(minutes=1)
 ROW_HEIGHT = 24.0
 MARK_SIZE = 12.0
 CHAR_WIDTH = 0.6  # of the font size: DejaVu Sans Mono's advance
-PAD = 8.0
 
 
 @dataclass(frozen=True)
