@@ -40,7 +40,7 @@ from mfdhome.render.resolve import Resolver
 from mfdhome.symbols import svg
 from mfdhome.symbols.format import format_value
 from mfdhome.symbols.geometry import element_box
-from mfdhome.symbols.line import Flow, line
+from mfdhome.symbols.line import Flow, line, tag_plate
 from mfdhome.symbols.registry import (
     SymbolInput,
     get_symbol,
@@ -203,7 +203,14 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
         element.name, element.readouts, values, status, theme, default_anchor, default_anchor
     )
     gap = max(LINE_GAP, parts.half_width + LABEL_CLEARANCE)
-    return parts.casing, parts.body + "".join(_draw_labels(labels, box_at, gap, theme))
+    tag = (
+        tag_plate(
+            point_along(element.points, element.tag.along)[0], element.tag.text, status, theme
+        )
+        if element.tag is not None and len(element.points) >= 2
+        else ""
+    )
+    return parts.casing, parts.body + tag + "".join(_draw_labels(labels, box_at, gap, theme))
 
 
 def _toward(anchor: Anchor) -> Point:

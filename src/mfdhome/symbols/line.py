@@ -17,7 +17,7 @@ from itertools import pairwise
 from mfdhome.layout.path import Point, point_along
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import dotted
+from mfdhome.symbols.style import dotted, font, stroke
 from mfdhome.themes.theme import Theme
 
 #: The flow arrow's proportions, as multiples of the line's drawn width (at
@@ -146,6 +146,43 @@ def _arrow(
             "fill": color,
         },
     )
+
+
+#: Service tag plate: text size relative to the theme's font, padding, height.
+TAG_SCALE = 0.75
+TAG_PAD = 4.0
+TAG_HEIGHT = 16.0
+
+
+def tag_plate(at: Point, text: str, status: Status, theme: Theme) -> str:
+    """A small plate centered on the line at ``at`` naming what it carries (``HW``)."""
+    size = theme.font_size * TAG_SCALE
+    width = len(text) * size * 0.6 + 2 * TAG_PAD
+    x, y = at
+    plate = svg.element(
+        "rect",
+        {
+            "x": x - width / 2,
+            "y": y - TAG_HEIGHT / 2,
+            "width": width,
+            "height": TAG_HEIGHT,
+            "rx": 2,
+            "fill": theme.background,
+            **stroke(status, theme, theme.symbol_stroke_width),
+        },
+    )
+    label = svg.element(
+        "text",
+        {
+            "x": x,
+            "y": y,
+            "text-anchor": "middle",
+            "dominant-baseline": "middle",
+            **font(theme, size, theme.text_in(status)),
+        },
+        [svg.text(text)],
+    )
+    return plate + label
 
 
 def _pattern(status: Status, theme: Theme, width: float) -> dict[str, svg.AttrValue]:

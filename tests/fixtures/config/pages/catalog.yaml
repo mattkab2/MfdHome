@@ -41,7 +41,7 @@ elements:
   - {id: to_load, type: line, from: ev_circuit.out, to: [680, 150]}
 
   # --- water: meter -> main valve -> branch -> irrigation / heater / taps --
-  - {id: service, type: line, from: [40, 380], to: water_meter.in}
+  - {id: service, type: line, from: [40, 380], to: water_meter.in, tag: CW}
 
   - id: water_meter
     type: water_meter
@@ -73,7 +73,7 @@ elements:
   - {id: to_tee, type: line, from: irrigation.out, to: tee}
   - {id: tee, type: node, at: [520, 380]}
   - {id: to_heater, type: line, from: tee, to: heater.cold}
-  - {id: to_sink, type: line, from: tee, to: sink.cold}
+  - {id: to_sink, type: line, from: tee, to: sink.cold, tag: {text: CW, along: 0.6}}
 
   - id: heater
     type: water_heater
@@ -84,8 +84,8 @@ elements:
       heating: binary_sensor.water_heater_burner
     readouts: [{value: temperature, anchor: right}]
 
-  - {id: gas, type: line, from: [470, 486], to: heater.gas}
-  - {id: hot, type: line, from: heater.hot, to: sink.hot}
+  - {id: gas, type: line, from: [470, 486], to: heater.gas, tag: {text: GAS, along: 0.4}}
+  - {id: hot, type: line, from: heater.hot, to: sink.hot, tag: {text: HW, along: 0.7}}
 
   - {id: to_garden, type: line, from: branch, to: garden.in}
 

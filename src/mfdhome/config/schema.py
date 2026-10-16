@@ -202,6 +202,13 @@ class ReadoutModel(Strict):
     offset: Coord = (0.0, 0.0)
 
 
+class TagModel(Strict):
+    """A line's service tag; a bare string is shorthand for ``{text: ...}``."""
+
+    text: Annotated[str, Field(min_length=1, max_length=4)]
+    along: Annotated[float, Field(ge=0.0, le=1.0)] = 0.25
+
+
 class FlowModel(Strict):
     """Flow arrow rule; ``flow: true`` is shorthand for the defaults."""
 
@@ -248,6 +255,9 @@ class LineModel(_Bound):
         BeforeValidator(lambda v: {} if v is True else None if v is False else v),
     ] = None
     casing: bool = True
+    tag: Annotated[
+        TagModel | None, BeforeValidator(lambda v: {"text": v} if isinstance(v, str) else v)
+    ] = None
 
     @model_validator(mode="after")
     def _elbow_needs_auto_route(self) -> Self:

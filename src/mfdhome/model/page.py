@@ -114,12 +114,21 @@ class SymbolElement:
 
 
 @dataclass(frozen=True)
+class LineTag:
+    """A line's service tag (``HW``, ``GAS``, ``SA``), drawn at fraction ``along``."""
+
+    text: str
+    along: float = 0.25
+
+
+@dataclass(frozen=True)
 class LineElement:
     """A line along ``points`` (set by routing when the page loads).
 
     Positive flow runs from the first point toward the last; negative flows
     backward (e.g. grid export). ``casing`` draws the line as a hollow pipe
-    (the default); plain lines are for sensing and minor connections.
+    (the default); plain lines are for sensing and minor connections. ``tag``
+    names what the line carries, the P&ID way, since color can't.
     """
 
     id: str
@@ -130,6 +139,7 @@ class LineElement:
     readouts: tuple[Readout, ...] = ()
     flow: FlowSpec | None = None
     casing: bool = True
+    tag: LineTag | None = None
 
 
 @dataclass(frozen=True)

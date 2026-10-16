@@ -162,6 +162,7 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
   elbow: vertical-first      # optional: horizontal-first | vertical-first
   route: straight            # optional: allow a diagonal instead of an elbow
   casing: false              # optional: a plain line (default: a hollow pipe)
+  tag: HW                    # optional: what it carries, or {text: HW, along: 0.7}
   bind: {rate: sensor.grid_power}
   flow: {threshold: 10}      # or just 'true' (threshold 0: any nonzero rate)
   name: {text: GRID, along: 0, anchor: right}
@@ -176,6 +177,11 @@ Lines are hollow pipes ("cased") by default; cased lines merge cleanly where
 they meet. `casing: false` draws a plain line, for sensing and minor
 connections. Widths come from the theme, so every pipe on a page is the same
 width; color and pattern can't be set, because they carry the line's status.
+
+A `tag` (up to 4 characters: `CW`, `HW`, `GAS`, `SA`, `RA`) names what the
+line carries, the way a P&ID labels its lines, since color can't: it's
+reserved for status. It's drawn as a small plate on the line, a quarter of
+the way along unless `along` says otherwise, in the line's status color.
 
 #### Routing
 

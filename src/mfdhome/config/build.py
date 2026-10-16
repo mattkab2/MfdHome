@@ -61,6 +61,7 @@ from mfdhome.model.page import (
     GridLayout,
     GroupElement,
     LineElement,
+    LineTag,
     LogElement,
     Name,
     NodeElement,
@@ -437,6 +438,7 @@ class _ElementBuilder:
             readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
             flow=flow,
             casing=model.casing,
+            tag=None if model.tag is None else LineTag(model.tag.text, model.tag.along),
         )
 
     def tile_grid(self, model: TileGridModel, loc: Loc) -> list[Element]:
