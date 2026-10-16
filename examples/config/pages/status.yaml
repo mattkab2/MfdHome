@@ -12,4 +12,5 @@ elements:
     at: [144, 160]
     columns: 4
     gap: 24
-    tiles: [GRID, BATT, WATER, LEAK, GAS, HVAC, NET, SEC, FIRE, WX]
+    # Life safety on the top row, then equipment, then information.
+    tiles: [FIRE, GAS, SEC, LEAK, GRID, BATT, WATER, HVAC, NET, WX]
