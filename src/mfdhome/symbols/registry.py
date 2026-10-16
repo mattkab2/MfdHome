@@ -40,6 +40,7 @@ from mfdhome.symbols.sensor import gauge, gauge_box, sensor, sensor_box
 from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
 from mfdhome.symbols.transfer import panel_box as load_panel_box
 from mfdhome.symbols.valve import Body, ValveState, valve, valve_box
+from mfdhome.symbols.vessels import Connections, pump, pump_box, tank, tank_box, tank_ports
 from mfdhome.symbols.water_heater import (
     cold_port,
     gas_port,
@@ -423,6 +424,50 @@ def _fitting_spec(
     )
 
 
+MAX_TANK_TAG = 4
+
+
+def _tank_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    unknown = set(raw) - {"tag", "connections"}
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    tag = raw.get("tag", "")
+    if not isinstance(tag, str) or len(tag) > MAX_TANK_TAG:
+        raise ValueError(f"'tag' must be text of up to {MAX_TANK_TAG} characters")
+    connections = raw.get("connections", Connections.TOP.value)
+    if connections not in {c.value for c in Connections}:
+        raise ValueError(f"'connections' must be one of: {', '.join(c.value for c in Connections)}")
+    return {"tag": tag, "connections": Connections(str(connections))}
+
+
+def _tank_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
+    connections = params.get("connections", Connections.TOP)
+    assert isinstance(connections, Connections)
+
+    def port(name: str) -> PortFn:
+        return lambda at, _orientation: tank_ports(*at, connections)[name]
+
+    return {name: port(name) for name in tank_ports(0.0, 0.0, connections)}
+
+
+def _draw_tank(inp: SymbolInput, theme: Theme) -> str:
+    tag = inp.params["tag"]
+    assert isinstance(tag, str)
+    return tank(*inp.at, tag, inp.status, theme)
+
+
+DEFAULT_RUNNING_STATES = frozenset({"on", "running"})
+
+
+def _draw_pump(inp: SymbolInput, theme: Theme) -> str:
+    running = _in_states(inp, "running", DEFAULT_RUNNING_STATES) is True
+    return pump(*inp.at, running, inp.status, inp.orientation, theme)
+
+
+def _pump_box(at: Point, _orientation: Orientation) -> Box:
+    return pump_box(*at)
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -481,6 +526,39 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "check_valve": _fitting_spec("check_valve", check_box, check_valve),
     "backflow_preventer": _fitting_spec("backflow_preventer", bfp_box, backflow_preventer),
     "prv": _fitting_spec("prv", prv_box, prv, channels=("pressure",)),
+    "gas_meter": SymbolSpec(
+        type="gas_meter",
+        channels=("flow", "total"),
+        required=frozenset(),
+        primary="flow",
+        numeric=frozenset({"flow", "total"}),
+        box=_meter_box,
+        draw=_draw_meter,
+        params=_label_params("CCF"),
+        ports=_METER_PORTS,
+    ),
+    "tank": SymbolSpec(
+        type="tank",
+        channels=("state",),
+        required=frozenset(),
+        primary="state",
+        numeric=frozenset(),
+        box=lambda at, _orientation: tank_box(*at),
+        draw=_draw_tank,
+        params=_tank_params,
+        ports_for=_tank_ports,
+    ),
+    "pump": SymbolSpec(
+        type="pump",
+        channels=("state", "power"),
+        required=frozenset(),
+        primary="state",
+        numeric=frozenset({"power"}),
+        box=_pump_box,
+        draw=_draw_pump,
+        params=_state_list_params("running", DEFAULT_RUNNING_STATES),
+        ports={"in": _terminal(_pump_box, -1.0), "out": _terminal(_pump_box, 1.0)},
+    ),
     "water_heater": SymbolSpec(
         type="water_heater",
         channels=("temperature", "heating"),

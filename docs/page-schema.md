@@ -72,6 +72,9 @@ Any registered symbol type, centered at `at`:
 | `check_valve` | `state` | none | none |
 | `backflow_preventer` | `state` | none | none |
 | `prv` | `pressure` (numeric) | none | none |
+| `gas_meter` | `flow` (numeric), `total` (numeric) | none | `label`, default `CCF` |
+| `tank` | `state` | none | `tag`: up to 4 characters (`SOFT`, `FILT`, `EXP`); `connections`: `top` (default), `sides` or `bottom` |
+| `pump` | `state`, `power` (numeric) | none | `running`: states that mean running, default `[on, running]` |
 | `water_heater` | `temperature` (numeric), `heating` | none | `heating`: states that mean the burner is lit, default `[on, heating]` |
 | `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
 | `sensor` | `state` | none | `code`: up to 3 characters drawn inside (`W`, `S`, `CO`, ...); `active`: states that mean tripped, default `[on]` |
@@ -111,6 +114,13 @@ triangle pointing downstream with a seat bar), a `backflow_preventer` (two
 checks in series in a box) and a `prv`, a pressure reducing valve (a valve
 body with a spring dome above; bind `pressure` to show the downstream
 pressure). All run `in` to `out`, left to right or top to bottom.
+
+A `tank` is a vessel such as a water softener, filter or expansion tank,
+tagged inside. Its `connections` are `in` and `out` on top (`top`, the
+default), `in` on the left and `out` on the right (`sides`, an inline
+filter), or a single `port` underneath (`bottom`, an expansion tank). A
+`pump` (a circle with a triangle pointing downstream, filled while running)
+runs `in` to `out`. A `gas_meter` is the meter circle labelled `CCF`.
 
 A `water_heater` is a gas tank heater: a tall rounded tank with a burner
 flame at its base, drawn solid while `heating` and outlined otherwise. Its
