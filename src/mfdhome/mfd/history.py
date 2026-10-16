@@ -10,12 +10,14 @@ gaps in the history.
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 
 from mfdhome.mfd.alerts import INACTIVE, Board, Phase
+from mfdhome.model.alert import LoggedEntity
+from mfdhome.model.state import StateSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +30,21 @@ class EventKind(StrEnum):
     ACKED = "acked"
     CONNECTION_LOST = "connection_lost"
     CONNECTION_RESTORED = "connection_restored"
+    STATE = "state"  # a logged entity changed state (not an alert)
 
 
 @dataclass(frozen=True)
 class AlertEvent:
-    """One history entry. ``alert_id`` is ``None`` for connection events; ``by`` is the
-    display that acknowledged."""
+    """One history entry. ``alert_id`` is ``None`` for connection and state events;
+    ``by`` is the display that acknowledged; ``entity_id`` and ``state`` describe a
+    logged entity's change."""
 
     at: datetime
     kind: EventKind
     alert_id: str | None = None
     by: str | None = None
+    entity_id: str | None = None
+    state: str | None = None
 
 
 #: (before, after) phase -> event. Every possible board change maps to exactly one.
@@ -77,6 +83,30 @@ def board_events(
             continue
         events.append(AlertEvent(now, kind, alert_id, by if kind is EventKind.ACKED else None))
     return events
+
+
+def state_events(
+    previous: Mapping[str, str],
+    state: StateSnapshot,
+    logged: Iterable[LoggedEntity],
+    now: datetime,
+) -> tuple[list[AlertEvent], dict[str, str]]:
+    """Events for logged entities whose state changed since ``previous``.
+
+    Returns the events and the states to compare against next time. An
+    entity seen for the first time sets the baseline without an event, so a
+    restart logs nothing; a missing entity counts as ``unavailable``.
+    """
+    current = {
+        e.entity_id: state[e.entity_id].state if e.entity_id in state else "unavailable"
+        for e in logged
+    }
+    events = [
+        AlertEvent(now, EventKind.STATE, entity_id=entity_id, state=value)
+        for entity_id, value in current.items()
+        if entity_id in previous and previous[entity_id] != value
+    ]
+    return events, current
 
 
 def prune(events: Iterable[AlertEvent], now: datetime, keep: timedelta) -> list[AlertEvent]:

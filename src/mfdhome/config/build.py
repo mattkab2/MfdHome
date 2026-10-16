@@ -52,7 +52,7 @@ from mfdhome.layout.grid import grid_centers
 from mfdhome.layout.path import Point
 from mfdhome.layout.route import Elbow, Port, route
 from mfdhome.mfd.display import Display
-from mfdhome.model.alert import AlertDef, Severity, System
+from mfdhome.model.alert import AlertDef, LoggedEntity, Severity, System
 from mfdhome.model.binding import ElementRef, EntityRef, Status
 from mfdhome.model.page import (
     Aggregate,
@@ -861,6 +861,7 @@ class Alerts:
 
     systems: Mapping[str, System] = field(default_factory=dict)
     alerts: tuple[AlertDef, ...] = ()
+    logged: tuple[LoggedEntity, ...] = ()
 
     def by_id(self) -> Mapping[str, AlertDef]:
         """Alerts keyed by id."""
@@ -887,4 +888,10 @@ def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
         condition = exprs.expr(a, loc, NO_CHANNELS)
         hold = a.hold or timedelta(0)
         alerts.append(AlertDef(a.id, Severity(a.severity), a.system, a.message, condition, hold))
-    return Alerts(systems, tuple(alerts))
+    logged = []
+    for i, entry in enumerate(model.log):
+        if entry.system not in systems:
+            known = ", ".join(systems) or "none defined"
+            issues.add(("log", i, "system"), f"unknown system {entry.system!r}; expected: {known}")
+        logged.append(LoggedEntity(entry.entity, entry.label, entry.system))
+    return Alerts(systems, tuple(alerts), tuple(logged))

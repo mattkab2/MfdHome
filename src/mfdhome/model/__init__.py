@@ -1,6 +1,6 @@
 """Pure data model: pages, elements, bindings, alerts and state snapshots."""
 
-from mfdhome.model.alert import AlertDef, Severity, System
+from mfdhome.model.alert import AlertDef, LoggedEntity, Severity, System
 from mfdhome.model.binding import Binding, ElementRef, EntityRef, Status
 from mfdhome.model.page import (
     Aggregate,
@@ -43,6 +43,7 @@ __all__ = [
     "LineElement",
     "LineTag",
     "LogElement",
+    "LoggedEntity",
     "Name",
     "NodeElement",
     "Orientation",

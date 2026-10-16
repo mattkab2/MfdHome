@@ -22,6 +22,10 @@ def event_to_json(event: AlertEvent) -> dict[str, Any]:
         data["alert"] = event.alert_id
     if event.by is not None:
         data["by"] = event.by
+    if event.entity_id is not None:
+        data["entity"] = event.entity_id
+    if event.state is not None:
+        data["state"] = event.state
     return data
 
 
@@ -36,10 +40,11 @@ def event_from_json(data: Any) -> AlertEvent:
         raise ValueError(f"missing or bad field: {exc}") from exc
     if at.tzinfo is None:
         raise ValueError("timestamp without a time zone")
-    alert, by = data.get("alert"), data.get("by")
-    if not isinstance(alert, str | None) or not isinstance(by, str | None):
-        raise ValueError("bad alert or by")
-    return AlertEvent(at, kind, alert, by)
+    texts = [data.get(key) for key in ("alert", "by", "entity", "state")]
+    if not all(isinstance(t, str | None) for t in texts):
+        raise ValueError("bad alert, by, entity or state")
+    alert, by, entity, state = texts
+    return AlertEvent(at, kind, alert, by, entity, state)
 
 
 class HistoryStore:

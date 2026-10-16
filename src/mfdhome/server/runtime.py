@@ -22,7 +22,7 @@ from mfdhome.mfd.alerts import (
     step,
 )
 from mfdhome.mfd.display import Display
-from mfdhome.mfd.history import AlertEvent, EventKind, board_events, prune
+from mfdhome.mfd.history import AlertEvent, EventKind, board_events, prune, state_events
 from mfdhome.mfd.keys import Action, KeyActions, key_actions, slot_index
 from mfdhome.model.page import LogElement
 from mfdhome.model.state import StateSnapshot
@@ -69,6 +69,7 @@ class Runtime:
         self.connected: bool | None = None  # unknown until the first update
         self._was_connected = False
         self.pending: Pending = {}  # alerts waiting out their hold time
+        self._logged: dict[str, str] = {}  # last states of logged entities
         self.state: StateSnapshot = {}
         self.selected = {d.id: d.home for d in config.displays.values()}
         self.locked = dict.fromkeys(config.displays, False)
@@ -109,6 +110,10 @@ class Runtime:
                 alerts, evaluate_alerts(alerts, self.state), self.board, self.pending, now
             )
             changed = self._set_board(step(self.board, alerts, raised, now), now)
+            logged, self._logged = state_events(
+                self._logged, self.state, self.config.alerts.logged, now
+            )
+            self.record(logged)
         else:
             self.pending = {}  # after reconnecting, conditions must hold afresh
         self._prune(now)
@@ -161,7 +166,8 @@ class Runtime:
         if log is None:
             return False
         alerts = self.config.alerts.by_id()
-        pages = page_count(log, len(log_rows(self.history, alerts, log.systems)))
+        logged = {e.entity_id: e for e in self.config.alerts.logged}
+        pages = page_count(log, len(log_rows(self.history, alerts, log.systems, logged)))
         current = self.log_page[display_id]
         target = min(max(current + delta, 0), pages - 1)
         self.log_page[display_id] = target
@@ -210,6 +216,7 @@ class Runtime:
             self.config.alerts.systems,
             self.board,
             history=self.history,
+            logged={e.entity_id: e for e in self.config.alerts.logged},
             log_page=self.log_page[display_id],
             tz=self.tz,
         )

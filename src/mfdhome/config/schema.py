@@ -425,11 +425,20 @@ class AlertModel(ExprModel):
     hold: Duration | None = Field(default=None, alias="for")
 
 
+class LoggedModel(Strict):
+    """An entity whose state changes go in the alert log."""
+
+    entity: EntityId
+    label: str
+    system: Ident
+
+
 class AlertsModel(Strict):
     """The alerts file. Alerts are validated one by one so all problems surface."""
 
     systems: dict[Ident, SystemModel] = {}
     alerts: list[dict[str, Any]] = []
+    log: list[LoggedModel] = []
 
 
 class DisplayModel(Strict):

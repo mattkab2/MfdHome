@@ -15,7 +15,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, tzinfo
 
 from mfdhome.mfd.history import AlertEvent, EventKind
-from mfdhome.model.alert import AlertDef, Severity, System
+from mfdhome.model.alert import AlertDef, LoggedEntity, Severity, System
 from mfdhome.model.binding import Status
 from mfdhome.model.page import LogElement
 from mfdhome.render.alerts import SEVERITY_STATUS, AlertView
@@ -34,7 +34,8 @@ CHAR_WIDTH = 0.6  # of the font size: DejaVu Sans Mono's advance
 
 @dataclass(frozen=True)
 class LogRow:
-    """One log line. ``alert`` is ``None`` for Home Assistant connection rows.
+    """One log line. ``alert`` is ``None`` for connection and state rows; a state
+    row (a logged entity's change) has ``entity`` and ``state``.
 
     ``flaps`` counts the raises merged into a flapping row (1: a plain row);
     ``at`` is then the first raise.
@@ -45,6 +46,8 @@ class LogRow:
     alert: AlertDef | None = None
     by: str | None = None
     flaps: int = 1
+    entity: LoggedEntity | None = None
+    state: str | None = None
 
 
 @dataclass
@@ -54,16 +57,24 @@ class _Run:
 
 
 def log_rows(
-    events: Iterable[AlertEvent], alerts: Mapping[str, AlertDef], systems: Sequence[str] = ()
+    events: Iterable[AlertEvent],
+    alerts: Mapping[str, AlertDef],
+    systems: Sequence[str] = (),
+    logged: Mapping[str, LoggedEntity] | None = None,
 ) -> list[LogRow]:
     """History rows, newest first, limited to ``systems`` if given.
 
-    Connection rows only appear in an unfiltered log; events for alerts no
-    longer defined are skipped.
+    Connection rows only appear in an unfiltered log; events for alerts (or
+    logged entities, from ``logged``) no longer defined are skipped.
     """
     rows: list[LogRow | None] = []
     runs: dict[str, _Run] = {}
     for event in sorted(events, key=lambda e: e.at):
+        if event.kind is EventKind.STATE:
+            entity = (logged or {}).get(event.entity_id or "")
+            if entity is not None and (not systems or entity.system in systems):
+                rows.append(LogRow(event.at, event.kind, entity=entity, state=event.state))
+            continue
         if event.alert_id is None:
             if not systems:
                 rows.append(LogRow(event.at, event.kind))
@@ -110,6 +121,8 @@ def page_count(element: LogElement, rows: int) -> int:
 
 def event_text(row: LogRow) -> str:
     """The right-hand column: what happened."""
+    if row.entity is not None:
+        return (row.state or "").upper().replace("_", " ")
     if row.alert is None:
         return ""
     if row.flaps > 1:
@@ -126,6 +139,8 @@ def event_text(row: LogRow) -> str:
 
 def _message(row: LogRow) -> tuple[str, str]:
     """(system column, message column)."""
+    if row.entity is not None:
+        return row.entity.system, row.entity.label
     if row.alert is None:
         lost = row.kind is EventKind.CONNECTION_LOST
         return "HA", "CONNECTION LOST" if lost else "CONNECTION RESTORED"
@@ -176,7 +191,7 @@ def _local(when: datetime, tz: tzinfo | None) -> datetime:
 
 def alert_log(element: LogElement, view: AlertView, theme: Theme) -> str:
     """Render one page (``view.log_page``, 0 = newest) of the log into the element's box."""
-    rows = log_rows(view.history, {a.id: a for a in view.alerts}, element.systems)
+    rows = log_rows(view.history, {a.id: a for a in view.alerts}, element.systems, view.logged)
     per_page = rows_per_page(element)
     page = min(max(view.log_page, 0), page_count(element, len(rows)) - 1)
     shown = rows[page * per_page : (page + 1) * per_page]
@@ -225,6 +240,7 @@ def alert_log(element: LogElement, view: AlertView, theme: Theme) -> str:
         system, message = _message(row)
         if row.alert is not None:
             parts.append(_mark(x_mark, y, row.alert.severity, theme))
+        if row.alert is not None or row.entity is not None:
             system = _system_label(view.systems, system)
         parts.append(_text(x_system, y, _clip(system, 6), "start", theme.text_color, theme))
         parts.append(

@@ -340,6 +340,8 @@ The alert history, newest first, in a box (`at` is its top-left corner):
   alerts raised together read as one block.
 - **Home Assistant outages** show as CONNECTION LOST and RESTORED rows (only
   in logs without `systems`). Alerts are frozen while disconnected.
+- **Logged state changes** (see "Logged state changes" below) appear as
+  information rows under their system, such as the alarm panel arming.
 - **Paging:** rows that don't fit go on further pages. On a page with a log
   the middle keys are PG UP (older) and PG DN (newer); the header shows which
   rows are on screen. The log always reopens on its newest entries.
@@ -660,6 +662,22 @@ alerts:
 - While any caution or warning is unacknowledged, an annunciator banner naming
   the most urgent one shows along the bottom 40 units of whatever page is
   displayed, so keep that strip clear on every page.
+
+### Logged state changes
+
+Some changes aren't alerts but belong beside them in the log, such as
+arming and disarming. List those entities under `log` in `alerts.yaml`:
+
+```yaml
+log:
+  - {entity: alarm_control_panel.house, label: ALARM PANEL, system: SEC}
+  - {entity: valve.main_water, label: MAIN WATER, system: WATER}
+```
+
+Each change becomes an information row (`ALARM PANEL  ARMED AWAY`) under its
+system, with no severity mark, kept as long as alert history. The first
+state seen after starting only sets a baseline, so restarts log nothing, and
+nothing is compared while Home Assistant is disconnected.
 
 ### Choosing a severity
 

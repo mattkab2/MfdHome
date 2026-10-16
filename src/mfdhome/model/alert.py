@@ -53,3 +53,13 @@ class AlertDef:
     message: str
     condition: AnyOf
     hold: timedelta = timedelta(0)
+
+
+@dataclass(frozen=True)
+class LoggedEntity:
+    """An entity whose state changes go in the alert log as information rows
+    (arming and disarming, say), under ``system`` and named ``label``."""
+
+    entity_id: str
+    label: str
+    system: str

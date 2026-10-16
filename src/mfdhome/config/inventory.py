@@ -47,6 +47,8 @@ def entity_uses(config: Config) -> dict[str, list[str]]:
     for name, expr in config.defs.conditions.items():
         for entity_id in _in_expr(expr):
             uses[entity_id].append(f"defs:conditions.{name}")
+    for logged in config.alerts.logged:
+        uses[logged.entity_id].append("alerts:log")
     for entity_id in config.defs.stale_after.entities:
         uses[entity_id].append("defs:stale_after")
     return {k: sorted(set(v)) for k, v in sorted(uses.items())}

@@ -12,6 +12,12 @@ systems:
   FIRE: {label: FIRE}
   WX: {label: WX}
 
+# State changes worth seeing beside the alerts in the log (not alerts
+# themselves): arming and disarming, the main water shutoff.
+log:
+  - {entity: alarm_control_panel.house, label: ALARM PANEL, system: SEC}
+  - {entity: valve.main_water, label: MAIN WATER, system: WATER}
+
 alerts:
   - id: grid_lost
     severity: warning
