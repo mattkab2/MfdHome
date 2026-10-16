@@ -23,6 +23,8 @@ SYMBOLS = [
     "globe_valve",
     "water_heater",
     "outlet",
+    "sensor",
+    "gauge",
 ]
 
 

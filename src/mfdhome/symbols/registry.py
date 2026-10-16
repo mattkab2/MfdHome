@@ -24,9 +24,11 @@ from mfdhome.symbols.combiner import (
     input_port,
     output_port,
 )
+from mfdhome.symbols.format import format_value, is_valid_format
 from mfdhome.symbols.meter import meter, meter_box
 from mfdhome.symbols.outlet import inlet_ports, outlet, outlet_box
 from mfdhome.symbols.panel import panel_box, solar_panel
+from mfdhome.symbols.sensor import gauge, gauge_box, sensor, sensor_box
 from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
 from mfdhome.symbols.transfer import panel_box as load_panel_box
 from mfdhome.symbols.valve import Body, ValveState, valve, valve_box
@@ -308,6 +310,49 @@ def _draw_outlet(inp: SymbolInput, theme: Theme) -> str:
     return outlet(*inp.at, label, outdoor, inp.status, theme)
 
 
+#: Longest sensor code that fits inside the diamond.
+MAX_SENSOR_CODE = 3
+DEFAULT_ACTIVE_STATES = frozenset({"on"})
+
+
+def _sensor_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    unknown = set(raw) - {"code", "active"}
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    code = raw.get("code", "")
+    if not isinstance(code, str) or len(code) > MAX_SENSOR_CODE:
+        raise ValueError(f"'code' must be text of up to {MAX_SENSOR_CODE} characters")
+    active = _state_list_params("active", DEFAULT_ACTIVE_STATES)(
+        {"active": raw["active"]} if "active" in raw else {}
+    )
+    return {"code": code, **active}
+
+
+def _draw_sensor(inp: SymbolInput, theme: Theme) -> str:
+    code = inp.params["code"]
+    assert isinstance(code, str)
+    tripped = _in_states(inp, "active", DEFAULT_ACTIVE_STATES) is True
+    return sensor(*inp.at, code, tripped, inp.status, theme)
+
+
+def _gauge_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    unknown = set(raw) - {"format", "unit"}
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    fmt, unit = raw.get("format", "number"), raw.get("unit")
+    if not isinstance(fmt, str) or not is_valid_format(fmt):
+        raise ValueError(f"unknown format {fmt!r}; use a named format or a format string")
+    if unit is not None and not isinstance(unit, str):
+        raise ValueError("'unit' must be text")
+    return {"format": fmt, "unit": unit}
+
+
+def _draw_gauge(inp: SymbolInput, theme: Theme) -> str:
+    fmt, unit = inp.params["format"], inp.params["unit"]
+    assert isinstance(fmt, str) and (unit is None or isinstance(unit, str))
+    return gauge(*inp.at, format_value(inp.values["value"], fmt, unit), inp.status, theme)
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -388,6 +433,26 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         draw=_draw_outlet,
         params=_outlet_params,
         ports_for=_outlet_ports,
+    ),
+    "sensor": SymbolSpec(
+        type="sensor",
+        channels=("state",),
+        required=frozenset(),
+        primary="state",
+        numeric=frozenset(),
+        box=lambda at, _orientation: sensor_box(*at),
+        draw=_draw_sensor,
+        params=_sensor_params,
+    ),
+    "gauge": SymbolSpec(
+        type="gauge",
+        channels=("value",),
+        required=frozenset({"value"}),
+        primary="value",
+        numeric=frozenset({"value"}),
+        box=lambda at, _orientation: gauge_box(*at),
+        draw=_draw_gauge,
+        params=_gauge_params,
     ),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",

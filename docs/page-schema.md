@@ -71,6 +71,8 @@ Any registered symbol type, centered at `at`:
 | `globe_valve` | `state`, `position` (numeric) | `state` | as for `ball_valve` |
 | `water_heater` | `temperature` (numeric), `heating` | none | `heating`: states that mean the burner is lit, default `[on, heating]` |
 | `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
+| `sensor` | `state` | none | `code`: up to 3 characters drawn inside (`W`, `S`, `CO`, ...); `active`: states that mean tripped, default `[on]` |
+| `gauge` | `value` (numeric) | `value` | `format`: a named format or format string, default `number`; `unit`: replaces the entity's unit |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
@@ -114,6 +116,19 @@ cold inlet and hot outlet reach it without the pipes crossing. Outlets are
 always horizontal, fed from the left with the flag pointing right. No
 binding is needed; `state` is there for status rules (the line feeding the
 outlet shows whether water flows).
+
+Point sensors come in two kinds. A `sensor` is an on/off detector (leak,
+smoke, CO, gas, motion): a small diamond, so it can't be mistaken for a meter,
+with a short code inside, drawn filled while tripped. A `gauge` shows a
+reading (a room temperature, a pressure) inside a small box. Both take status
+rules like any symbol, so a wet leak sensor can be a warning:
+
+```yaml
+- {id: leak_basement, type: sensor, at: [640, 520], params: {code: W},
+   bind: {state: binary_sensor.leak_basement}, status: {map: {"on": warning}}}
+- {id: pressure, type: gauge, at: [230, 310], params: {format: "{:.0f} psi"},
+   bind: {value: sensor.water_pressure}}
+```
 
 The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is

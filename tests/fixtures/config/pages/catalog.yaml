@@ -100,3 +100,19 @@ elements:
     type: outlet
     at: [800, 320]
     params: {label: SINK, inlets: 2}
+
+  # --- point sensors -------------------------------------------------------
+  - id: pressure
+    type: gauge
+    at: [230, 310]
+    params: {format: "{:.0f} psi"}
+    name: {text: PRESS, anchor: left}
+    bind: {value: sensor.water_pressure}
+
+  - id: leak_basement
+    type: sensor
+    at: [640, 520]
+    params: {code: W}
+    name: {text: LEAK, anchor: right}
+    bind: {state: binary_sensor.leak_basement}
+    status: {map: {"on": warning}}
