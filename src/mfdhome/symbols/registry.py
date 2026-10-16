@@ -75,7 +75,8 @@ class SymbolSpec:
     ``primary`` decides the no-data state; ``numeric`` channels count as no
     data when their value is not a number. ``ports`` adds named connection
     points beyond the box edges and corners every symbol has; ``ports_for``
-    replaces it for types whose ports depend on their (normalized) params.
+    replaces it for types whose ports depend on their (normalized) params, as
+    ``box_for`` does for the box.
     ``params`` validates and normalizes type-specific settings, raising
     ``ValueError`` for bad input.
     """
@@ -90,6 +91,16 @@ class SymbolSpec:
     ports: Mapping[str, PortFn] = field(default_factory=lambda: {})
     params: Callable[[Mapping[str, object]], Mapping[str, object]] = field(default=_no_params)
     ports_for: Callable[[Mapping[str, object]], Mapping[str, PortFn]] | None = None
+    box_for: Callable[[Point, Orientation, Mapping[str, object]], Box] | None = None
+
+    def bounds(self, at: Point, orientation: Orientation, params: Mapping[str, object]) -> Box:
+        """The bounding box of an element with ``params`` (``box_for`` when its size
+        depends on them)."""
+        return (
+            self.box(at, orientation)
+            if self.box_for is None
+            else self.box_for(at, orientation, params)
+        )
 
     def named_ports(self, params: Mapping[str, object]) -> Mapping[str, PortFn]:
         """The type's named ports for an element with ``params``."""
@@ -249,13 +260,29 @@ def _valve_state(inp: SymbolInput) -> ValveState:
 
 def _draw_valve(body: Body) -> Callable[[SymbolInput, Theme], str]:
     def draw(inp: SymbolInput, theme: Theme) -> str:
-        return valve(*inp.at, body, _valve_state(inp), inp.status, inp.orientation, theme)
+        state = _valve_state(inp)
+        actuated = inp.params["actuated"] is True
+        return valve(*inp.at, body, state, inp.status, inp.orientation, theme, actuated)
 
     return draw
 
 
 def _valve_box(at: Point, orientation: Orientation) -> Box:
     return valve_box(*at, orientation)
+
+
+def _valve_bounds(at: Point, orientation: Orientation, params: Mapping[str, object]) -> Box:
+    return valve_box(*at, orientation, params.get("actuated") is True)
+
+
+def _valve_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    actuated = raw.get("actuated", False)
+    if not isinstance(actuated, bool):
+        raise ValueError("'actuated' must be true or false")
+    states = _state_lists(open=DEFAULT_OPEN_STATES, moving=DEFAULT_MOVING_STATES)(
+        {k: v for k, v in raw.items() if k != "actuated"}
+    )
+    return {**states, "actuated": actuated}
 
 
 def _valve_spec(type_name: str, body: Body) -> SymbolSpec:
@@ -267,8 +294,9 @@ def _valve_spec(type_name: str, body: Body) -> SymbolSpec:
         numeric=frozenset({"position"}),
         box=_valve_box,
         draw=_draw_valve(body),
-        params=_state_lists(open=DEFAULT_OPEN_STATES, moving=DEFAULT_MOVING_STATES),
+        params=_valve_params,
         ports={"in": _terminal(_valve_box, -1.0), "out": _terminal(_valve_box, 1.0)},
+        box_for=_valve_bounds,
     )
 
 

@@ -149,7 +149,7 @@ def _render_symbol(element: SymbolElement, c: _Ctx) -> str:
     body = spec.draw(
         SymbolInput(element.at, element.orientation, status, values, element.params), theme
     )
-    box = spec.box(element.at, element.orientation)
+    box = spec.bounds(element.at, element.orientation, element.params)
     labels = _collect_labels(
         element.name,
         element.readouts,

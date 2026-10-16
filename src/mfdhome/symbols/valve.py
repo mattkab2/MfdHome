@@ -2,7 +2,9 @@
 
 A ball valve has a hollow circle at the tips, a globe valve a solid dot. The
 dot is ringed in the background color, so it stays visible on a closed
-(filled) valve.
+(filled) valve. An actuated valve (motorized or solenoid: a smart shutoff, an
+irrigation zone) carries the actuator mark above its body, as a smart
+breaker does.
 """
 
 from __future__ import annotations
@@ -21,6 +23,11 @@ HEIGHT = 24.0
 BALL_RADIUS = 5.0
 GLOBE_RADIUS = 4.0
 GLOBE_RING = 2.0
+ACTUATOR_STEM = 8.0  # from the top of the body to the actuator box
+ACTUATOR_WIDTH = 12.0
+ACTUATOR_HEIGHT = 8.0
+#: How far an actuator reaches beyond the body (top, or right when vertical).
+ACTUATOR_REACH = ACTUATOR_STEM + ACTUATOR_HEIGHT
 
 
 class ValveState(StrEnum):
@@ -39,10 +46,12 @@ class Body(StrEnum):
     GLOBE = "globe"
 
 
-def valve_box(x: float, y: float, orientation: Orientation) -> Box:
-    """Bounding box of a valve centered at (x, y)."""
-    w, h = (HEIGHT, LENGTH) if orientation is Orientation.VERTICAL else (LENGTH, HEIGHT)
-    return Box(x - w / 2, y - h / 2, x + w / 2, y + h / 2)
+def valve_box(x: float, y: float, orientation: Orientation, actuated: bool = False) -> Box:
+    """Bounding box of a valve centered at (x, y), including any actuator."""
+    reach = ACTUATOR_REACH if actuated else 0.0
+    if orientation is Orientation.VERTICAL:
+        return Box(x - HEIGHT / 2, y - LENGTH / 2, x + HEIGHT / 2 + reach, y + LENGTH / 2)
+    return Box(x - LENGTH / 2, y - HEIGHT / 2 - reach, x + LENGTH / 2, y + HEIGHT / 2)
 
 
 def valve(
@@ -53,6 +62,7 @@ def valve(
     status: Status,
     orientation: Orientation,
     theme: Theme,
+    actuated: bool = False,
 ) -> str:
     """Render a valve centered at (x, y), flow from left to right (top to bottom)."""
     color = theme.color(status)
@@ -99,6 +109,30 @@ def valve(
                 },
             )
         )
+    if actuated:
+        # The stem rises from the center mark (where the triangles meet), the bonnet.
+        box_top = y - half_h - ACTUATOR_REACH
+        stem_from = y - (BALL_RADIUS if body is Body.BALL else GLOBE_RADIUS + GLOBE_RING / 2)
+        parts.append(
+            svg.element(
+                "line",
+                {"x1": x, "y1": stem_from, "x2": x, "y2": box_top + ACTUATOR_HEIGHT, **outline},
+            )
+        )
+        parts.append(
+            svg.element(
+                "rect",
+                {
+                    "x": x - ACTUATOR_WIDTH / 2,
+                    "y": box_top,
+                    "width": ACTUATOR_WIDTH,
+                    "height": ACTUATOR_HEIGHT,
+                    "fill": "none",
+                    **outline,
+                },
+            )
+        )
+    # Vertical: rotated about the center, so the actuator ends up on the right.
     transform = (
         f"rotate(90 {svg.fmt(x)} {svg.fmt(y)})" if orientation is Orientation.VERTICAL else None
     )

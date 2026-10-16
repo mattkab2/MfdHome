@@ -14,7 +14,7 @@ def element_box(element: Element) -> Box | None:
     """The element's bounding box, or ``None`` for elements without one (lines, text)."""
     match element:
         case SymbolElement():
-            return get_symbol(element.type).box(element.at, element.orientation)
+            return get_symbol(element.type).bounds(element.at, element.orientation, element.params)
         case TileElement():
             return tile_box(*element.at)
         case NodeElement():

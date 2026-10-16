@@ -71,3 +71,26 @@ def test_ports_follow_orientation(type_name: str) -> None:
     vertical = SymbolElement("v", type_name, (100, 100), orientation=Orientation.VERTICAL)
     assert find_port(vertical, "in") == Port((100, 80), (0.0, -1.0))
     assert find_port(vertical, "out") == Port((100, 120), (0.0, 1.0))
+
+
+def test_actuated_valve_carries_the_actuator_and_a_taller_box() -> None:
+    from mfdhome.symbols.geometry import element_box
+
+    svg = valve("ball_valve", "open", {"actuated": True})
+    assert '<rect x="94" y="72" width="12" height="8"' in svg  # above the body
+    assert '<line x1="100" y1="95" x2="100" y2="80"' in svg  # stem from the ball
+    plain = SymbolElement("v", "ball_valve", (100, 100), params=get_symbol("ball_valve").params({}))
+    actuated = SymbolElement(
+        "v", "ball_valve", (100, 100), params=get_symbol("ball_valve").params({"actuated": True})
+    )
+    assert (element_box(plain).top, element_box(actuated).top) == (88, 72)  # labels clear it
+    vertical = SymbolElement(
+        "v",
+        "ball_valve",
+        (100, 100),
+        orientation=Orientation.VERTICAL,
+        params=get_symbol("ball_valve").params({"actuated": True}),
+    )
+    assert element_box(vertical).right == 128  # rotated to the right side
+    with pytest.raises(ValueError, match="'actuated' must be true or false"):
+        get_symbol("ball_valve").params({"actuated": "yes"})

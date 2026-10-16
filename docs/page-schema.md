@@ -67,7 +67,7 @@ Any registered symbol type, centered at `at`:
 | `electric_meter` | `power` (numeric), `energy` (numeric) | none | `label`: up to 5 characters drawn inside, default `kWh` |
 | `water_meter` | `flow` (numeric), `total` (numeric) | none | `label`, default `GAL` |
 | `smart_breaker` | `state`, `power` (numeric) | `state` | `closed`, as for `breaker` |
-| `ball_valve` | `state`, `position` (numeric) | `state` | `open`: states that mean open, default `[open, on]`; `moving`: default `[opening, closing]` |
+| `ball_valve` | `state`, `position` (numeric) | `state` | `open`: states that mean open, default `[open, on]`; `moving`: default `[opening, closing]`; `actuated`: true for a motorized or solenoid valve |
 | `globe_valve` | `state`, `position` (numeric) | `state` | as for `ball_valve` |
 | `water_heater` | `temperature` (numeric), `heating` | none | `heating`: states that mean the burner is lit, default `[on, heating]` |
 | `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
@@ -99,7 +99,9 @@ open and filled when closed. While opening or closing, only the inlet
 triangle is filled. Any state that isn't `open` or `moving` counts as closed.
 A ball valve has a hollow circle at the tips, a globe valve a solid dot.
 `in` is on the left (top when vertical) and `out` on the right (bottom).
-`position` is for readouts, such as a percentage open.
+`position` is for readouts, such as a percentage open. `actuated: true` adds
+the actuator mark above the body (a smart shutoff, an irrigation zone), as on
+a smart breaker; the element's box grows to include it, so labels stay clear.
 
 A `water_heater` is a gas tank heater: a tall rounded tank with a burner
 flame at its base, drawn solid while `heating` and outlined otherwise. Its
