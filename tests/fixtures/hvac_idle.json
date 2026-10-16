@@ -1,0 +1,90 @@
+[
+ {
+  "entity_id": "climate.main",
+  "state": "heat",
+  "attributes": {
+   "current_temperature": 70.2,
+   "temperature": 70,
+   "hvac_action": "idle",
+   "current_humidity": 38
+  }
+ },
+ {
+  "entity_id": "climate.upstairs",
+  "state": "heat",
+  "attributes": {
+   "current_temperature": 68.3,
+   "temperature": 68,
+   "hvac_action": "idle",
+   "current_humidity": 40
+  }
+ },
+ {
+  "entity_id": "cover.upstairs_damper",
+  "state": "closed",
+  "attributes": {}
+ },
+ {
+  "entity_id": "sensor.furnace_filter_life",
+  "state": "42",
+  "attributes": {
+   "unit_of_measurement": "%"
+  }
+ },
+ {
+  "entity_id": "sensor.outdoor_temperature",
+  "state": "31",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F"
+  }
+ },
+ {
+  "entity_id": "sensor.living_temperature",
+  "state": "68.9",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F"
+  }
+ },
+ {
+  "entity_id": "sensor.kitchen_temperature",
+  "state": "69.6",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F"
+  }
+ },
+ {
+  "entity_id": "sensor.den_temperature",
+  "state": "67.1",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F"
+  }
+ },
+ {
+  "entity_id": "sensor.bed_1_temperature",
+  "state": "66.0",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F"
+  }
+ },
+ {
+  "entity_id": "sensor.bed_2_temperature",
+  "state": "65.4",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F"
+  }
+ },
+ {
+  "entity_id": "sensor.office_temperature",
+  "state": "67.8",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.hvac_fault",
+  "state": "off",
+  "attributes": {
+   "device_class": "problem"
+  }
+ }
+]

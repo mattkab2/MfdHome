@@ -39,7 +39,7 @@ def gas_port(at: Point) -> Port:
     return Port((at[0] - WIDTH / 2, at[1] + HEIGHT / 2 - GAS_RISE), (-1.0, 0.0))
 
 
-def _flame(x: float, base: float) -> str:
+def flame_path(x: float, base: float) -> str:
     """A flame standing on ``base``: a tip leaning right and a notch splitting off a second
     tongue on the left (a plain teardrop would read as a water drop)."""
     f = svg.fmt
@@ -84,7 +84,7 @@ def water_heater(x: float, y: float, heating: bool | None, status: Status, theme
             svg.element(
                 "path",
                 {
-                    "d": _flame(x, base),
+                    "d": flame_path(x, base),
                     "fill": theme.color(status) if heating else "none",
                     "stroke-linejoin": "round",
                     **outline,

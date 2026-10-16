@@ -1,0 +1,123 @@
+# HVAC page: one gas furnace for the whole house, with the second floor on its
+# own zone. Supply air rises to a trunk: floor 1's rooms branch off directly,
+# floor 2's through a motorized zone damper. Return air comes back through the
+# filter. Each floor has a thermostat and room temperature sensors. Generic
+# entity ids only. Keep the bottom 40 units clear for the banner and keys.
+page: hvac
+title: HVAC
+canvas: {width: 1000, height: 600}
+
+defs:
+  thresholds:
+    room_temp: {warning_low: 45, caution_low: 60, caution_high: 85}
+
+elements:
+  - {id: title, type: text, at: [80, 40], text: HVAC}
+
+  - id: outdoor
+    type: gauge
+    at: [130, 110]
+    params: {format: "OUT {:.0f}°"}
+    bind: {value: sensor.outdoor_temperature}
+
+  # --- furnace ---------------------------------------------------------------------
+  - id: furnace
+    type: furnace
+    at: [260, 330]
+    name: {text: FURNACE, anchor: bottom}
+    bind: {action: {entity: climate.main, attribute: hvac_action}}
+    status: {alerts: [hvac_fault]}
+
+  - id: gas
+    type: line
+    from: [420, 500]
+    to: furnace.gas
+    tag: {text: GAS, along: 0.3}
+
+  # --- return air through the filter ---------------------------------------------------
+  - id: return
+    type: line
+    from: [40, 350]
+    to: filter.in
+    tag: {text: RA, along: 0.4}
+
+  - id: filter
+    type: tank
+    at: [130, 350]
+    params: {tag: FILT, connections: sides}
+    name: {text: FILTER, anchor: bottom}
+    bind: {state: sensor.furnace_filter_life}
+    status: {thresholds: {caution_low: 10}}
+    readouts: [{value: state, format: "{:.0f}%", anchor: top}]
+
+  - {id: to_furnace, type: line, from: filter.out, to: furnace.return}
+
+  # --- supply air ------------------------------------------------------------------------
+  - id: supply
+    type: line
+    from: furnace.supply
+    to: trunk
+    tag: {text: SA, along: 0.5}
+
+  - {id: trunk, type: node, at: [260, 170]}
+
+  - id: to_floor_1
+    type: line
+    from: trunk
+    to: floor_1.left
+    via: [[400, 170], [400, 274]]
+
+  - {id: to_damper, type: line, from: trunk, to: zone_damper.in}
+
+  - id: zone_damper
+    type: damper
+    at: [440, 110]
+    params: {actuated: true}
+    name: {text: ZONE 2, anchor: bottom}
+    bind: {state: cover.upstairs_damper}
+
+  - {id: to_floor_2, type: line, from: zone_damper.out, to: floor_2.left}
+
+  # --- floors: room temperatures ---------------------------------------------------------
+  - id: floor_2
+    type: group
+    at: [600, 86]
+    layout: {grid: {columns: 3, gap: 12, padding: 12}}
+    name: {text: FLOOR 2, anchor: top}
+    item_defaults: {type: gauge, status: {thresholds: room_temp}}
+    items:
+      - {id: bed_1, params: {format: "BD1 {:.0f}°"}, bind: {value: sensor.bed_1_temperature}}
+      - {id: bed_2, params: {format: "BD2 {:.0f}°"}, bind: {value: sensor.bed_2_temperature}}
+      - {id: office, params: {format: "OFC {:.0f}°"}, bind: {value: sensor.office_temperature}}
+
+  - id: floor_1
+    type: group
+    at: [600, 250]
+    layout: {grid: {columns: 3, gap: 12, padding: 12}}
+    name: {text: FLOOR 1, anchor: top}
+    item_defaults: {type: gauge, status: {thresholds: room_temp}}
+    items:
+      - {id: living, params: {format: "LIV {:.0f}°"}, bind: {value: sensor.living_temperature}}
+      - {id: kitchen, params: {format: "KIT {:.0f}°"}, bind: {value: sensor.kitchen_temperature}}
+      - {id: den, params: {format: "DEN {:.0f}°"}, bind: {value: sensor.den_temperature}}
+
+  # --- thermostats -------------------------------------------------------------------------
+  - id: upstairs
+    type: thermostat
+    at: [920, 110]
+    name: {text: UPSTAIRS, anchor: top}
+    bind:
+      temperature: {entity: climate.upstairs, attribute: current_temperature}
+      setpoint: {entity: climate.upstairs, attribute: temperature}
+      action: {entity: climate.upstairs, attribute: hvac_action}
+    status: {alerts: [upstairs_below_setpoint]}
+
+  - id: main
+    type: thermostat
+    at: [920, 274]
+    name: {text: MAIN, anchor: top}
+    bind:
+      temperature: {entity: climate.main, attribute: current_temperature}
+      setpoint: {entity: climate.main, attribute: temperature}
+      action: {entity: climate.main, attribute: hvac_action}
+    status: {alerts: [main_below_setpoint, freeze_risk]}

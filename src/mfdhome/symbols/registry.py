@@ -35,6 +35,16 @@ from mfdhome.symbols.fittings import (
 from mfdhome.symbols.floorplan import OpeningKind, alarm_panel, opening, opening_box
 from mfdhome.symbols.floorplan import panel_box as alarm_panel_box
 from mfdhome.symbols.format import format_value, is_valid_format
+from mfdhome.symbols.hvac import (
+    DamperState,
+    damper,
+    damper_box,
+    furnace,
+    furnace_box,
+    furnace_ports,
+    thermostat,
+    thermostat_box,
+)
 from mfdhome.symbols.meter import meter, meter_box
 from mfdhome.symbols.outlet import inlet_ports, outlet, outlet_box
 from mfdhome.symbols.panel import panel_box, solar_panel
@@ -527,6 +537,64 @@ def _draw_alarm_panel(inp: SymbolInput, theme: Theme) -> str:
     return alarm_panel(*inp.at, state, inp.status, theme)
 
 
+DEFAULT_HEATING_ACTIONS = frozenset({"heating", "on"})
+DEFAULT_BLOWING_ACTIONS = frozenset({"heating", "cooling", "fan", "on"})
+
+
+def _draw_furnace(inp: SymbolInput, theme: Theme) -> str:
+    heating = _in_states(inp, "heating", DEFAULT_HEATING_ACTIONS, channel="action") is True
+    blowing = _in_states(inp, "blowing", DEFAULT_BLOWING_ACTIONS, channel="action") is True
+    return furnace(*inp.at, heating, blowing, inp.status, theme)
+
+
+def _furnace_port(name: str) -> PortFn:
+    return lambda at, _orientation: furnace_ports(*at)[name]
+
+
+_DAMPER_STATES = {
+    ValveState.OPEN: DamperState.OPEN,
+    ValveState.CLOSED: DamperState.CLOSED,
+}
+
+
+def _draw_damper(inp: SymbolInput, theme: Theme) -> str:
+    state = _DAMPER_STATES.get(_valve_state(inp), DamperState.MOVING)
+    actuated = inp.params["actuated"] is True
+    return damper(*inp.at, state, actuated, inp.status, inp.orientation, theme)
+
+
+def _damper_box(at: Point, orientation: Orientation) -> Box:
+    return damper_box(*at, orientation)
+
+
+def _damper_bounds(at: Point, orientation: Orientation, params: Mapping[str, object]) -> Box:
+    return damper_box(*at, orientation, params.get("actuated") is True)
+
+
+def _thermostat_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    unknown = set(raw) - {"format"}
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    fmt = raw.get("format", "{:.0f}°")
+    if not isinstance(fmt, str) or not is_valid_format(fmt):
+        raise ValueError(f"unknown format {fmt!r}; use a named format or a format string")
+    return {"format": fmt}
+
+
+def _draw_thermostat(inp: SymbolInput, theme: Theme) -> str:
+    fmt = inp.params["format"]
+    assert isinstance(fmt, str)
+    action = inp.values["action"].raw
+    return thermostat(
+        *inp.at,
+        format_value(inp.values["temperature"], fmt),
+        format_value(inp.values["setpoint"], fmt),
+        None if action is None else str(action).strip().lower(),
+        inp.status,
+        theme,
+    )
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -683,6 +751,39 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         numeric=frozenset(),
         box=lambda at, _orientation: alarm_panel_box(*at),
         draw=_draw_alarm_panel,
+    ),
+    "furnace": SymbolSpec(
+        type="furnace",
+        channels=("action",),
+        required=frozenset(),
+        primary="action",
+        numeric=frozenset(),
+        box=lambda at, _orientation: furnace_box(*at),
+        draw=_draw_furnace,
+        params=_state_lists(heating=DEFAULT_HEATING_ACTIONS, blowing=DEFAULT_BLOWING_ACTIONS),
+        ports={name: _furnace_port(name) for name in ("supply", "return", "gas")},
+    ),
+    "damper": SymbolSpec(
+        type="damper",
+        channels=("state", "position"),
+        required=frozenset({"state"}),
+        primary="state",
+        numeric=frozenset({"position"}),
+        box=_damper_box,
+        draw=_draw_damper,
+        params=_valve_params,
+        ports={"in": _terminal(_damper_box, -1.0), "out": _terminal(_damper_box, 1.0)},
+        box_for=_damper_bounds,
+    ),
+    "thermostat": SymbolSpec(
+        type="thermostat",
+        channels=("temperature", "setpoint", "action"),
+        required=frozenset({"temperature"}),
+        primary="temperature",
+        numeric=frozenset({"temperature", "setpoint"}),
+        box=lambda at, _orientation: thermostat_box(*at),
+        draw=_draw_thermostat,
+        params=_thermostat_params,
     ),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",

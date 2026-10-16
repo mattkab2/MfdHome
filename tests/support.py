@@ -5,7 +5,15 @@ from pathlib import Path
 from typing import Any
 
 from mfdhome.config import Config, load_config
-from mfdhome.mfd import EMPTY_BOARD, Board, acknowledge, evaluate_alerts, step
+from mfdhome.mfd import (
+    EMPTY_BOARD,
+    Board,
+    Pending,
+    acknowledge,
+    apply_holds,
+    evaluate_alerts,
+    step,
+)
 from mfdhome.model import Page, StateSnapshot
 from mfdhome.render.alerts import AlertView
 from mfdhome.sources import load_fixture
@@ -42,10 +50,12 @@ def board_from(*fixtures: str, acks: tuple[str, ...] = ()) -> Board:
     """
     alerts = load_test_config().alerts.alerts
     board = EMPTY_BOARD
+    pending: Pending = {}
     for i, name in enumerate(fixtures):
-        board = step(
-            board, alerts, evaluate_alerts(alerts, fixture_state(name)), T0 + timedelta(minutes=i)
-        )
+        now = T0 + timedelta(minutes=i)
+        raised = evaluate_alerts(alerts, fixture_state(name))
+        raised, pending = apply_holds(alerts, raised, board, pending, now)  # as the runtime does
+        board = step(board, alerts, raised, now)
         if i == 0 and acks:
             board = acknowledge(board, "workshop", T0 + timedelta(seconds=30), ids=acks)
     return board

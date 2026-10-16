@@ -79,6 +79,9 @@ Any registered symbol type, centered at `at`:
 | `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
 | `sensor` | `state` | none | `code`: up to 3 characters drawn inside (`W`, `S`, `CO`, ...); `active`: states that mean tripped, default `[on]` |
 | `gauge` | `value` (numeric) | `value` | `format`: a named format or format string, default `number`; `unit`: replaces the entity's unit |
+| `furnace` | `action` | none | `heating`: actions that mean the burner is lit, default `[heating, on]`; `blowing`: actions that mean the blower runs, default `[heating, cooling, fan, on]` |
+| `damper` | `state`, `position` (numeric) | `state` | as for `ball_valve` (`open`, `moving`, `actuated`) |
+| `thermostat` | `temperature` (numeric), `setpoint` (numeric), `action` | `temperature` | `format`: for both temperatures, default `{:.0f}°` |
 | `opening` | `state` | none | `kind`: `door` (default) or `window`; `length` (default 36); `swing`: `up`/`left` or `down`/`right`; `hinge`: `start` or `end`; `open`: states that mean open, default `[on, open]` |
 | `alarm_panel` | `state` | `state` | none |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
@@ -344,6 +347,32 @@ The alert history, newest first, in a box (`at` is its top-left corner):
 
 List the log page last in a display's `pages`: the home (alerts) page comes
 first, so PREV from it lands on the log.
+
+### HVAC
+
+A `furnace` is a cabinet with its blower (a fan) above its burner (a flame).
+Bind `action` to the thermostat's `hvac_action` attribute: the flame is solid
+while heating and the fan filled while the blower runs. Its ports are
+`supply` (top), `return` (left) and `gas` (right). A `damper` is a blade on a
+pivot in a duct: along the flow when open, across it when closed, diagonal
+while moving; `actuated: true` marks a motorized zone damper. A `thermostat`
+shows the room temperature, the setpoint and what it's doing (HEAT, IDLE,
+FAN, ...), in the active color while equipment runs:
+
+```yaml
+- id: upstairs
+  type: thermostat
+  at: [920, 110]
+  bind:
+    temperature: {entity: climate.upstairs, attribute: current_temperature}
+    setpoint: {entity: climate.upstairs, attribute: temperature}
+    action: {entity: climate.upstairs, attribute: hvac_action}
+  status: {alerts: [upstairs_below_setpoint]}
+```
+
+Room temperatures fit in a group of gauges whose format carries the room
+(`format: "BD1 {:.0f}°"`), so a floor reads as one framed panel that takes
+its coldest room's caution. Ducts are lines tagged `SA` and `RA`.
 
 ### Floorplans
 

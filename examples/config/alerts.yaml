@@ -116,6 +116,55 @@ alerts:
     system: HVAC
     message: HVAC FAULT
     when: [{entity: binary_sensor.hvac_fault, eq: on}]
+  # A zone more than 3 degrees below its setpoint for half an hour while heating.
+  - id: main_below_setpoint
+    severity: caution
+    system: HVAC
+    message: MAIN FLOOR NOT HEATING
+    for: 30m
+    when:
+      - entity: climate.main
+        attribute: current_temperature
+        lt: {entity: climate.main, attribute: temperature, offset: -3}
+      - {entity: climate.main, eq: heat}
+  - id: upstairs_below_setpoint
+    severity: caution
+    system: HVAC
+    message: UPSTAIRS NOT HEATING
+    for: 30m
+    when:
+      - entity: climate.upstairs
+        attribute: current_temperature
+        lt: {entity: climate.upstairs, attribute: temperature, offset: -3}
+      - {entity: climate.upstairs, eq: heat}
+  # Pipes freeze: the house itself is getting cold.
+  - id: freeze_risk
+    severity: warning
+    system: HVAC
+    message: HOUSE BELOW 50°
+    for: 15m
+    when: [{entity: climate.main, attribute: current_temperature, lt: 50}]
+  - id: thermostat_offline
+    severity: caution
+    system: HVAC
+    message: THERMOSTAT OFFLINE
+    for: 10m
+    any:
+      - {entity: climate.main, unavailable: true}
+      - {entity: climate.upstairs, unavailable: true}
+  - id: filter_overdue
+    severity: advisory
+    system: HVAC
+    message: REPLACE FURNACE FILTER
+    when: [{entity: sensor.furnace_filter_life, lt: 10}]
+  - id: humidity_out_of_range
+    severity: advisory
+    system: HVAC
+    message: INDOOR HUMIDITY OUT OF RANGE
+    for: 1h
+    any:
+      - {entity: climate.main, attribute: current_humidity, lt: 25}
+      - {entity: climate.main, attribute: current_humidity, gt: 60}
 
   - id: wan_down
     severity: warning
