@@ -21,9 +21,18 @@ from mfdhome.config.build import (
     validate,
 )
 from mfdhome.config.errors import ConfigError, Issue, Issues
-from mfdhome.config.schema import AlertsModel, DefsModel, DisplaysModel, PageModel
+from mfdhome.config.schema import (
+    AlertsModel,
+    DefsModel,
+    DisplaysModel,
+    PageModel,
+    ScenarioModel,
+)
 from mfdhome.mfd.display import Display
 from mfdhome.model.page import Page
+from mfdhome.model.state import EntityState
+from mfdhome.sources.fixture import load_fixture
+from mfdhome.sources.scenario import Scenario, Step
 
 logger = logging.getLogger(__name__)
 
@@ -161,3 +170,36 @@ def load_displays(path: str | Path, page_ids: Collection[str]) -> dict[str, Disp
     displays = build_displays(model, page_ids, issues)
     issues.raise_if_any()
     return displays
+
+
+def load_scenario(path: str | Path) -> Scenario:
+    """Load a scenario file (``serve --scenario``): a starting states file and timed steps."""
+    path = Path(path)
+    tree = _read(path)
+    issues = Issues(path, tree)
+    model = validate(ScenarioModel, _plain(tree) or {}, (), issues)
+    issues.raise_if_any()
+    assert model is not None
+    base = {}
+    if model.states is not None:
+        states_path = path.parent / model.states
+        try:
+            base = dict(load_fixture(states_path))
+        except (OSError, ValueError) as exc:
+            message = f"cannot read {states_path}: {exc}"
+            raise ConfigError([Issue(path, None, "states", message)]) from exc
+    steps = tuple(
+        sorted(
+            (
+                Step(
+                    s.at,
+                    {e: EntityState(v.state, dict(v.attributes)) for e, v in s.set.items()},
+                    frozenset(s.remove),
+                    s.connected,
+                )
+                for s in model.steps
+            ),
+            key=lambda step: step.at,
+        )
+    )
+    return Scenario(base, steps, model.loop)

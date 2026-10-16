@@ -32,8 +32,39 @@ argument or `MFD_CONFIG`. `examples/config/` is a complete starting point.
 | `mfdhome dump-states -o states.json --scrub` | Saves HA's current states as a fixture. `--scrub` keeps only what rendering needs and drops people and location domains. |
 | `mfdhome render CONFIG DISPLAY` | Renders one display once, to `DISPLAY.png` for e-paper panels or `DISPLAY.svg` otherwise. `--states FILE` renders a saved states dump (alerts included), `--page` picks a page, `-o` names the file. |
 | `mfdhome serve CONFIG` | Runs the live display server (see below). |
+| `mfdhome serve CONFIG --states FILE` | The same, from a fixed states dump instead of Home Assistant. |
+| `mfdhome serve CONFIG --scenario FILE` | The same, replaying a scripted scenario instead of Home Assistant. |
 
 Add `-v` before the command for debug logging.
+
+## Developing without Home Assistant
+
+`--states` and `--scenario` run the whole server (displays, alerts, the
+board, history and the log) with no Home Assistant at all, so pages can be
+built and checked anywhere. `HA_URL` and `HA_TOKEN` aren't needed.
+
+A scenario is a starting states file plus timed steps, optionally looping:
+
+```yaml
+states: house_normal.json        # relative to this file; HA /api/states shape
+loop: 4m                         # optional: start over after this long
+steps:
+  - at: 20s
+    set:
+      binary_sensor.grid_connected: "off"                         # a state string
+      sensor.grid_power: {state: "0", attributes: {unit_of_measurement: W}}
+  - {at: 2m, connected: false}   # Home Assistant goes away (alerts freeze)
+  - {at: 130s, connected: true}
+  - {at: 3m, remove: [sensor.grid_power]}                          # an entity disappears
+```
+
+Steps play in real time, so hold times (`for:`), latching, the banner, ACK
+and the log all behave as they would live. `examples/scenarios/` has a grid
+outage scenario for the example config:
+
+```bash
+mfdhome serve examples/config --scenario examples/scenarios/grid_outage.yaml
+```
 
 ## Serving displays
 

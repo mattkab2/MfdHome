@@ -1,0 +1,22 @@
+# A grid outage on a loop, for 'mfdhome serve CONFIG --scenario THIS_FILE'.
+# Every quiet entity comes from house_normal.json; steps change a few.
+states: house_normal.json
+loop: 4m
+steps:
+  - at: 20s                         # the grid goes down; the ATS islands the house
+    set:
+      binary_sensor.grid_connected: "off"
+      sensor.grid_power: {state: "0", attributes: {unit_of_measurement: W}}
+      sensor.battery_power: {state: "-1700", attributes: {unit_of_measurement: W}}
+  - at: 90s                         # the battery runs low
+    set:
+      sensor.battery_soc: {state: "24", attributes: {unit_of_measurement: "%"}}
+  - at: 2m                          # Home Assistant drops off the network briefly
+    connected: false
+  - at: 130s
+    connected: true
+  - at: 3m                          # the grid comes back
+    set:
+      binary_sensor.grid_connected: "on"
+      sensor.grid_power: {state: "2400", attributes: {unit_of_measurement: W}}
+      sensor.battery_power: {state: "900", attributes: {unit_of_measurement: W}}

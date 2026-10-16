@@ -20,6 +20,7 @@ import aiohttp
 
 from mfdhome.config import ConfigError, load_config
 from mfdhome.config.inventory import entity_uses
+from mfdhome.config.load import load_scenario
 from mfdhome.model.state import StateSnapshot, snapshot_from_ha_states
 from mfdhome.render.panels import PANELS
 from mfdhome.render.raster import rasterize
@@ -28,6 +29,7 @@ from mfdhome.server.images import stamp_text
 from mfdhome.server.runtime import HISTORY_DAYS, Runtime
 from mfdhome.sources.fixture import load_fixture
 from mfdhome.sources.ha import HomeAssistant
+from mfdhome.sources.scenario import ScenarioSource, StateSource, StaticSource
 from mfdhome.themes.builtin import THEMES
 
 logger = logging.getLogger(__name__)
@@ -158,16 +160,28 @@ def cmd_render(args: argparse.Namespace) -> int:
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
-    """``mfdhome serve``: run the live display server."""
-    url, token = ha_credentials()
+    """``mfdhome serve``: run the live display server (from HA, a states file or a scenario)."""
     config = args.config or os.environ.get("MFD_CONFIG")
     if not config:
         raise SystemExit("give a config directory (argument or MFD_CONFIG)")
+    source: StateSource | None = None
+    url = token = None
+    try:
+        if args.states:
+            source = StaticSource(load_fixture(args.states))
+        elif args.scenario:
+            source = ScenarioSource(load_scenario(args.scenario))
+        else:
+            url, token = ha_credentials()
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 1
     asyncio.run(
         serve(
             config,
             url,
             token,
+            source=source,
             host=args.host,
             port=args.port,
             board_path=args.board,
@@ -207,10 +221,15 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("-o", "--output", help="file to write (default: <display>.png or .svg)")
     render.set_defaults(run=cmd_render)
 
-    serve = sub.add_parser("serve", help="serve live displays (needs HA_URL and HA_TOKEN)")
+    serve = sub.add_parser(
+        "serve", help="serve live displays (from HA_URL/HA_TOKEN, --states or --scenario)"
+    )
     serve.add_argument("config", nargs="?", help="config directory (default: MFD_CONFIG)")
     serve.add_argument("--host", default="0.0.0.0", help="address to listen on (LAN only)")
     serve.add_argument("--port", type=int, default=8099)
+    offline = serve.add_mutually_exclusive_group()
+    offline.add_argument("--states", help="serve this states dump instead of Home Assistant")
+    offline.add_argument("--scenario", help="replay this scenario file instead of Home Assistant")
     serve.add_argument("--board", default="var/board.json", help="where to keep the alert board")
     serve.add_argument(
         "--history", default="var/history.jsonl", help="where to keep the alert history"

@@ -30,6 +30,7 @@ from mfdhome.server.images import PanelImages
 from mfdhome.server.runtime import HISTORY_DAYS, Runtime
 from mfdhome.server.store import BoardStore
 from mfdhome.sources.ha import HomeAssistant
+from mfdhome.sources.scenario import StateSource
 from mfdhome.themes.builtin import THEMES
 
 logger = logging.getLogger(__name__)
@@ -250,9 +251,10 @@ async def refresh_loop(
 
 async def serve(
     config_dir: str,
-    ha_url: str,
-    ha_token: str,
+    ha_url: str | None = None,
+    ha_token: str | None = None,
     *,
+    source: StateSource | None = None,
     host: str = "0.0.0.0",
     port: int = 8099,
     board_path: str = "var/board.json",
@@ -260,7 +262,11 @@ async def serve(
     history_days: int = HISTORY_DAYS,
     display_token: str | None = None,
 ) -> None:
-    """Run everything: HA client, runtime, refresh loop and web server."""
+    """Run everything: state source, runtime, refresh loop and web server.
+
+    States come from ``source`` if given (a states file or scenario, for
+    developing without Home Assistant), otherwise from Home Assistant.
+    """
     runtime = Runtime(
         load_config(config_dir),
         BoardStore(board_path),
@@ -276,14 +282,21 @@ async def serve(
         changed.set()
 
     async with aiohttp.ClientSession() as session:
-        ha = HomeAssistant(ha_url, ha_token, session)
+        if source is None:
+            if not ha_url or not ha_token:
+                raise ValueError("serve needs a state source, or HA_URL and HA_TOKEN")
+            source = HomeAssistant(ha_url, ha_token, session)
+        states = source
         await web.TCPSite(runner, host, port).start()
         logger.info("serving %d displays on http://%s:%d", len(runtime.config.displays), host, port)
         try:
             await asyncio.gather(
-                ha.run(on_change),
+                states.run(on_change),
                 refresh_loop(
-                    app["hub"], lambda: ha.snapshot, changed, connected=lambda: ha.connected
+                    app["hub"],
+                    lambda: states.snapshot,
+                    changed,
+                    connected=lambda: states.connected,
                 ),
             )
         finally:

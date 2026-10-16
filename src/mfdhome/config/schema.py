@@ -412,3 +412,33 @@ class PageModel(Strict):
     canvas: CanvasModel
     defs: DefsModel | None = None
     elements: list[dict[str, Any]] = []
+
+
+class ScenarioStateModel(Strict):
+    """One entity's state in a scenario step: a state string, or with attributes."""
+
+    state: str
+    attributes: dict[str, Any] = {}
+
+
+class ScenarioStepModel(Strict):
+    """A scenario step: at ``at``, set and remove entities and maybe (dis)connect."""
+
+    at: Duration
+    set: dict[
+        EntityId,
+        Annotated[
+            ScenarioStateModel,
+            BeforeValidator(lambda v: {"state": str(v)} if not isinstance(v, dict) else v),
+        ],
+    ] = {}
+    remove: list[EntityId] = []
+    connected: bool | None = None
+
+
+class ScenarioModel(Strict):
+    """A scenario file: an optional starting states file, steps, and a loop period."""
+
+    states: str | None = None  # a states JSON file, relative to the scenario file
+    loop: Duration | None = None
+    steps: list[ScenarioStepModel] = []
