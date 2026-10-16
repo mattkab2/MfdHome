@@ -10,8 +10,8 @@ from mfdhome.conditions import read
 from mfdhome.config import ConfigError, load_defs, load_page
 from mfdhome.model import EntityRef, LineElement, snapshot_from_ha_states
 from mfdhome.model.state import StalePolicy
-from mfdhome.render.format import format_value
 from mfdhome.sources.staleness import mark_stale
+from mfdhome.symbols.format import format_value
 
 NOW = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 

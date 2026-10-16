@@ -73,8 +73,8 @@ from mfdhome.model.page import (
     TileElement,
 )
 from mfdhome.model.state import StalePolicy
-from mfdhome.render.format import FORMATS, is_valid_format
 from mfdhome.render.panels import PANELS
+from mfdhome.symbols.format import FORMATS, is_valid_format
 from mfdhome.symbols.geometry import element_box, find_port
 from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
 from mfdhome.themes.builtin import THEMES

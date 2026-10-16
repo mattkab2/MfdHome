@@ -35,10 +35,10 @@ from mfdhome.model.page import (
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
 from mfdhome.render.controls import Controls, banner_box, soft_keys
-from mfdhome.render.format import format_value
 from mfdhome.render.log import alert_log
 from mfdhome.render.resolve import Resolver
 from mfdhome.symbols import svg
+from mfdhome.symbols.format import format_value
 from mfdhome.symbols.geometry import element_box
 from mfdhome.symbols.line import Flow, line
 from mfdhome.symbols.registry import (
