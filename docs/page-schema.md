@@ -69,6 +69,9 @@ Any registered symbol type, centered at `at`:
 | `smart_breaker` | `state`, `power` (numeric) | `state` | `closed`, as for `breaker` |
 | `ball_valve` | `state`, `position` (numeric) | `state` | `open`: states that mean open, default `[open, on]`; `moving`: default `[opening, closing]`; `actuated`: true for a motorized or solenoid valve |
 | `globe_valve` | `state`, `position` (numeric) | `state` | as for `ball_valve` |
+| `check_valve` | `state` | none | none |
+| `backflow_preventer` | `state` | none | none |
+| `prv` | `pressure` (numeric) | none | none |
 | `water_heater` | `temperature` (numeric), `heating` | none | `heating`: states that mean the burner is lit, default `[on, heating]` |
 | `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
 | `sensor` | `state` | none | `code`: up to 3 characters drawn inside (`W`, `S`, `CO`, ...); `active`: states that mean tripped, default `[on]` |
@@ -102,6 +105,12 @@ A ball valve has a hollow circle at the tips, a globe valve a solid dot.
 `position` is for readouts, such as a percentage open. `actuated: true` adds
 the actuator mark above the body (a smart shutoff, an irrigation zone), as on
 a smart breaker; the element's box grows to include it, so labels stay clear.
+
+Inline fittings are self-acting, so they need no binding: a `check_valve` (a
+triangle pointing downstream with a seat bar), a `backflow_preventer` (two
+checks in series in a box) and a `prv`, a pressure reducing valve (a valve
+body with a spring dome above; bind `pressure` to show the downstream
+pressure). All run `in` to `out`, left to right or top to bottom.
 
 A `water_heater` is a gas tank heater: a tall rounded tank with a burner
 flame at its base, drawn solid while `heating` and outlined otherwise. Its

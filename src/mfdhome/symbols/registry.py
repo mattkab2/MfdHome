@@ -24,6 +24,14 @@ from mfdhome.symbols.combiner import (
     input_port,
     output_port,
 )
+from mfdhome.symbols.fittings import (
+    backflow_preventer,
+    bfp_box,
+    check_box,
+    check_valve,
+    prv,
+    prv_box,
+)
 from mfdhome.symbols.format import format_value, is_valid_format
 from mfdhome.symbols.meter import meter, meter_box
 from mfdhome.symbols.outlet import inlet_ports, outlet, outlet_box
@@ -381,6 +389,40 @@ def _draw_gauge(inp: SymbolInput, theme: Theme) -> str:
     return gauge(*inp.at, format_value(inp.values["value"], fmt, unit), inp.status, theme)
 
 
+def _fitting_spec(
+    type_name: str,
+    box: Callable[[float, float, Orientation], Box],
+    draw: Callable[[float, float, Status, Orientation, Theme], str],
+    channels: tuple[str, ...] = ("state",),
+) -> SymbolSpec:
+    """An unpowered inline fitting: optional bindings, in on the left, out on the right."""
+
+    def spec_box(at: Point, orientation: Orientation) -> Box:
+        return box(*at, orientation)
+
+    def ends(side: float) -> PortFn:
+        def port(at: Point, orientation: Orientation) -> Port:
+            # The pipe axis runs through the center, even where the box reaches
+            # past the body (the PRV's dome).
+            b = spec_box(at, orientation)
+            if orientation is Orientation.VERTICAL:
+                return Port((at[0], b.top if side < 0 else b.bottom), (0.0, side))
+            return Port((b.left if side < 0 else b.right, at[1]), (side, 0.0))
+
+        return port
+
+    return SymbolSpec(
+        type=type_name,
+        channels=channels,
+        required=frozenset(),
+        primary=channels[0],
+        numeric=frozenset(c for c in channels if c != "state"),
+        box=spec_box,
+        draw=lambda inp, theme: draw(*inp.at, inp.status, inp.orientation, theme),
+        ports={"in": ends(-1.0), "out": ends(1.0)},
+    )
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -436,6 +478,9 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     ),
     "ball_valve": _valve_spec("ball_valve", Body.BALL),
     "globe_valve": _valve_spec("globe_valve", Body.GLOBE),
+    "check_valve": _fitting_spec("check_valve", check_box, check_valve),
+    "backflow_preventer": _fitting_spec("backflow_preventer", bfp_box, backflow_preventer),
+    "prv": _fitting_spec("prv", prv_box, prv, channels=("pressure",)),
     "water_heater": SymbolSpec(
         type="water_heater",
         channels=("temperature", "heating"),
