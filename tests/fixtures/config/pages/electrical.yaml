@@ -16,7 +16,7 @@ elements:
     from: [70, 260]
     to: main_breaker.in
     bind: {rate: sensor.grid_power}
-    flow: true
+    flow: {threshold: 10}             # W: ignore sensor noise near zero
     status: {systems: [GRID]}       # hatched red while the grid is lost
     name: {text: GRID, along: 0, anchor: left}
     readouts: [{value: rate, format: power, abs: true}]
@@ -35,7 +35,7 @@ elements:
     from: main_breaker.out
     to: ats.grid
     bind: {rate: sensor.grid_power}
-    flow: true
+    flow: {threshold: 10}             # W: ignore sensor noise near zero
     status: {systems: [GRID]}
 
   - id: ats
@@ -53,7 +53,7 @@ elements:
     from: ats.load
     to: bus
     bind: {rate: sensor.grid_power}
-    flow: true
+    flow: {threshold: 10}             # W: ignore sensor noise near zero
 
   # The backup bus: everything on the house side meets here.
   - {id: bus, type: node, at: [640, 260]}
@@ -89,7 +89,7 @@ elements:
     from: array.right
     to: bus
     bind: {rate: array.power}
-    flow: true
+    flow: {threshold: 10}             # W: ignore sensor noise near zero
     readouts: [{value: rate, format: power, abs: true, along: 0.6}]
 
   - id: battery
@@ -111,7 +111,7 @@ elements:
     to: battery.top
     bind: {rate: sensor.battery_power}
     status: {alerts: [battery_low, battery_critical]}
-    flow: true
+    flow: {threshold: 10}             # W: ignore sensor noise near zero
     readouts: [{value: rate, format: power, abs: true}]
 
   - id: loads
@@ -125,5 +125,5 @@ elements:
     from: bus
     to: loads.top
     bind: {rate: sensor.load_power}
-    flow: true
+    flow: {threshold: 10}             # W: ignore sensor noise near zero
     readouts: [{value: rate, format: power, abs: true}]

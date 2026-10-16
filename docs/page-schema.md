@@ -144,7 +144,7 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
   route: straight            # optional: allow a diagonal instead of an elbow
   casing: false              # optional: a plain line (default: a hollow pipe)
   bind: {rate: sensor.grid_power}
-  flow: true                 # or {from: rate, threshold: 10}
+  flow: {threshold: 10}      # or just 'true' (threshold 0: any nonzero rate)
   name: {text: GRID, along: 0, anchor: right}
   status: {...}
   readouts: [{value: rate, format: power, abs: true}]
@@ -173,8 +173,10 @@ instead.
 
 Lines have one channel, `rate` (numeric, primary): whatever the line carries,
 such as power in W, water flow in gal/min or throughput in Mbps. With `flow`,
-an arrow is drawn when `|rate| > threshold`: positive flows from the first
-point toward the last, negative flows backward (e.g. grid export). A flowing
+an arrow is drawn when `|rate| > threshold` (default 0, so any nonzero rate;
+set a threshold for noisy sensors, such as power hovering around zero):
+positive flows from the first point toward the last, negative flows backward
+(e.g. grid export). A flowing
 line with normal status is drawn in the active color (Gruvbox blue).
 
 The arrow is a harpoon (⇀) beside the line: a shaft parallel to it, set off

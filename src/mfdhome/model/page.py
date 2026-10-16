@@ -88,10 +88,14 @@ class StatusSpec:
 
 @dataclass(frozen=True)
 class FlowSpec:
-    """Draw a flow arrow when ``|channel| > threshold``; the sign sets direction."""
+    """Draw a flow arrow when ``|channel| > threshold``; the sign sets direction.
+
+    The default threshold of 0 shows any nonzero rate; noisy sensors (power
+    hovering around zero) should set their own.
+    """
 
     channel: str = "rate"
-    threshold: float = 10.0
+    threshold: float = 0.0
 
 
 @dataclass(frozen=True)

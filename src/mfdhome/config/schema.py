@@ -184,7 +184,7 @@ class FlowModel(Strict):
     """Flow arrow rule; ``flow: true`` is shorthand for the defaults."""
 
     from_: str = Field(default="rate", alias="from")
-    threshold: Annotated[float, Field(ge=0.0)] = 10.0
+    threshold: Annotated[float, Field(ge=0.0)] = 0.0
 
 
 class _Bound(Strict):

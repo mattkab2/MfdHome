@@ -83,3 +83,20 @@ def test_rendered_line_follows_its_first_readout() -> None:
 
     assert rendered(Readout("rate", along=0.2))[0] == (55, 9)  # below, under the readout
     assert rendered(Readout("rate", along=0.2, anchor=Anchor.BOTTOM_CENTER))[0] == (55, -9)
+
+
+def test_default_threshold_shows_any_nonzero_rate() -> None:
+    def svg(rate: str) -> str:
+        element = LineElement(
+            "water",
+            ((0.0, 0.0), (200.0, 0.0)),
+            bind={"rate": EntityRef("sensor.water_flow")},
+            flow=FlowSpec(),  # what 'flow: true' gives
+        )
+        return render_element(
+            element, snapshot_from_ha_states([ha_state("sensor.water_flow", rate)]), LCD
+        )
+
+    assert "<polygon" in svg("2.5")  # 2.5 gal/min flows
+    assert "<polygon" in svg("-0.5")  # so does a small reverse flow
+    assert "<polygon" not in svg("0")

@@ -72,7 +72,7 @@ class TestValidPages:
             bind={"rate": EntityRef("sensor.grid_power")},
             name=Name("GRID"),
             readouts=(Readout("rate", "power", None, True),),
-            flow=FlowSpec("rate", 10.0),
+            flow=FlowSpec("rate", 0.0),  # 'flow: true': any nonzero rate
         )
         assert text == TextElement("label", (5, 5), "Hi", "start")
         assert (page.id, page.width, page.height) == ("test", 100, 100)
