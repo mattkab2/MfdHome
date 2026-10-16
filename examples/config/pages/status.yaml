@@ -9,7 +9,7 @@ elements:
   # 4 x 160 tiles + 3 x 24 gaps = 712 wide, centered: (1000 - 712) / 2 = 144
   - id: annunciator
     type: tile_grid
-    at: [144, 200]
+    at: [144, 160]
     columns: 4
     gap: 24
-    tiles: [GRID, BATT, WATER, LEAK, HVAC, NET, SEC, WX]
+    tiles: [GRID, BATT, WATER, LEAK, GAS, HVAC, NET, SEC, WX]

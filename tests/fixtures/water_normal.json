@@ -1,0 +1,90 @@
+[
+ {
+  "entity_id": "valve.main_water",
+  "state": "open",
+  "attributes": {}
+ },
+ {
+  "entity_id": "sensor.water_pressure",
+  "state": "58",
+  "attributes": {
+   "unit_of_measurement": "psi"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.leak_kitchen",
+  "state": "off",
+  "attributes": {
+   "device_class": "moisture"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.leak_basement",
+  "state": "off",
+  "attributes": {
+   "device_class": "moisture"
+  }
+ },
+ {
+  "entity_id": "sensor.water_flow",
+  "state": "1.8",
+  "attributes": {
+   "unit_of_measurement": "gal/min"
+  }
+ },
+ {
+  "entity_id": "sensor.water_usage_today",
+  "state": "84",
+  "attributes": {
+   "unit_of_measurement": "gal"
+  }
+ },
+ {
+  "entity_id": "valve.irrigation",
+  "state": "closed",
+  "attributes": {}
+ },
+ {
+  "entity_id": "water_heater.tank",
+  "state": "gas",
+  "attributes": {
+   "current_temperature": 124,
+   "temperature": 125
+  }
+ },
+ {
+  "entity_id": "binary_sensor.water_heater_burner",
+  "state": "on",
+  "attributes": {
+   "device_class": "running"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.leak_water_heater",
+  "state": "off",
+  "attributes": {
+   "device_class": "moisture"
+  }
+ },
+ {
+  "entity_id": "sensor.gas_flow",
+  "state": "40",
+  "attributes": {
+   "unit_of_measurement": "ft\u00b3/h"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.gas_leak",
+  "state": "off",
+  "attributes": {
+   "device_class": "gas"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.co_detector",
+  "state": "off",
+  "attributes": {
+   "device_class": "carbon_monoxide"
+  }
+ }
+]

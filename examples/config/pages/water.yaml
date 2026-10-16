@@ -1,0 +1,196 @@
+# Water page: a municipal supply. The service enters through the meter,
+# backflow preventer and pressure reducing valve, then the smart shutoff to
+# the main. Outdoor taps and irrigation come off the main ahead of the filter;
+# the house cold supply feeds the gas water heater and the kitchen sink (cold
+# and hot). Gas, with its detectors, feeds the water heater. Generic entity
+# ids only. Keep the bottom 40 units clear for the banner and keys.
+page: water
+title: Water
+canvas: {width: 1000, height: 600}
+
+elements:
+  - {id: title, type: text, at: [80, 40], text: WATER}
+
+  # --- service entry -----------------------------------------------------------
+  - id: service
+    type: line
+    from: [30, 200]
+    to: meter.in
+    tag: {text: CW, along: 0.4}
+    bind: {rate: sensor.water_flow}
+    flow: true
+
+  - id: meter
+    type: water_meter
+    at: [110, 200]
+    name: METER
+    bind: {flow: sensor.water_flow, total: sensor.water_usage_today}
+    readouts: [{value: flow, format: "{:.1f} gpm"}]
+
+  - {id: to_bfp, type: line, from: meter.out, to: bfp.in, bind: {rate: sensor.water_flow}, flow: true}
+
+  - {id: bfp, type: backflow_preventer, at: [210, 200], name: BFP}
+
+  - {id: to_prv, type: line, from: bfp.out, to: prv.in, bind: {rate: sensor.water_flow}, flow: true}
+
+  - id: prv
+    type: prv
+    at: [310, 200]
+    name: {text: PRV, anchor: bottom}
+    bind: {pressure: sensor.water_pressure}
+
+  - id: pressure
+    type: gauge
+    at: [310, 140]
+    params: {format: "{:.0f} psi"}
+    bind: {value: sensor.water_pressure}
+    status:
+      thresholds: {warning_low: 20, caution_low: 40, caution_high: 80}
+
+  - {id: to_main, type: line, from: prv.out, to: shutoff.in, bind: {rate: sensor.water_flow}, flow: true}
+
+  - id: shutoff
+    type: ball_valve
+    at: [410, 200]
+    params: {actuated: true}
+    name: {text: MAIN, anchor: bottom}
+    bind: {state: valve.main_water}
+    status:
+      map: {open: normal}
+      default: caution               # closed (or moving): no water to the house
+
+  - id: to_branch
+    type: line
+    from: shutoff.out
+    to: main
+    bind: {rate: sensor.water_flow}
+    flow: true
+
+  - {id: main, type: node, at: [500, 200]}
+
+  # --- outdoor (ahead of the filter) -------------------------------------------
+  - {id: to_hose, type: line, from: main, to: hose.in}
+
+  - id: hose
+    type: outlet
+    at: [610, 110]
+    params: {label: HB, outdoor: true}
+    name: {text: HOSE, anchor: right}
+
+  - {id: to_irrigation, type: line, from: main, to: irrigation.in}
+
+  - id: irrigation
+    type: ball_valve
+    at: [570, 320]
+    params: {actuated: true}
+    name: {text: IRR, anchor: bottom}
+    bind: {state: valve.irrigation}   # running shows as an advisory, not a fault
+
+  - {id: to_zones, type: line, from: irrigation.out, to: zones.in}
+
+  - id: zones
+    type: outlet
+    at: [660, 320]
+    params: {label: IRR, outdoor: true}
+
+  # --- house -------------------------------------------------------------------
+  - {id: to_filter, type: line, from: main, to: filter.in}
+
+  - id: filter
+    type: tank
+    at: [580, 200]
+    params: {tag: FILT, connections: sides}
+
+  - {id: to_house, type: line, from: filter.out, to: house}
+  - {id: house, type: node, at: [740, 200]}
+
+  - {id: to_heater, type: line, from: house, to: heater.cold}
+
+  - id: heater
+    type: water_heater
+    at: [752, 410]
+    name: {text: WH, anchor: left}
+    bind:
+      temperature: {entity: water_heater.tank, attribute: current_temperature, unit: "°F"}
+      heating: binary_sensor.water_heater_burner
+    status:
+      thresholds: {caution_low: 100}
+    readouts: [{value: temperature, format: "{:.0f} °F", anchor: left}]
+
+  - id: to_sink_cold
+    type: line
+    from: house
+    to: sink.cold
+    tag: {text: CW, along: 0.5}
+
+  - id: to_sink_hot
+    type: line
+    from: heater.hot
+    to: sink.hot
+    tag: {text: HW, along: 0.75}
+
+  - id: sink
+    type: outlet
+    at: [920, 207]
+    params: {label: SINK, inlets: 2}
+    name: {text: KITCHEN, anchor: bottom}
+
+  # --- gas ---------------------------------------------------------------------
+  - id: gas_service
+    type: line
+    from: [30, 436]
+    to: gas_meter.in
+    tag: GAS
+
+  - id: gas_meter
+    type: gas_meter
+    at: [110, 436]
+    name: {text: METER, anchor: bottom}   # the GAS tag on its line says which
+    bind: {flow: sensor.gas_flow}
+
+  - id: gas_feed
+    type: line
+    from: gas_meter.out
+    to: heater.gas
+    tag: {text: GAS, along: 0.5}
+
+  # --- detectors ---------------------------------------------------------------
+  - id: leak_heater
+    type: sensor
+    at: [830, 480]
+    params: {code: W}
+    name: {text: PAN, anchor: right}
+    bind: {state: binary_sensor.leak_water_heater}
+    status: {map: {"on": warning}}
+
+  - id: leak_kitchen
+    type: sensor
+    at: [920, 290]
+    params: {code: W}
+    name: {text: SINK, anchor: right}
+    bind: {state: binary_sensor.leak_kitchen}
+    status: {map: {"on": warning}}
+
+  - id: leak_basement
+    type: sensor
+    at: [420, 380]
+    params: {code: W}
+    name: {text: BSMT, anchor: right}
+    bind: {state: binary_sensor.leak_basement}
+    status: {map: {"on": warning}}
+
+  - id: gas_detector
+    type: sensor
+    at: [230, 380]
+    params: {code: G}
+    name: {text: GAS, anchor: right}
+    bind: {state: binary_sensor.gas_leak}
+    status: {map: {"on": warning}}
+
+  - id: co_detector
+    type: sensor
+    at: [230, 500]
+    params: {code: CO}
+    name: {text: CO, anchor: right}
+    bind: {state: binary_sensor.co_detector}
+    status: {map: {"on": warning}}

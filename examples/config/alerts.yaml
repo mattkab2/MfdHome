@@ -8,6 +8,7 @@ systems:
   HVAC: {label: HVAC}
   NET: {label: NET}
   SEC: {label: SEC}
+  GAS: {label: GAS}
   WX: {label: WX}
 
 alerts:
@@ -42,7 +43,35 @@ alerts:
     severity: caution
     system: WATER
     message: WATER PRESSURE LOW
+    for: 2m
     when: [{entity: sensor.water_pressure, lt: 30}]
+  - id: water_pressure_high
+    severity: caution
+    system: WATER
+    message: WATER PRESSURE HIGH
+    for: 2m
+    when: [{entity: sensor.water_pressure, gt: 80}]
+  # Water running for half an hour with irrigation off: a hidden leak, or a
+  # tap left on.
+  - id: continuous_flow
+    severity: caution
+    system: WATER
+    message: CONTINUOUS WATER FLOW
+    for: 30m
+    when:
+      - {entity: sensor.water_flow, gt: 0.1}
+      - {entity: valve.irrigation, ne: open}
+  - id: water_heater_cold
+    severity: caution
+    system: WATER
+    message: WATER HEATER NOT HEATING
+    for: 1h
+    when: [{entity: water_heater.tank, attribute: current_temperature, lt: 100}]
+  - id: irrigation_running
+    severity: advisory
+    system: WATER
+    message: IRRIGATION RUNNING
+    when: [{entity: valve.irrigation, eq: open}]
 
   - id: leak_detected
     severity: warning
@@ -51,6 +80,36 @@ alerts:
     any:
       - {entity: binary_sensor.leak_kitchen, eq: on}
       - {entity: binary_sensor.leak_basement, eq: on}
+      - {entity: binary_sensor.leak_water_heater, eq: on}
+  # A dead leak sensor protects nothing: a caution, not just gray.
+  - id: leak_sensor_offline
+    severity: caution
+    system: LEAK
+    message: LEAK SENSOR OFFLINE
+    for: 10m
+    any:
+      - {entity: binary_sensor.leak_kitchen, unavailable: true}
+      - {entity: binary_sensor.leak_basement, unavailable: true}
+      - {entity: binary_sensor.leak_water_heater, unavailable: true}
+
+  - id: gas_detected
+    severity: warning
+    system: GAS
+    message: GAS DETECTED
+    when: [{entity: binary_sensor.gas_leak, eq: on}]
+  - id: co_detected
+    severity: warning
+    system: GAS
+    message: CARBON MONOXIDE
+    when: [{entity: binary_sensor.co_detector, eq: on}]
+  - id: gas_detector_offline
+    severity: caution
+    system: GAS
+    message: GAS DETECTOR OFFLINE
+    for: 10m
+    any:
+      - {entity: binary_sensor.gas_leak, unavailable: true}
+      - {entity: binary_sensor.co_detector, unavailable: true}
 
   - id: hvac_fault
     severity: caution

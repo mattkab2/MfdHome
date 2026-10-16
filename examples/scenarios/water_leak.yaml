@@ -1,0 +1,26 @@
+# A water heater pan leak that the smart shutoff closes off, on a loop, for
+# 'mfdhome serve CONFIG --scenario THIS_FILE'.
+states: house_normal.json
+loop: 3m
+steps:
+  - at: 10s                         # someone runs a tap; the heater fires
+    set:
+      sensor.water_flow: {state: "1.8", attributes: {unit_of_measurement: gal/min}}
+      binary_sensor.water_heater_burner: "on"
+  - at: 30s                         # the pan sensor gets wet
+    set:
+      binary_sensor.leak_water_heater: "on"
+  - at: 35s                         # the shutoff closes the main; pressure drains away
+    set:
+      valve.main_water: closing
+  - at: 40s
+    set:
+      valve.main_water: closed
+      sensor.water_flow: {state: "0", attributes: {unit_of_measurement: gal/min}}
+      sensor.water_pressure: {state: "6", attributes: {unit_of_measurement: psi}}
+      binary_sensor.water_heater_burner: "off"
+  - at: 150s                        # fixed: the pan dries and the main reopens
+    set:
+      binary_sensor.leak_water_heater: "off"
+      valve.main_water: open
+      sensor.water_pressure: {state: "58", attributes: {unit_of_measurement: psi}}
