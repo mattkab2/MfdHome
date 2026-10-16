@@ -144,3 +144,14 @@ def test_evaluate_alerts() -> None:
     assert evaluate_alerts([low, WARN], snap) == {"low", "warn"}
     # Missing data never raises a comparison-based alert.
     assert evaluate_alerts([low], {}) == frozenset()
+
+
+def test_life_safety_is_named_first_within_its_severity() -> None:
+    smoke = AlertDef("smoke", Severity.WARNING, "FIRE", "SMOKE", TRUE, life_safety=True)
+    grid = alert("grid")
+    board = step(EMPTY_BOARD, [smoke, grid], {"smoke"}, at(0))
+    board = step(board, [smoke, grid], {"smoke", "grid"}, at(1))  # grid raised more recently
+    assert most_urgent(board, [smoke, grid]) == smoke
+    caution = AlertDef("low", Severity.CAUTION, "S", "LOW", TRUE, life_safety=True)
+    board = step(EMPTY_BOARD, [caution, grid], {"low", "grid"}, at(0))
+    assert most_urgent(board, [caution, grid]) == grid  # severity still comes first

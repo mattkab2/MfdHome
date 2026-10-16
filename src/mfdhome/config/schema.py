@@ -423,6 +423,7 @@ class AlertModel(ExprModel):
     system: Ident
     message: str
     hold: Duration | None = Field(default=None, alias="for")
+    life_safety: bool = False
 
 
 class LoggedModel(Strict):

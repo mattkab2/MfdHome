@@ -887,7 +887,11 @@ def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
             issues.add((*loc, "system"), f"unknown system {a.system!r}; expected: {known}")
         condition = exprs.expr(a, loc, NO_CHANNELS)
         hold = a.hold or timedelta(0)
-        alerts.append(AlertDef(a.id, Severity(a.severity), a.system, a.message, condition, hold))
+        alerts.append(
+            AlertDef(
+                a.id, Severity(a.severity), a.system, a.message, condition, hold, a.life_safety
+            )
+        )
     logged = []
     for i, entry in enumerate(model.log):
         if entry.system not in systems:

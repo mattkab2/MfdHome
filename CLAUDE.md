@@ -113,8 +113,9 @@ examples/
 - **No preemption (for now):** alerts never switch a display's page. While any
   caution/warning is unacknowledged, the annunciator banner shows over the
   current page (bottom of the canvas; keep the bottom 40 units of pages
-  clear), naming the most urgent one: warning before caution, active before
-  cleared, most recently raised first.
+  clear), naming the most urgent one: warning before caution, life-safety
+  alerts (`life_safety: true`: smoke, CO, gas, a triggered alarm) first within
+  a severity, active before cleared, most recently raised first.
 - Unacknowledged cue by display type: LCD/LED panels flash (≤ 1 Hz), the mirror
   pulses slowly, e-ink draws a static outline ring.
 - The Status/annunciator page is the default/home page.

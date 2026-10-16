@@ -157,11 +157,12 @@ def acknowledge(board: Board, by: str, now: datetime, ids: Iterable[str] | None 
     return out
 
 
-def _priority(alert: AlertDef, state: AlertState) -> tuple[int, int, float]:
-    """Sort key, smallest first: severity, then active before cleared, then newest."""
+def _priority(alert: AlertDef, state: AlertState) -> tuple[int, int, int, float]:
+    """Sort key, smallest first: severity, then life safety first, then active
+    before cleared, then newest."""
     since = state.since.timestamp() if state.since else 0.0
     cleared = 1 if state.phase is Phase.CLEARED_UNACKED else 0
-    return (-alert.severity.rank, cleared, -since)
+    return (-alert.severity.rank, 0 if alert.life_safety else 1, cleared, -since)
 
 
 def attention_order(board: Board, alerts: Iterable[AlertDef]) -> list[AlertDef]:
@@ -173,8 +174,9 @@ def attention_order(board: Board, alerts: Iterable[AlertDef]) -> list[AlertDef]:
 def most_urgent(board: Board, alerts: Iterable[AlertDef]) -> AlertDef | None:
     """The unacknowledged caution/warning the banner should name, if any.
 
-    Order: warning before caution; active before cleared-but-unacknowledged;
-    most recently raised first. Advisories never qualify.
+    Order: warning before caution; life-safety alerts first within a
+    severity; active before cleared-but-unacknowledged; most recently raised
+    first. Advisories never qualify.
     """
     for alert in attention_order(board, alerts):
         if alert.severity.needs_ack:

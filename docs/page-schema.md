@@ -641,6 +641,7 @@ alerts:
     system: GRID
     message: EXPORTING TO GRID
     for: 1m                    # optional hold time, like 30, "30s", "5m"
+    life_safety: false         # true: named first among alerts of its severity
     when: [{entity: sensor.grid_power, lt: -1000}]
 ```
 
@@ -650,6 +651,9 @@ alerts:
   doesn't raise and clear over and over. Conditions are checked on every
   change and at least every 30 seconds, so a hold can run up to 30 seconds
   long. The alert's raise time is when the hold ran out.
+- **Life safety:** `life_safety: true` (smoke, CO, gas, a triggered alarm)
+  puts an alert first among alerts of its severity, so the banner and the ACK
+  key name it before anything else. Severity still comes first.
 - An alert is raised while its condition holds. Conditions can only refer to
   `entity:` values, because alerts have no channels. They can `use` named
   conditions from `defs.yaml`, but only ones that also refer to entities.

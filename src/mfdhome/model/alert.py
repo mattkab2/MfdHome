@@ -44,7 +44,9 @@ class AlertDef:
     """An alert: raised while ``condition`` holds.
 
     ``hold`` is how long the condition must hold before the alert is raised,
-    and stop holding before it clears (zero: immediately).
+    and stop holding before it clears (zero: immediately). ``life_safety``
+    alerts (smoke, CO, gas, a triggered alarm) are named first among alerts
+    of their severity.
     """
 
     id: str
@@ -53,6 +55,7 @@ class AlertDef:
     message: str
     condition: AnyOf
     hold: timedelta = timedelta(0)
+    life_safety: bool = False
 
 
 @dataclass(frozen=True)

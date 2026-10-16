@@ -101,11 +101,13 @@ alerts:
 
   - id: gas_detected
     severity: warning
+    life_safety: true
     system: GAS
     message: GAS DETECTED
     when: [{entity: binary_sensor.gas_leak, eq: on}]
   - id: co_detected
     severity: warning
+    life_safety: true
     system: GAS
     message: CARBON MONOXIDE
     when: [{entity: binary_sensor.co_detector, eq: on}]
@@ -181,6 +183,7 @@ alerts:
 
   - id: alarm_triggered
     severity: warning
+    life_safety: true
     system: SEC
     message: ALARM TRIGGERED
     when: [{entity: alarm_control_panel.house, eq: triggered}]
@@ -221,6 +224,7 @@ alerts:
 
   - id: smoke_detected
     severity: warning
+    life_safety: true
     system: FIRE
     message: SMOKE DETECTED
     when: [{entity: binary_sensor.hall_smoke, eq: on}]
