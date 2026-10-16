@@ -1,6 +1,6 @@
 """Page and element definitions, positioned on a logical canvas.
 
-There are seven element kinds:
+There are nine element kinds:
 
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
 - ``LineElement``: a connection along a polyline, carrying a ``rate``;
@@ -8,7 +8,9 @@ There are seven element kinds:
 - ``TileElement``: an annunciator tile showing one system's alerts;
 - ``NodeElement``: a connection point lines can attach to;
 - ``GroupElement``: a container laying out items that connect only through it;
-- ``LogElement``: the alert log (history), paged by the display's keys.
+- ``LogElement``: the alert log (history), paged by the display's keys;
+- ``RoomElement`` and ``WallElement``: floorplan structure (doors, windows
+  and sensors on a floorplan are symbols).
 
 Symbols and lines bind HA entities to named *channels* declared by their type.
 Status rules, flow and readouts refer to channel names, not entity ids.
@@ -179,6 +181,31 @@ class NodeElement:
 
 
 @dataclass(frozen=True)
+class RoomElement:
+    """A floorplan room: a polygon with a name, drawn in the structure color.
+
+    Its outline takes a status color only when its ``status`` (rules on
+    entities, or alerts) says so, e.g. a room where smoke is detected.
+    ``label_at`` places the name (default: the middle of the room).
+    """
+
+    id: str
+    points: tuple[Point, ...]
+    name: str | None = None
+    label_at: Point | None = None
+    status: StatusSpec = StatusSpec()
+
+
+@dataclass(frozen=True)
+class WallElement:
+    """A floorplan wall: a static polyline; ``exterior`` walls are drawn heavier."""
+
+    id: str
+    points: tuple[Point, ...]
+    exterior: bool = False
+
+
+@dataclass(frozen=True)
 class LogElement:
     """The alert log: history events newest first, in a box at ``at`` (top-left) of ``size``.
 
@@ -260,6 +287,8 @@ type Element = (
     | NodeElement
     | GroupElement
     | LogElement
+    | RoomElement
+    | WallElement
 )
 
 

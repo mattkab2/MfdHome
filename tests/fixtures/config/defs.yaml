@@ -10,6 +10,12 @@ conditions:
       - {entity: sensor.grid_power, unavailable: true}
       - {entity: binary_sensor.grid_connected, eq: off}
 
+  # The alarm system is armed in any mode (not disarmed, arming or triggered).
+  armed:
+    when:
+      - entity: alarm_control_panel.house
+        in: [armed_home, armed_away, armed_night, armed_vacation, armed_custom_bypass]
+
 # Treat data as missing when HA has not heard from an entity for this long.
 stale_after:
   default: 15m

@@ -294,6 +294,26 @@ class TileModel(Strict):
     label: str | None = None
 
 
+class RoomModel(Strict):
+    """A floorplan room: a polygon, a name, and status rules on entities or alerts."""
+
+    id: Ident
+    type: Literal["room"]
+    points: Annotated[list[Coord], Field(min_length=3)]
+    name: str | None = None
+    label_at: Coord | None = None
+    status: StatusModel | None = None
+
+
+class WallModel(Strict):
+    """A floorplan wall: a polyline, optionally an exterior (heavier) wall."""
+
+    id: Ident
+    type: Literal["wall"]
+    points: Annotated[list[Coord], Field(min_length=2)]
+    exterior: bool = False
+
+
 class LogModel(Strict):
     """The alert log: a box (top-left ``at``, ``size``), optionally limited to some systems."""
 

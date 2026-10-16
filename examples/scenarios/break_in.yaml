@@ -1,0 +1,23 @@
+# Arming, a break-in and disarming, on a loop, for
+# 'mfdhome serve CONFIG --scenario THIS_FILE'.
+states: house_normal.json
+loop: 4m
+steps:
+  - at: 10s                         # everyone leaves; the system arms
+    set: {alarm_control_panel.house: arming}
+  - at: 30s
+    set: {alarm_control_panel.house: armed_away}
+  - at: 70s                         # the back door opens: entry delay
+    set:
+      binary_sensor.back_door: "on"
+      alarm_control_panel.house: pending
+  - at: 80s
+    set:
+      binary_sensor.hall_motion: "on"
+  - at: 100s                        # nobody disarmed in time
+    set: {alarm_control_panel.house: triggered}
+  - at: 3m                          # disarmed; the door is shut
+    set:
+      alarm_control_panel.house: disarmed
+      binary_sensor.back_door: "off"
+      binary_sensor.hall_motion: "off"

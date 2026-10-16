@@ -16,6 +16,7 @@ from mfdhome.model.page import (
     Element,
     GroupElement,
     LineElement,
+    RoomElement,
     SymbolElement,
     TileElement,
 )
@@ -77,6 +78,12 @@ class Resolver:
                 result = self._tile(element)
             case GroupElement():
                 result = self._group(element)
+            case RoomElement():
+                alert_status = self.alerts.active_status(
+                    element.status.systems, element.status.alerts
+                )
+                status = element_status(element.status, self.context({}), "", False, alert_status)
+                result = Resolved(status)
             case _:
                 return None
         self._cache[element.id] = result

@@ -1,0 +1,116 @@
+# Security page: a floorplan of a made-up single-floor house. Walls and rooms
+# are structure (they recede); doors and windows on contact sensors, motion,
+# smoke and glass-break sensors and the alarm panel show status. A door or
+# window open while the system is armed is a caution. Generic entity ids; a
+# real floorplan belongs in the private config repo only. Keep the bottom 40
+# units clear for the banner and keys.
+page: security
+title: Security
+canvas: {width: 1000, height: 600}
+
+elements:
+  - {id: title, type: text, at: [80, 40], text: SECURITY}
+
+  - id: panel
+    type: alarm_panel
+    at: [880, 110]
+    name: {text: ALARM, anchor: top}
+    bind: {state: alarm_control_panel.house}
+    status:
+      map: {triggered: warning, pending: caution, arming: caution}
+      default: normal
+
+  # --- rooms ---------------------------------------------------------------------
+  - {id: living, type: room, name: LIVING, points: [[80, 80], [420, 80], [420, 300], [80, 300]]}
+  - {id: kitchen, type: room, name: KITCHEN, points: [[420, 80], [760, 80], [760, 300], [420, 300]]}
+  - {id: hall, type: room, name: HALL, label_at: [250, 330],
+     points: [[80, 300], [760, 300], [760, 360], [80, 360]]}
+  - {id: bed_1, type: room, name: BED 1, points: [[80, 360], [320, 360], [320, 520], [80, 520]]}
+  - {id: bath, type: room, name: BATH, points: [[320, 360], [460, 360], [460, 520], [320, 520]]}
+  - {id: bed_2, type: room, name: BED 2, points: [[460, 360], [760, 360], [760, 520], [460, 520]]}
+
+  - id: exterior
+    type: wall
+    exterior: true
+    points: [[80, 80], [760, 80], [760, 520], [80, 520], [80, 80]]
+
+  # --- doors and windows (contact sensors: on = open) -----------------------------
+  - id: front_door
+    type: opening
+    at: [80, 330]
+    orientation: vertical
+    params: {kind: door, length: 44, swing: right}
+    name: {text: FRONT, anchor: left}
+    bind: {state: binary_sensor.front_door}
+    status:
+      rules: [{level: caution, when: [{channel: state, eq: "on"}, {use: armed}]}]
+
+  - id: back_door
+    type: opening
+    at: [760, 190]
+    orientation: vertical
+    params: {kind: door, length: 44, swing: left}
+    name: {text: BACK, anchor: right}
+    bind: {state: binary_sensor.back_door}
+    status:
+      rules: [{level: caution, when: [{channel: state, eq: "on"}, {use: armed}]}]
+
+  - id: living_window
+    type: opening
+    at: [250, 80]
+    params: {kind: window, length: 90}
+    bind: {state: binary_sensor.living_window}
+    status:
+      rules: [{level: caution, when: [{channel: state, eq: "on"}, {use: armed}]}]
+
+  - id: kitchen_window
+    type: opening
+    at: [590, 80]
+    params: {kind: window, length: 70}
+    bind: {state: binary_sensor.kitchen_window}
+    status:
+      rules: [{level: caution, when: [{channel: state, eq: "on"}, {use: armed}]}]
+
+  - id: bed_1_window
+    type: opening
+    at: [200, 520]
+    params: {kind: window, length: 70}
+    bind: {state: binary_sensor.bed_1_window}
+    status:
+      rules: [{level: caution, when: [{channel: state, eq: "on"}, {use: armed}]}]
+
+  - id: bed_2_window
+    type: opening
+    at: [610, 520]
+    params: {kind: window, length: 70}
+    bind: {state: binary_sensor.bed_2_window}
+    status:
+      rules: [{level: caution, when: [{channel: state, eq: "on"}, {use: armed}]}]
+
+  # --- point sensors ---------------------------------------------------------------
+  - id: living_motion
+    type: sensor
+    at: [250, 240]
+    params: {code: M}
+    bind: {state: binary_sensor.living_motion}
+
+  - id: hall_motion
+    type: sensor
+    at: [640, 330]
+    params: {code: M}
+    bind: {state: binary_sensor.hall_motion}
+
+  - id: hall_smoke
+    type: sensor
+    at: [440, 330]
+    params: {code: S}
+    bind: {state: binary_sensor.hall_smoke}
+    status: {map: {"on": warning}}
+
+  - id: living_glass
+    type: sensor
+    at: [130, 120]
+    params: {code: GB}
+    bind: {state: binary_sensor.living_glass_break}
+    status:
+      rules: [{level: warning, when: [{channel: state, eq: "on"}, {use: armed}]}]

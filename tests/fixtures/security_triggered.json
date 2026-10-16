@@ -1,0 +1,77 @@
+[
+ {
+  "entity_id": "alarm_control_panel.house",
+  "state": "triggered",
+  "attributes": {}
+ },
+ {
+  "entity_id": "binary_sensor.back_door",
+  "state": "on",
+  "attributes": {
+   "device_class": "door"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.living_window",
+  "state": "off",
+  "attributes": {
+   "device_class": "window"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.kitchen_window",
+  "state": "off",
+  "attributes": {
+   "device_class": "window"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.bed_1_window",
+  "state": "off",
+  "attributes": {
+   "device_class": "window"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.bed_2_window",
+  "state": "off",
+  "attributes": {
+   "device_class": "window"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.living_motion",
+  "state": "off",
+  "attributes": {
+   "device_class": "motion"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.hall_motion",
+  "state": "on",
+  "attributes": {
+   "device_class": "motion"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.hall_smoke",
+  "state": "off",
+  "attributes": {
+   "device_class": "smoke"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.living_glass_break",
+  "state": "off",
+  "attributes": {
+   "device_class": "sound"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.front_door",
+  "state": "off",
+  "attributes": {
+   "device_class": "door"
+  }
+ }
+]

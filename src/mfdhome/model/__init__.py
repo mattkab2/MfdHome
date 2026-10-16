@@ -18,10 +18,12 @@ from mfdhome.model.page import (
     Orientation,
     Page,
     Readout,
+    RoomElement,
     StatusSpec,
     SymbolElement,
     TextElement,
     TileElement,
+    WallElement,
 )
 from mfdhome.model.state import EntityState, StateSnapshot, snapshot_from_ha_states
 
@@ -46,6 +48,7 @@ __all__ = [
     "Orientation",
     "Page",
     "Readout",
+    "RoomElement",
     "Severity",
     "StateSnapshot",
     "Status",
@@ -54,5 +57,6 @@ __all__ = [
     "System",
     "TextElement",
     "TileElement",
+    "WallElement",
     "snapshot_from_ha_states",
 ]

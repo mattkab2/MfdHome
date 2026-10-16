@@ -36,6 +36,7 @@ from mfdhome.config.schema import (
     NodeModel,
     PageModel,
     ReadoutModel,
+    RoomModel,
     StaleModel,
     StatusModel,
     SymbolModel,
@@ -44,6 +45,7 @@ from mfdhome.config.schema import (
     ThresholdsModel,
     TileGridModel,
     TileModel,
+    WallModel,
 )
 from mfdhome.layout.anchors import Anchor, anchor_names, parse_anchor
 from mfdhome.layout.grid import grid_centers
@@ -68,10 +70,12 @@ from mfdhome.model.page import (
     Orientation,
     Page,
     Readout,
+    RoomElement,
     StatusSpec,
     SymbolElement,
     TextElement,
     TileElement,
+    WallElement,
 )
 from mfdhome.model.state import StalePolicy
 from mfdhome.render.panels import PANELS
@@ -391,7 +395,10 @@ class _ElementBuilder:
     def symbol(self, model: SymbolModel, loc: Loc) -> SymbolElement | None:
         spec = REGISTRY.get(model.type)
         if spec is None:
-            builtin = ["line", "text", "tile", "tile_grid", "node", "group", "alert_log"]
+            builtin = [
+                *("line", "text", "tile", "tile_grid", "node", "group", "alert_log"),
+                *("room", "wall"),
+            ]
             known = ", ".join([*builtin, *sorted(REGISTRY)])
             self.issues.add((*loc, "type"), f"unknown type {model.type!r}; expected: {known}")
             return None
@@ -549,6 +556,26 @@ class _ElementBuilder:
                     None
                     if log is None
                     else LogElement(log.id, log.at, log.size, tuple(log.systems))
+                )
+            case "room":
+                room = validate(RoomModel, raw, loc, self.issues)
+                built = (
+                    None
+                    if room is None
+                    else RoomElement(
+                        room.id,
+                        tuple(room.points),
+                        room.name,
+                        room.label_at,
+                        self.status(room.status, "", {}, (*loc, "status")),
+                    )
+                )
+            case "wall":
+                wall = validate(WallModel, raw, loc, self.issues)
+                built = (
+                    None
+                    if wall is None
+                    else WallElement(wall.id, tuple(wall.points), wall.exterior)
                 )
             case "tile_grid":
                 grid = validate(TileGridModel, raw, loc, self.issues)

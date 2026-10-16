@@ -60,6 +60,8 @@ class Theme:
     ``hatch_spacing`` is the stripe period of a warning line's hatching.
     ``core_inset`` is the gap between a flowing cased line's walls and its
     solid core.
+    ``structure`` draws what doesn't report (floorplan walls and rooms),
+    receding behind status colors; ``None`` uses ``text_color``.
     ``filled_text`` is the text color on a filled tile per status (default:
     the background); ``faint`` lists statuses too pale for text on the
     background, so text that would be drawn in their color (outlined tiles,
@@ -83,6 +85,7 @@ class Theme:
     tile_fill: Mapping[Status, TileFill]
     status_weight: Mapping[Status, float] = field(default_factory=dict)
     filled_text: Mapping[Status, str] = field(default_factory=dict)
+    structure: str | None = None
     faint: frozenset[Status] = frozenset()
     casing_width: float = 10.0
     casing_wall: float = 2.0
@@ -110,5 +113,11 @@ class Theme:
                 self.dim,
                 *self.colors.values(),
                 *self.filled_text.values(),
+                self.structure_color,
             }
         )
+
+    @property
+    def structure_color(self) -> str:
+        """The color for structure: walls and rooms."""
+        return self.structure or self.text_color

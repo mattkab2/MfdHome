@@ -6,7 +6,7 @@ displays:
     theme: lcd
     size: [1280, 800]
     home: status
-    pages: [status, electrical, water, log]
+    pages: [status, electrical, water, security, log]
   hallway:
     theme: mirror
     size: [1920, 1080]
@@ -15,5 +15,5 @@ displays:
     theme: eink_mono
     size: [800, 480]
     home: status
-    pages: [status, electrical, water, log]
+    pages: [status, electrical, water, security, log]
     panel: mono

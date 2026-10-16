@@ -28,9 +28,11 @@ from mfdhome.model.page import (
     NodeElement,
     Page,
     Readout,
+    RoomElement,
     SymbolElement,
     TextElement,
     TileElement,
+    WallElement,
 )
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import NO_ALERTS, SEVERITY_STATUS, AlertView
@@ -38,6 +40,7 @@ from mfdhome.render.controls import Controls, banner_box, soft_keys
 from mfdhome.render.log import alert_log
 from mfdhome.render.resolve import Resolver
 from mfdhome.symbols import svg
+from mfdhome.symbols.floorplan import room, wall
 from mfdhome.symbols.format import format_value
 from mfdhome.symbols.geometry import element_box
 from mfdhome.symbols.line import Flow, line, tag_plate
@@ -313,6 +316,12 @@ def _render_layers(element: Element, c: _Ctx) -> tuple[str, str]:
             body = _render_node(element, theme)
         case LogElement():
             body = alert_log(element, c.alerts, theme)
+        case RoomElement():
+            resolved = c.resolver.element(element)
+            status = Status.NORMAL if resolved is None else resolved.status
+            body = room(element.points, element.name, element.label_at, status, theme)
+        case WallElement():
+            body = wall(element.points, element.exterior, theme)
     return underlay, svg.element("g", {"id": element.id}, [body])
 
 

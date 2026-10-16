@@ -32,6 +32,8 @@ from mfdhome.symbols.fittings import (
     prv,
     prv_box,
 )
+from mfdhome.symbols.floorplan import OpeningKind, alarm_panel, opening, opening_box
+from mfdhome.symbols.floorplan import panel_box as alarm_panel_box
 from mfdhome.symbols.format import format_value, is_valid_format
 from mfdhome.symbols.meter import meter, meter_box
 from mfdhome.symbols.outlet import inlet_ports, outlet, outlet_box
@@ -468,6 +470,63 @@ def _pump_box(at: Point, _orientation: Orientation) -> Box:
     return pump_box(*at)
 
 
+SWINGS = {"up": -1.0, "left": -1.0, "down": 1.0, "right": 1.0}
+DEFAULT_OPEN_CONTACT = frozenset({"on", "open"})
+
+
+def _opening_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    unknown = set(raw) - {"kind", "length", "swing", "hinge", "open"}
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    kind = raw.get("kind", OpeningKind.DOOR.value)
+    if kind not in {k.value for k in OpeningKind}:
+        raise ValueError("'kind' must be door or window")
+    length = raw.get("length", 36)
+    if isinstance(length, bool) or not isinstance(length, int | float) or not 8 <= length <= 400:
+        raise ValueError("'length' must be a number from 8 to 400")
+    swing = raw.get("swing", "up")
+    if swing not in SWINGS:
+        raise ValueError(f"'swing' must be one of: {', '.join(SWINGS)}")
+    hinge = raw.get("hinge", "start")
+    if hinge not in ("start", "end"):
+        raise ValueError("'hinge' must be start or end")
+    states = _state_list_params("open", DEFAULT_OPEN_CONTACT)(
+        {"open": raw["open"]} if "open" in raw else {}
+    )
+    return {
+        "kind": OpeningKind(str(kind)),
+        "length": float(length),
+        "swing": SWINGS[str(swing)],
+        "hinge_at_start": hinge == "start",
+        **states,
+    }
+
+
+_OPENING_DEFAULTS = _opening_params({})
+
+
+def _opening_bounds(at: Point, orientation: Orientation, params: Mapping[str, object]) -> Box:
+    kind, length, swing = params["kind"], params["length"], params["swing"]
+    assert isinstance(kind, OpeningKind) and isinstance(length, float) and isinstance(swing, float)
+    return opening_box(*at, orientation is Orientation.VERTICAL, kind, length, swing)
+
+
+def _draw_opening(inp: SymbolInput, theme: Theme) -> str:
+    p = inp.params
+    kind, length, swing, hinge = p["kind"], p["length"], p["swing"], p["hinge_at_start"]
+    assert isinstance(kind, OpeningKind) and isinstance(length, float)
+    assert isinstance(swing, float) and isinstance(hinge, bool)
+    is_open = _in_states(inp, "open", DEFAULT_OPEN_CONTACT) is True
+    vertical = inp.orientation is Orientation.VERTICAL
+    return opening(*inp.at, vertical, kind, length, swing, hinge, is_open, inp.status, theme)
+
+
+def _draw_alarm_panel(inp: SymbolInput, theme: Theme) -> str:
+    raw = inp.values["state"].raw
+    state = None if raw is None else str(raw).strip().lower()
+    return alarm_panel(*inp.at, state, inp.status, theme)
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -604,6 +663,26 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         box=lambda at, _orientation: gauge_box(*at),
         draw=_draw_gauge,
         params=_gauge_params,
+    ),
+    "opening": SymbolSpec(
+        type="opening",
+        channels=("state",),
+        required=frozenset(),
+        primary="state",
+        numeric=frozenset(),
+        box=lambda at, orientation: _opening_bounds(at, orientation, _OPENING_DEFAULTS),
+        draw=_draw_opening,
+        params=_opening_params,
+        box_for=_opening_bounds,
+    ),
+    "alarm_panel": SymbolSpec(
+        type="alarm_panel",
+        channels=("state",),
+        required=frozenset({"state"}),
+        primary="state",
+        numeric=frozenset(),
+        box=lambda at, _orientation: alarm_panel_box(*at),
+        draw=_draw_alarm_panel,
     ),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",

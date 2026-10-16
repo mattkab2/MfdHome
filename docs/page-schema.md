@@ -79,6 +79,8 @@ Any registered symbol type, centered at `at`:
 | `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
 | `sensor` | `state` | none | `code`: up to 3 characters drawn inside (`W`, `S`, `CO`, ...); `active`: states that mean tripped, default `[on]` |
 | `gauge` | `value` (numeric) | `value` | `format`: a named format or format string, default `number`; `unit`: replaces the entity's unit |
+| `opening` | `state` | none | `kind`: `door` (default) or `window`; `length` (default 36); `swing`: `up`/`left` or `down`/`right`; `hinge`: `start` or `end`; `open`: states that mean open, default `[on, open]` |
+| `alarm_panel` | `state` | `state` | none |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
@@ -342,6 +344,47 @@ The alert history, newest first, in a box (`at` is its top-left corner):
 
 List the log page last in a display's `pages`: the home (alerts) page comes
 first, so PREV from it lands on the log.
+
+### Floorplans
+
+A floorplan page (a security page, say) is drawn from the same elements as
+any other page, plus rooms and walls. Structure is drawn in the theme's
+structure color so it recedes; only things that report take status colors.
+
+```yaml
+- {id: living, type: room, name: LIVING, points: [[80, 80], [420, 80], [420, 300], [80, 300]]}
+- {id: exterior, type: wall, exterior: true, points: [[80, 80], [760, 80], [760, 520], [80, 520], [80, 80]]}
+- id: front_door
+  type: opening
+  at: [80, 330]                      # the middle of the opening, on the wall
+  orientation: vertical              # along the wall
+  params: {kind: door, length: 44, swing: right}
+  bind: {state: binary_sensor.front_door}
+  status:
+    rules: [{level: caution, when: [{channel: state, eq: "on"}, {use: armed}]}]
+- id: panel
+  type: alarm_panel
+  at: [880, 110]
+  bind: {state: alarm_control_panel.house}
+  status: {map: {triggered: warning, pending: caution, arming: caution}, default: normal}
+```
+
+- **`room`**: a polygon with a `name` (placed in the middle, or at
+  `label_at`). Rooms have no channels; their `status` can use entity rules
+  and alerts (for example a room with smoke), and then the outline takes the
+  status color.
+- **`wall`**: a static polyline; `exterior: true` draws it heavier.
+- **`opening`**: a door or window in a wall, bound to a contact sensor. The
+  wall is cut under it and its ends marked. A closed door is a leaf across
+  the gap; an open one swings 90 degrees toward `swing` around its `hinge`
+  end, with the swing arc. A closed window is a double line; an open one
+  shows one sash slid aside. Its box includes the door's swing.
+- **`alarm_panel`**: the panel's state in words (DISARMED, ARMED AWAY, ENTRY
+  DELAY, TRIGGERED, ...), drawn in the active color while armed; status rules
+  make it a caution or warning.
+- Point sensors (motion `M`, smoke `S`, glass break `GB`, ...) are `sensor`
+  symbols. Displays only show the system: they never arm, disarm or silence
+  it.
 
 ### Groups
 
