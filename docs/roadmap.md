@@ -34,18 +34,4 @@ Order: M0, M1, then M2 and M4 (independent), M3, M5, M6.
 
 ## Severity guide
 
-A **warning** is a hazard to people or property happening now. A **caution**
-needs attention soon or means something isn't as it should be. An
-**advisory** is information that clears itself. Every alert on a sensor that
-can bounce gets a `for:` hold time. Status (what a symbol shows now) is kept
-separate from alerts (what latches and needs acknowledging). On security and
-life-safety systems a sensor that stops reporting is a caution, not just gray.
-
-| System | Warning | Caution | Advisory |
-|---|---|---|---|
-| LEAK | leak sensor wet | leak sensor offline | sensor battery low |
-| WATER | | main shut off unexpectedly; continuous flow with nothing in use (`for: 30m`); pressure out of range (`for: 2m`); water heater not heating (`for: 1h`) | filter/softener service due; irrigation running |
-| GAS | gas or CO detected | detector offline | |
-| HVAC | no heat with the house below a freeze-risk temperature | a zone can't reach setpoint (more than 3° off, `for: 30m`); thermostat offline | filter overdue; humidity out of range |
-| SEC | alarm triggered | armed with a zone open; zone tamper or trouble; panel offline | zone battery low; door left open (`for: 10m`) |
-| FIRE | smoke detected | detector offline or trouble | detector battery low |
+See "Choosing a severity" in `docs/page-schema.md`.
