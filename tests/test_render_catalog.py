@@ -22,8 +22,7 @@ SYMBOLS = [
     "ball_valve",
     "globe_valve",
     "water_heater",
-    "hose_bib",
-    "faucet",
+    "outlet",
 ]
 
 

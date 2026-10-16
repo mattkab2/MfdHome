@@ -82,19 +82,18 @@ elements:
     readouts: [{value: temperature, anchor: right}]
 
   - {id: gas, type: line, from: [470, 486], to: heater.gas}
-  - {id: hot, type: line, from: heater.hot, to: [700, 340]}
+  - {id: hot, type: line, from: heater.hot, to: sink.in}
 
   - {id: to_garden, type: line, from: branch, to: garden.in}
 
   - id: garden
-    type: hose_bib
+    type: outlet
     at: [420, 500]
+    params: {label: HB, outdoor: true}
     name: {text: GARDEN, anchor: bottom}
     bind: {state: valve.garden}
 
-  - {id: to_sink, type: line, from: [800, 520], to: sink.in}
-
   - id: sink
-    type: faucet
-    at: [800, 460]
-    name: SINK
+    type: outlet
+    at: [800, 320]
+    params: {label: SINK}
