@@ -75,11 +75,11 @@ def test_rendered_line_follows_its_first_readout() -> None:
         element = LineElement(
             "l",
             ((0.0, 0.0), (200.0, 0.0)),
-            bind={"power": EntityRef("sensor.p")},
-            flow=FlowSpec("power", 10),
+            bind={"rate": EntityRef("sensor.p")},
+            flow=FlowSpec("rate", 10),
             readouts=(readout,),
         )
         return points(render_element(element, state, LCD))
 
-    assert rendered(Readout("power", along=0.2))[0] == (55, 9)  # below, under the readout
-    assert rendered(Readout("power", along=0.2, anchor=Anchor.BOTTOM_CENTER))[0] == (55, -9)
+    assert rendered(Readout("rate", along=0.2))[0] == (55, 9)  # below, under the readout
+    assert rendered(Readout("rate", along=0.2, anchor=Anchor.BOTTOM_CENTER))[0] == (55, -9)

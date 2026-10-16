@@ -57,10 +57,10 @@ class TestValidPages:
               type: line
               from: [0, 0]
               to: [10, 0]
-              bind: {power: sensor.grid_power}
+              bind: {rate: sensor.grid_power}
               flow: true
               name: GRID
-              readouts: [{value: power, format: power, abs: true}]
+              readouts: [{value: rate, format: power, abs: true}]
             - {id: label, type: text, at: [5, 5], text: Hi, align: start}
             """,
         )
@@ -69,10 +69,10 @@ class TestValidPages:
         assert line == LineElement(
             "grid",
             ((0, 0), (10, 0)),
-            bind={"power": EntityRef("sensor.grid_power")},
+            bind={"rate": EntityRef("sensor.grid_power")},
             name=Name("GRID"),
-            readouts=(Readout("power", "power", None, True),),
-            flow=FlowSpec("power", 10.0),
+            readouts=(Readout("rate", "power", None, True),),
+            flow=FlowSpec("rate", 10.0),
         )
         assert text == TextElement("label", (5, 5), "Hi", "start")
         assert (page.id, page.width, page.height) == ("test", 100, 100)
@@ -395,11 +395,11 @@ class TestErrors:
                 thresholds: {warning_high: 5000}
                 rules: [{level: caution, when: [{use: high}]}]
             """,
-            defs="defs:\n  conditions:\n    high: {when: [{channel: power, gt: 4000}]}\n",
+            defs="defs:\n  conditions:\n    high: {when: [{channel: rate, gt: 4000}]}\n",
         )
         msgs = errors(path)
-        assert any("elements[0].status: channel 'power' is not bound" in m for m in msgs)
+        assert any("elements[0].status: channel 'rate' is not bound" in m for m in msgs)
         assert any(
-            "when[0].use: condition 'high' uses channel 'power', which is not bound" in m
+            "when[0].use: condition 'high' uses channel 'rate', which is not bound" in m
             for m in msgs
         )

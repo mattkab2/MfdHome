@@ -3,7 +3,7 @@
 There are seven element kinds:
 
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
-- ``LineElement``: a power/flow line along a polyline;
+- ``LineElement``: a connection along a polyline, carrying a ``rate``;
 - ``TextElement``: a static label;
 - ``TileElement``: an annunciator tile showing one system's alerts;
 - ``NodeElement``: a connection point lines can attach to;
@@ -90,7 +90,7 @@ class StatusSpec:
 class FlowSpec:
     """Draw a flow arrow when ``|channel| > threshold``; the sign sets direction."""
 
-    channel: str = "power"
+    channel: str = "rate"
     threshold: float = 10.0
 
 

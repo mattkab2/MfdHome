@@ -219,11 +219,11 @@ def line(
     arrow_at: float | None = None,
     arrow_avoid: Point | None = None,
 ) -> LineParts:
-    """Render a power line.
+    """Render a line.
 
     A plain line is ``theme.line_width`` wide. A cased line is a hollow pipe
     ``theme.casing_width`` wide with ``theme.casing_wall`` walls; while
-    ``flow`` is set (power above the flow threshold) its hollow gets a solid
+    ``flow`` is set (rate above the flow threshold) its hollow gets a solid
     core, and a blank hollow means no flow. Severity patterns:
     caution dashes the core (shown even without flow; an uncased line's stroke
     is dashed instead);
@@ -250,7 +250,7 @@ def line(
             parts = [_polyline(pts, {"stroke": theme.background, "stroke-width": hollow})]
             core = hollow - 2 * theme.core_inset
             if core > 0 and status is Status.CAUTION:
-                # Dashed core: caution, whether or not power flows (the arrow
+                # Dashed core: caution, whether or not anything flows (the arrow
                 # shows flow). Dashes scale with the pipe so they stay legible.
                 dash, gap = (outer * k for k in CAUTION_DASH)
                 parts.append(
@@ -264,7 +264,7 @@ def line(
                     )
                 )
             elif core > 0 and flow is not None:
-                # Solid core: power is flowing. A blank pipe means no flow.
+                # Solid core: something is flowing. A blank pipe means no flow.
                 parts.append(_polyline(pts, {"stroke": color, "stroke-width": core}))
         half = outer / 2
     else:

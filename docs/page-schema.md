@@ -119,7 +119,7 @@ A binding can correct an entity's numbers as they're read:
 
 ```yaml
 bind:
-  power: {entity: sensor.grid_power, scale: -1}          # inverter reports export as positive
+  rate: {entity: sensor.grid_power, scale: -1}           # inverter reports export as positive
   level: {entity: sensor.battery_kw, scale: 1000, unit: W}  # kW sensor shown in W
 ```
 
@@ -128,7 +128,7 @@ bind:
 and readouts all see the corrected value.
 
 A channel can also bind to another element's channel by naming it
-`element.channel`, for example `power: array.power` (a group's derived sum).
+`element.channel`, for example `rate: array.power` (a group's derived sum).
 The part before the last dot must be a top-level symbol or group on the page.
 Chains aren't allowed: the target channel can't itself be bound to an element.
 
@@ -143,11 +143,11 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
   elbow: vertical-first      # optional: horizontal-first | vertical-first
   route: straight            # optional: allow a diagonal instead of an elbow
   casing: false              # optional: a plain line (default: a hollow pipe)
-  bind: {power: sensor.grid_power}
-  flow: true                 # or {from: power, threshold: 10}
+  bind: {rate: sensor.grid_power}
+  flow: true                 # or {from: rate, threshold: 10}
   name: {text: GRID, along: 0, anchor: right}
   status: {...}
-  readouts: [{value: power, format: power, abs: true}]
+  readouts: [{value: rate, format: power, abs: true}]
 ```
 
 A line always runs `from` one endpoint `to` another. Give `via` points for an
@@ -171,10 +171,11 @@ elbow:
 `elbow` forces which leg comes first, and `route: straight` draws a diagonal
 instead.
 
-Lines have one channel, `power` (numeric, primary). With `flow`, an arrow is
-drawn when `|power| > threshold`: positive flows from the first point toward the
-last, negative flows backward (e.g. grid export). A flowing line with normal
-status is drawn in the active color (Gruvbox blue).
+Lines have one channel, `rate` (numeric, primary): whatever the line carries,
+such as power in W, water flow in gal/min or throughput in Mbps. With `flow`,
+an arrow is drawn when `|rate| > threshold`: positive flows from the first
+point toward the last, negative flows backward (e.g. grid export). A flowing
+line with normal status is drawn in the active color (Gruvbox blue).
 
 The arrow is a harpoon (⇀) beside the line: a shaft parallel to it, set off
 from its edge, with a half-arrowhead flaring away from the line at the
@@ -209,7 +210,7 @@ without color:
 | Status | Pattern |
 |---|---|
 | normal, no flow | solid walls, blank (hollow) core |
-| normal, flowing | **solid core** in the status color while \|power\| is above the flow threshold |
+| normal, flowing | **solid core** in the status color while \|rate\| is above the flow threshold |
 | caution | solid walls, **dashed core**, flowing or not (the arrow shows flow); a dashed stroke if uncased |
 | warning | hatched: stripes fill the hollow, rotated to cross each segment; casing is forced on |
 | unavailable | dotted |

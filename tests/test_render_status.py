@@ -137,12 +137,12 @@ class TestElements:
     def test_line_flow_on_caution_line_keeps_caution_color(self) -> None:
         rule = Rule(
             Status.CAUTION,
-            AnyOf.single(Condition(ChannelRef("power"), Op.GT, 5000)),
+            AnyOf.single(Condition(ChannelRef("rate"), Op.GT, 5000)),
         )
         element = LineElement(
             "l",
             ((0, 0), (100, 0)),
-            bind={"power": EntityRef("sensor.p")},
+            bind={"rate": EntityRef("sensor.p")},
             status=StatusSpec((rule,)),
             flow=FlowSpec(),
         )
@@ -153,7 +153,7 @@ class TestElements:
         assert LCD.color(Status.ACTIVE) not in svg
 
     def test_readout_on_unbound_channel_shows_no_data(self) -> None:
-        element = LineElement("l", ((0, 0), (100, 0)), readouts=(Readout("power"),))
+        element = LineElement("l", ((0, 0), (100, 0)), readouts=(Readout("rate"),))
         assert f">{NO_DATA}<" in render_element(element, {}, LCD)
 
     def test_readouts_stack_at_shared_anchor(self) -> None:

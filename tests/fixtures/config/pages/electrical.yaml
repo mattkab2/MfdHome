@@ -15,11 +15,11 @@ elements:
     type: line
     from: [70, 260]
     to: main_breaker.in
-    bind: {power: sensor.grid_power}
+    bind: {rate: sensor.grid_power}
     flow: true
     status: {systems: [GRID]}       # hatched red while the grid is lost
     name: {text: GRID, along: 0, anchor: left}
-    readouts: [{value: power, format: power, abs: true}]
+    readouts: [{value: rate, format: power, abs: true}]
 
   - id: main_breaker
     type: breaker
@@ -34,7 +34,7 @@ elements:
     type: line
     from: main_breaker.out
     to: ats.grid
-    bind: {power: sensor.grid_power}
+    bind: {rate: sensor.grid_power}
     flow: true
     status: {systems: [GRID]}
 
@@ -52,7 +52,7 @@ elements:
     type: line
     from: ats.load
     to: bus
-    bind: {power: sensor.grid_power}
+    bind: {rate: sensor.grid_power}
     flow: true
 
   # The backup bus: everything on the house side meets here.
@@ -88,9 +88,9 @@ elements:
     type: line
     from: array.right
     to: bus
-    bind: {power: array.power}
+    bind: {rate: array.power}
     flow: true
-    readouts: [{value: power, format: power, abs: true, along: 0.6}]
+    readouts: [{value: rate, format: power, abs: true, along: 0.6}]
 
   - id: battery
     type: battery
@@ -109,10 +109,10 @@ elements:
     type: line
     from: bus
     to: battery.top
-    bind: {power: sensor.battery_power}
+    bind: {rate: sensor.battery_power}
     status: {alerts: [battery_low, battery_critical]}
     flow: true
-    readouts: [{value: power, format: power, abs: true}]
+    readouts: [{value: rate, format: power, abs: true}]
 
   - id: loads
     type: load_panel
@@ -124,6 +124,6 @@ elements:
     type: line
     from: bus
     to: loads.top
-    bind: {power: sensor.load_power}
+    bind: {rate: sensor.load_power}
     flow: true
-    readouts: [{value: power, format: power, abs: true}]
+    readouts: [{value: rate, format: power, abs: true}]

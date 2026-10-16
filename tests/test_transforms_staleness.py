@@ -63,13 +63,13 @@ class TestTransforms:
                     type: line
                     from: [0, 0]
                     to: [1, 0]
-                    bind: {power: {entity: sensor.grid, scale: -1, unit: W}}
+                    bind: {rate: {entity: sensor.grid, scale: -1, unit: W}}
                 """
             )
         )
         [line] = load_page(path).elements
         assert isinstance(line, LineElement)
-        assert line.bind["power"] == EntityRef("sensor.grid", scale=-1, unit="W")
+        assert line.bind["rate"] == EntityRef("sensor.grid", scale=-1, unit="W")
 
     def test_transform_errors(self, tmp_path: Path) -> None:
         path = tmp_path / "p.yaml"
@@ -87,12 +87,12 @@ class TestTransforms:
                     type: line
                     from: [0, 0]
                     to: [1, 0]
-                    bind: {power: {entity: sensor.x, scale: 0}}
+                    bind: {rate: {entity: sensor.x, scale: 0}}
                   - id: c
                     type: line
                     from: [0, 0]
                     to: [1, 0]
-                    bind: {power: {entity: b.level, scale: 2}}
+                    bind: {rate: {entity: b.level, scale: 2}}
                 """
             )
         )
@@ -100,9 +100,9 @@ class TestTransforms:
             load_page(path)
         msgs = [f"{i.loc}: {i.message}" for i in info.value.issues]
         assert "defs.stale_after: stale_after is house-wide: set it in defs.yaml" in msgs
-        assert "elements[1].bind.power: 'scale' must not be 0" in msgs
+        assert "elements[1].bind.rate: 'scale' must not be 0" in msgs
         assert (
-            "elements[2].bind.power: "
+            "elements[2].bind.rate: "
             "'scale' and 'unit' apply to entity bindings, not element channels"
         ) in msgs
 

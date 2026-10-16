@@ -39,10 +39,11 @@ from mfdhome.symbols.water_heater import (
 )
 from mfdhome.themes.theme import Theme
 
-#: Channels accepted by line elements; ``power`` is primary and numeric.
-LINE_CHANNELS = ("power",)
-LINE_PRIMARY = "power"
-LINE_NUMERIC = frozenset({"power"})
+#: Channels accepted by line elements: ``rate``, what the line carries (power,
+#: water flow, throughput, ...), primary and numeric.
+LINE_CHANNELS = ("rate",)
+LINE_PRIMARY = "rate"
+LINE_NUMERIC = frozenset({"rate"})
 
 type PortFn = Callable[[Point, Orientation], Port]
 

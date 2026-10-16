@@ -165,10 +165,10 @@ def _render_symbol(element: SymbolElement, c: _Ctx) -> str:
 def _flow(element: LineElement, values: Mapping[str, Value]) -> Flow | None:
     if element.flow is None:
         return None
-    power = values[element.flow.channel].number
-    if power is None or abs(power) <= element.flow.threshold:
+    rate = values[element.flow.channel].number
+    if rate is None or abs(rate) <= element.flow.threshold:
         return None
-    return Flow.FORWARD if power > 0 else Flow.REVERSE
+    return Flow.FORWARD if rate > 0 else Flow.REVERSE
 
 
 def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:

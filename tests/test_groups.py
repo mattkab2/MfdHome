@@ -142,7 +142,7 @@ class TestLoading:
             ARRAY
             + textwrap.dedent(
                 """\
-            - {id: ok, type: line, from: array.bottom, to: [0, 0], bind: {power: array.power}}
+            - {id: ok, type: line, from: array.bottom, to: [0, 0], bind: {rate: array.power}}
             - {id: bad, type: line, from: array.p1.top, to: [0, 0]}
             - {id: bad2, type: line, from: array.p1, to: [0, 0]}
             """
@@ -158,16 +158,16 @@ class TestLoading:
             ARRAY
             + textwrap.dedent(
                 """\
-            - {id: feed, type: line, from: [0, 0], to: [1, 0], bind: {power: array.power}}
-            - {id: entity, type: line, from: [0, 0], to: [1, 0], bind: {power: sensor.grid}}
+            - {id: feed, type: line, from: [0, 0], to: [1, 0], bind: {rate: array.power}}
+            - {id: entity, type: line, from: [0, 0], to: [1, 0], bind: {rate: sensor.grid}}
             """
             ),
         )
         elements = {e.id: e for e in load_page(path).elements}
         feed, entity = elements["feed"], elements["entity"]
         assert isinstance(feed, LineElement) and isinstance(entity, LineElement)
-        assert feed.bind == {"power": ElementRef("array", "power")}
-        assert entity.bind == {"power": EntityRef("sensor.grid")}
+        assert feed.bind == {"rate": ElementRef("array", "power")}
+        assert entity.bind == {"rate": EntityRef("sensor.grid")}
 
     def test_element_binding_errors(self, tmp_path: Path) -> None:
         path = page(
@@ -176,19 +176,19 @@ class TestLoading:
             + textwrap.dedent(
                 """\
             - {id: n, type: node, at: [0, 0]}
-            - {id: f1, type: line, from: [0, 0], to: [1, 0], bind: {power: array.voltage}}
-            - {id: f2, type: line, from: [0, 0], to: [1, 0], bind: {power: n.power}}
+            - {id: f1, type: line, from: [0, 0], to: [1, 0], bind: {rate: array.voltage}}
+            - {id: f2, type: line, from: [0, 0], to: [1, 0], bind: {rate: n.power}}
             - {id: bat, type: battery, at: [0, 0], bind: {level: sensor.soc, power: array.power}}
-            - {id: f3, type: line, from: [0, 0], to: [1, 0], bind: {power: bat.power}}
+            - {id: f3, type: line, from: [0, 0], to: [1, 0], bind: {rate: bat.power}}
             """
             ),
         )
         msgs = errors(path)
         assert (
-            "elements[2].bind.power: 'array' has no channel 'voltage'; "
+            "elements[2].bind.rate: 'array' has no channel 'voltage'; "
             "expected: offline, peak, power"
         ) in msgs
-        assert "elements[3].bind.power: 'n' has no channels to bind to" in msgs
+        assert "elements[3].bind.rate: 'n' has no channels to bind to" in msgs
         assert any("bat.power is itself bound to an element" in m for m in msgs)
 
 

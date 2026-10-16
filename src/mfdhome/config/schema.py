@@ -183,7 +183,7 @@ class ReadoutModel(Strict):
 class FlowModel(Strict):
     """Flow arrow rule; ``flow: true`` is shorthand for the defaults."""
 
-    from_: str = Field(default="power", alias="from")
+    from_: str = Field(default="rate", alias="from")
     threshold: Annotated[float, Field(ge=0.0)] = 10.0
 
 
