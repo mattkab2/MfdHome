@@ -70,7 +70,10 @@ elements:
     name: IRR
     bind: {state: valve.irrigation}
 
-  - {id: to_heater, type: line, from: irrigation.out, to: heater.cold}
+  - {id: to_tee, type: line, from: irrigation.out, to: tee}
+  - {id: tee, type: node, at: [520, 380]}
+  - {id: to_heater, type: line, from: tee, to: heater.cold}
+  - {id: to_sink, type: line, from: tee, to: sink.cold}
 
   - id: heater
     type: water_heater
@@ -82,7 +85,7 @@ elements:
     readouts: [{value: temperature, anchor: right}]
 
   - {id: gas, type: line, from: [470, 486], to: heater.gas}
-  - {id: hot, type: line, from: heater.hot, to: sink.in}
+  - {id: hot, type: line, from: heater.hot, to: sink.hot}
 
   - {id: to_garden, type: line, from: branch, to: garden.in}
 
@@ -96,4 +99,4 @@ elements:
   - id: sink
     type: outlet
     at: [800, 320]
-    params: {label: SINK}
+    params: {label: SINK, inlets: 2}

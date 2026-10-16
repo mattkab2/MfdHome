@@ -70,7 +70,7 @@ Any registered symbol type, centered at `at`:
 | `ball_valve` | `state`, `position` (numeric) | `state` | `open`: states that mean open, default `[open, on]`; `moving`: default `[opening, closing]` |
 | `globe_valve` | `state`, `position` (numeric) | `state` | as for `ball_valve` |
 | `water_heater` | `temperature` (numeric), `heating` | none | `heating`: states that mean the burner is lit, default `[on, heating]` |
-| `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true draws the exterior wall |
+| `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
@@ -105,12 +105,15 @@ ports are `cold` (top, left of center), `hot` (top, right) and `gas` (left
 side, by the burner). Home Assistant water heaters report temperature as an
 attribute: `temperature: {entity: water_heater.tank, attribute: current_temperature}`.
 
-An `outlet` is a point of use (a sink, a hose bib), drawn the P&ID way: an
-inlet stub ending in a terminal flag with a short tag inside (`label: SINK`,
-`HB`, ...). `outdoor: true` crosses the stub with a double bar, the exterior
-wall. Outlets are always horizontal, fed through `in` on the left with the
-flag pointing right. No binding is needed; `state` is there for status
-rules (the line feeding the outlet shows whether water flows).
+An `outlet` is a point of use (a sink, a hose bib), drawn the P&ID way: a
+terminal flag with a short tag inside (`label: SINK`, `HB`, ...), its flat
+back flush with the pipe that feeds it through `in`. `outdoor: true` doubles
+that back edge, the wall the pipe passes through. `inlets: 2` (a sink) swaps
+`in` for `cold` (upper) and `hot` (lower) on the back, so a water heater's
+cold inlet and hot outlet reach it without the pipes crossing. Outlets are
+always horizontal, fed from the left with the flag pointing right. No
+binding is needed; `state` is there for status rules (the line feeding the
+outlet shows whether water flows).
 
 The primary channel decides the "no data" display: if it is bound but has no
 usable value (or a non-numeric value on a numeric channel), the element is

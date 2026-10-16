@@ -1,8 +1,12 @@
 """Outlet symbol: where a line ends at a point of use (sink, hose bib, ...).
 
-Drawn the P&ID way, abstractly: an inlet stub ending in a terminal flag (an
-arrow-shaped pentagon pointing away from the inlet) with a short tag inside.
-An outdoor outlet crosses the stub with a double bar, the exterior wall.
+Drawn the P&ID way, abstractly: a terminal flag (an arrow-shaped pentagon
+pointing away from the inlet) with a short tag inside, its flat back flush
+with the pipe that feeds it. An outdoor outlet doubles that back edge (the
+wall the pipe passes through). An
+outlet fed hot and cold (a sink) has two inlets on its back: ``cold`` above,
+``hot`` below, so a heater's pair (cold inlet left of its hot outlet) reaches
+it without the pipes crossing.
 Outlets are always horizontal (fed from the left, flag pointing right), so
 the tag reads upright and fits the flag.
 """
@@ -10,19 +14,20 @@ the tag reads upright and fits the flag.
 from __future__ import annotations
 
 from mfdhome.layout.anchors import Box
+from mfdhome.layout.path import Point
 from mfdhome.layout.route import Port
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
 from mfdhome.symbols.style import font, stroke
 from mfdhome.themes.theme import Theme
 
-LENGTH = 64.0  # inlet to flag tip
-HEIGHT = 24.0
-FLAG_START = -14.0  # flag body, from the center along the outlet
-FLAG_SHOULDER = 20.0  # where the flag starts to point
-WALL = (-26.0, -21.0)  # the exterior wall's two faces, on the stub
-WALL_HALF = 8.0
-LABEL_SCALE = 0.75  # label size relative to the theme's font size
+LENGTH = 56.0  # flat back to tip
+HEIGHT = 28.0  # room for two cased pipes side by side on the back
+TWIN_OFFSET = 7.0  # hot and cold inlets, above and below the center
+SHOULDER = 16.0  # where the flag starts to point, from the center
+WALL_INSET = 3.5  # the outdoor variant's second back edge, inside the flag
+LABEL_AT = -4.0  # tag center, from the center along the flag
+LABEL_SCALE = 0.75  # tag size relative to the theme's font size
 
 
 def outlet_box(x: float, y: float) -> Box:
@@ -30,49 +35,50 @@ def outlet_box(x: float, y: float) -> Box:
     return Box(x - LENGTH / 2, y - HEIGHT / 2, x + LENGTH / 2, y + HEIGHT / 2)
 
 
-def inlet(x: float, y: float) -> Port:
-    """The outlet's supply: its left end."""
-    return Port((x - LENGTH / 2, y), (-1.0, 0.0))
+def inlet_ports(x: float, y: float, inlets: int) -> dict[str, Port]:
+    """Supply ports on the flag's flat back: ``in`` in the middle, or (with two
+    inlets) ``cold`` above and ``hot`` below."""
+    back = x - LENGTH / 2
+    if inlets == 1:
+        return {"in": Port((back, y), (-1.0, 0.0))}
+    return {
+        "cold": Port((back, y - TWIN_OFFSET), (-1.0, 0.0)),
+        "hot": Port((back, y + TWIN_OFFSET), (-1.0, 0.0)),
+    }
+
+
+def _flag() -> list[Point]:
+    """The pentagon, relative to the center, clockwise from the top of the back."""
+    back, tip, half = -LENGTH / 2, LENGTH / 2, HEIGHT / 2
+    return [(back, -half), (SHOULDER, -half), (tip, 0.0), (SHOULDER, half), (back, half)]
 
 
 def outlet(x: float, y: float, label: str, outdoor: bool, status: Status, theme: Theme) -> str:
     """Render an outlet centered at (x, y), fed from the left."""
     outline = stroke(status, theme, theme.symbol_stroke_width)
-
-    def line(u1: float, v1: float, u2: float, v2: float) -> str:
-        return svg.element(
-            "line", {"x1": x + u1, "y1": y + v1, "x2": x + u2, "y2": y + v2, **outline}
-        )
-
-    half_h, tip = HEIGHT / 2, LENGTH / 2
-    flag = [
-        (FLAG_START, -half_h),
-        (FLAG_SHOULDER, -half_h),
-        (tip, 0.0),
-        (FLAG_SHOULDER, half_h),
-        (FLAG_START, half_h),
-    ]
     parts = [
-        line(-tip, 0.0, FLAG_START, 0.0),
         svg.element(
             "polygon",
             {
-                "points": svg.points((x + u, y + v) for u, v in flag),
+                "points": svg.points((x + u, y + v) for u, v in _flag()),
                 "fill": "none",
                 "stroke-linejoin": "round",
                 **outline,
             },
-        ),
+        )
     ]
     if outdoor:
-        parts += [line(u, -WALL_HALF, u, WALL_HALF) for u in WALL]
-    lx, ly = x + (FLAG_START + FLAG_SHOULDER) / 2, y
+        wall = x - LENGTH / 2 + WALL_INSET
+        half = HEIGHT / 2
+        parts.append(
+            svg.element("line", {"x1": wall, "y1": y - half, "x2": wall, "y2": y + half, **outline})
+        )
     parts.append(
         svg.element(
             "text",
             {
-                "x": lx,
-                "y": ly,
+                "x": x + LABEL_AT,
+                "y": y,
                 "text-anchor": "middle",
                 "dominant-baseline": "middle",
                 **font(theme, theme.font_size * LABEL_SCALE, theme.text_in(status)),

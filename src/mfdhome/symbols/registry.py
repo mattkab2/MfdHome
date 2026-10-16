@@ -25,7 +25,7 @@ from mfdhome.symbols.combiner import (
     output_port,
 )
 from mfdhome.symbols.meter import meter, meter_box
-from mfdhome.symbols.outlet import inlet, outlet, outlet_box
+from mfdhome.symbols.outlet import inlet_ports, outlet, outlet_box
 from mfdhome.symbols.panel import panel_box, solar_panel
 from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
 from mfdhome.symbols.transfer import panel_box as load_panel_box
@@ -279,14 +279,27 @@ def _draw_water_heater(inp: SymbolInput, theme: Theme) -> str:
 
 
 def _outlet_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"label", "outdoor"}
+    unknown = set(raw) - {"label", "outdoor", "inlets"}
     if unknown:
         raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
     label = _label_params("OUT")({"label": raw["label"]} if "label" in raw else {})["label"]
     outdoor = raw.get("outdoor", False)
     if not isinstance(outdoor, bool):
         raise ValueError("'outdoor' must be true or false")
-    return {"label": label, "outdoor": outdoor}
+    inlets = raw.get("inlets", 1)
+    if isinstance(inlets, bool) or inlets not in (1, 2):
+        raise ValueError("'inlets' must be 1 or 2 (hot and cold)")
+    return {"label": label, "outdoor": outdoor, "inlets": inlets}
+
+
+def _outlet_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
+    inlets = params.get("inlets", 1)
+    assert isinstance(inlets, int)
+
+    def port(name: str) -> PortFn:
+        return lambda at, _orientation: inlet_ports(*at, inlets)[name]
+
+    return {name: port(name) for name in inlet_ports(0.0, 0.0, inlets)}
 
 
 def _draw_outlet(inp: SymbolInput, theme: Theme) -> str:
@@ -374,7 +387,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         box=lambda at, _orientation: outlet_box(*at),
         draw=_draw_outlet,
         params=_outlet_params,
-        ports={"in": lambda at, _orientation: inlet(*at)},
+        ports_for=_outlet_ports,
     ),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",
