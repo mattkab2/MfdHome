@@ -16,6 +16,16 @@ conditions:
       - entity: alarm_control_panel.house
         in: [armed_home, armed_away, armed_night, armed_vacation, armed_custom_bypass]
 
+  # Any door or window open.
+  zone_open:
+    any:
+      - {entity: binary_sensor.front_door, eq: "on"}
+      - {entity: binary_sensor.back_door, eq: "on"}
+      - {entity: binary_sensor.living_window, eq: "on"}
+      - {entity: binary_sensor.kitchen_window, eq: "on"}
+      - {entity: binary_sensor.bed_1_window, eq: "on"}
+      - {entity: binary_sensor.bed_2_window, eq: "on"}
+
 # Treat data as missing when HA has not heard from an entity for this long.
 stale_after:
   default: 15m

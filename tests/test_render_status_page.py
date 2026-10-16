@@ -30,6 +30,7 @@ def test_mixed_board_covers_every_phase() -> None:
         "wan_down": Phase.ACTIVE_ACKED,
         "high_wind": Phase.ACTIVE_ACKED,
         "front_door_open": Phase.ACTIVE_UNACKED,
+        "armed_zone_open": Phase.ACTIVE_UNACKED,  # armed home with the front door open
     }
     # The cleared warning outranks the active caution.
     assert most_urgent(MIXED, ALERTS) == CONFIG.alerts.by_id()["leak_detected"]

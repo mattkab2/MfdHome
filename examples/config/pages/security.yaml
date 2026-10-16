@@ -24,7 +24,8 @@ elements:
   - {id: living, type: room, name: LIVING, points: [[80, 80], [420, 80], [420, 300], [80, 300]]}
   - {id: kitchen, type: room, name: KITCHEN, points: [[420, 80], [760, 80], [760, 300], [420, 300]]}
   - {id: hall, type: room, name: HALL, label_at: [250, 330],
-     points: [[80, 300], [760, 300], [760, 360], [80, 360]]}
+     points: [[80, 300], [760, 300], [760, 360], [80, 360]],
+     status: {alerts: [smoke_detected]}}    # the room lights up with its smoke alarm
   - {id: bed_1, type: room, name: BED 1, points: [[80, 360], [320, 360], [320, 520], [80, 520]]}
   - {id: bath, type: room, name: BATH, points: [[320, 360], [460, 360], [460, 520], [320, 520]]}
   - {id: bed_2, type: room, name: BED 2, points: [[460, 360], [760, 360], [760, 520], [460, 520]]}

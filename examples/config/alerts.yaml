@@ -9,6 +9,7 @@ systems:
   NET: {label: NET}
   SEC: {label: SEC}
   GAS: {label: GAS}
+  FIRE: {label: FIRE}
   WX: {label: WX}
 
 alerts:
@@ -177,11 +178,52 @@ alerts:
     system: SEC
     message: ALARM TRIGGERED
     when: [{entity: alarm_control_panel.house, eq: triggered}]
+  # Armed with a door or window open: arming over an open zone, or a zone
+  # that opened without triggering (bypassed).
+  - id: armed_zone_open
+    severity: caution
+    system: SEC
+    message: ARMED WITH A ZONE OPEN
+    when: [{use: armed}, {use: zone_open}]
+  - id: zone_trouble
+    severity: caution
+    system: SEC
+    message: SECURITY ZONE OFFLINE
+    for: 10m
+    any:
+      - {entity: binary_sensor.front_door, unavailable: true}
+      - {entity: binary_sensor.back_door, unavailable: true}
+      - {entity: binary_sensor.living_window, unavailable: true}
+      - {entity: binary_sensor.kitchen_window, unavailable: true}
+      - {entity: binary_sensor.bed_1_window, unavailable: true}
+      - {entity: binary_sensor.bed_2_window, unavailable: true}
+      - {entity: binary_sensor.living_motion, unavailable: true}
+      - {entity: binary_sensor.hall_motion, unavailable: true}
+      - {entity: binary_sensor.living_glass_break, unavailable: true}
+  - id: panel_offline
+    severity: caution
+    system: SEC
+    message: ALARM PANEL OFFLINE
+    for: 5m
+    when: [{entity: alarm_control_panel.house, unavailable: true}]
   - id: front_door_open
     severity: advisory
     system: SEC
-    message: FRONT DOOR OPEN
+    message: FRONT DOOR LEFT OPEN
+    for: 10m
     when: [{entity: binary_sensor.front_door, eq: on}]
+
+  - id: smoke_detected
+    severity: warning
+    system: FIRE
+    message: SMOKE DETECTED
+    when: [{entity: binary_sensor.hall_smoke, eq: on}]
+  - id: smoke_detector_offline
+    severity: caution
+    system: FIRE
+    message: SMOKE DETECTOR OFFLINE
+    for: 10m
+    when: [{entity: binary_sensor.hall_smoke, unavailable: true}]
 
   - id: high_wind
     severity: caution
