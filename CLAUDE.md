@@ -30,10 +30,14 @@ src/mfdhome/
   model/       # Page, Element, Binding, Alert dataclasses (pure data, no I/O)
   conditions/  # Pure condition logic (DNF rules, evaluation, thresholds/map
                # shorthands), shared by element status and alerts
-  symbols/     # I&C symbol primitives: pipe, valve, pump, breaker, battery, meter,
-               # node, link, tank, sensor badge. Each returns SVG fragments.
-               # registry.py declares each type's channels, box, ports and params;
-               # geometry.py gives element boxes and port points.
+  symbols/     # I&C symbol primitives, each returning SVG fragments: electrical
+               # (breaker, transfer, battery, panel, meter, combiner), water
+               # (valve, fittings, vessels, water_heater, outlet), hvac
+               # (furnace, damper, thermostat), sensor (sensor, gauge),
+               # floorplan (rooms, walls, openings, alarm panel), line, tile.
+               # registry.py declares each type's channels, box, ports and
+               # params; geometry.py gives element boxes and port points;
+               # format.py formats readings.
   layout/      # Positioning helpers: anchors, polyline geometry, grids
                # (adaptive group layouts later)
   themes/      # Gruvbox palette and built-in themes (lcd, mirror, eink_mono,
@@ -45,7 +49,7 @@ src/mfdhome/
                # (e-paper panel profiles) and raster.py (SVG ->
                # PNG via resvg, quantized to the panel palette)
   sources/     # State providers: HA websocket client (ha.py), JSON fixtures,
-               # staleness marking
+               # scripted scenarios (scenario.py), staleness marking
   mfd/         # MFD behavior: alert latching, hold times, house-wide
                # acknowledgement and attention order (pure, caller supplies the
                # clock); history events (history.py); page selection per
@@ -60,11 +64,15 @@ src/mfdhome/
   config/      # Loading + validating page definition files (YAML, see
                # docs/page-schema.md). pydantic stays inside this package.
 tests/
-  fixtures/    # Recorded HA state snapshots (JSON) and a test config/ directory
-  snapshots/   # Expected SVG output for snapshot tests
+  fixtures/    # Recorded and synthetic HA state snapshots (JSON) and a test
+               # config/ directory
+  snapshots/   # Expected SVG/PNG output for snapshot tests
 examples/
-  config/      # Example config: defs.yaml + pages/*.yaml. Do not hardcode house
+  config/      # Example config: defs, alerts, displays, pages (status,
+               # electrical, water, hvac, security, log). Do not hardcode house
                # specifics in src/
+  scenarios/   # A quiet example house and looping scenarios for
+               # 'serve --scenario' (grid outage, water leak, break-in)
 ```
 
 ### Core rules
@@ -275,6 +283,22 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   days by default. **Alerts are frozen while Home Assistant is
   disconnected.** Alerts may have a **`for:` hold time** (must hold that
   long to raise, and stop holding that long to clear).
+- **Offline development:** `serve --states FILE` and `serve --scenario FILE`
+  run everything without Home Assistant; synthetic fixtures follow
+  `docs/entities.md` until the real-house check.
+- **Media are told apart by service tags** on lines (`CW`, `HW`, `GAS`,
+  `SA`, `RA`); color and pattern stay reserved for status. Numeric
+  comparisons may compare against another value plus an offset (a room
+  against its setpoint).
+- **Floorplans** are rooms and walls (polygons/polylines in page YAML, in
+  the theme's structure color) plus `opening` symbols for doors and windows
+  on contact sensors and an `alarm_panel` badge. Displays never arm,
+  disarm or silence anything.
+- **Life-safety alerts** (`life_safety: true`) are named first within their
+  severity; on the annunciator their systems (FIRE, GAS, SEC, LEAK) come
+  first. **Logged entities** (`log:` in alerts.yaml, e.g. arming) appear in
+  the alert log as information rows. Severities follow the guide in
+  `docs/page-schema.md` ("Choosing a severity").
 - **Alert log** (`alert_log` element): one row per change, newest first;
   advisories read START/END; repeat raise/clear cycles within 5 minutes
   fold into one FLAPPING row per alert; batches separated by rules; paged
@@ -283,12 +307,12 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 
 ## Next milestone
 
-- **Roadmap in progress:** water, HVAC and floorplan/security pages, built on
-  synthetic fixtures; see `docs/roadmap.md` for milestones, settled decisions
-  and the severity guide.
 - **Real-house check (needs the owner):** run `mfdhome dump-states --scrub`
-  against the real Home Assistant, add the result as a fixture, and build the
-  real Electrical page against it (in the private config repo).
+  against the real Home Assistant, add the result as a fixture, map its
+  entities onto `docs/entities.md`, and build the real Electrical, Water,
+  HVAC and Security pages against it (in the private config repo). The
+  roadmap that built these pages on synthetic fixtures (`docs/roadmap.md`)
+  is complete.
 
 ## Future work (not yet scheduled)
 
