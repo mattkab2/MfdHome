@@ -32,17 +32,36 @@ class ChannelRef:
 
 type ValueRef = ChannelRef | EntityRef
 
+
+@dataclass(frozen=True)
+class RefOperand:
+    """Another value to compare against, plus ``offset`` (e.g. a setpoint minus 3)."""
+
+    ref: ValueRef
+    offset: float = 0.0
+
+
 type Scalar = str | float
-type Operand = Scalar | bool | tuple[Scalar, ...]
+type Operand = Scalar | bool | tuple[Scalar, ...] | RefOperand
 
 
 @dataclass(frozen=True)
 class Condition:
-    """One predicate on one value, e.g. ``sensor.grid_power lt 0``."""
+    """One predicate on one value, e.g. ``sensor.grid_power lt 0``.
+
+    The ordering predicates (``lt``, ``le``, ``gt``, ``ge``) may compare
+    against another value (a ``RefOperand``) instead of a constant.
+    """
 
     ref: ValueRef
     op: Op
     operand: Operand
+
+    def refs(self) -> tuple[ValueRef, ...]:
+        """Every value this condition reads: its own, and a compared one."""
+        if isinstance(self.operand, RefOperand):
+            return (self.ref, self.operand.ref)
+        return (self.ref,)
 
 
 @dataclass(frozen=True)

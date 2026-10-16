@@ -61,6 +61,28 @@ class BindModel(Strict):
 Bind = Annotated[BindModel, _shorthand("entity")]
 
 
+class RefOperandModel(Strict):
+    """Another value to compare against: a ``channel`` or ``entity`` (with optional
+    ``attribute``), plus ``offset``."""
+
+    channel: str | None = None
+    entity: EntityId | None = None
+    attribute: str | None = None
+    offset: float = 0.0
+
+    @model_validator(mode="after")
+    def _one_ref(self) -> Self:
+        if (self.channel is None) == (self.entity is None):
+            raise ValueError("compare against exactly one of 'channel' or 'entity'")
+        if self.attribute is not None and self.entity is None:
+            raise ValueError("'attribute' is only allowed with 'entity'")
+        return self
+
+
+#: An ordering predicate's operand: a number, or another value (plus an offset).
+Compared = float | RefOperandModel
+
+
 class TermModel(Strict):
     """One item in a condition list.
 
@@ -79,10 +101,10 @@ class TermModel(Strict):
     ne: Scalar | None = None
     in_: list[Scalar] | None = Field(default=None, alias="in")
     not_in: list[Scalar] | None = None
-    lt: float | None = None
-    le: float | None = None
-    gt: float | None = None
-    ge: float | None = None
+    lt: Compared | None = None
+    le: Compared | None = None
+    gt: Compared | None = None
+    ge: Compared | None = None
     between: Coord | None = None
     unavailable: bool | None = None
 

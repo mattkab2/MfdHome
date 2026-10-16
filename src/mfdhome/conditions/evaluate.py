@@ -5,7 +5,16 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
-from mfdhome.conditions.model import AnyOf, ChannelRef, Condition, Op, Operand, Rule, ValueRef
+from mfdhome.conditions.model import (
+    AnyOf,
+    ChannelRef,
+    Condition,
+    Op,
+    Operand,
+    RefOperand,
+    Rule,
+    ValueRef,
+)
 from mfdhome.conditions.values import MISSING, Value, as_number, read
 from mfdhome.model.binding import Binding, ElementRef, Status
 from mfdhome.model.state import StateSnapshot
@@ -75,11 +84,17 @@ def _compare(op: Op, value: float, operand: Operand) -> bool:
 def check(condition: Condition, ctx: EvalContext) -> bool:
     """Evaluate one condition.
 
-    Every predicate except ``unavailable`` is false on missing data, so rules
-    never fire on stale or absent sensors unless they ask about availability.
+    Every predicate except ``unavailable`` is false on missing data (including
+    a compared value that is missing), so rules never fire on stale or absent
+    sensors unless they ask about availability.
     """
     value = ctx.value(condition.ref)
     op, operand = condition.op, condition.operand
+    if isinstance(operand, RefOperand):
+        other = ctx.value(operand.ref).number
+        if other is None:
+            return False
+        operand = other + operand.offset
     if op is Op.UNAVAILABLE:
         return (not value.available) is bool(operand)
     if value.raw is None:

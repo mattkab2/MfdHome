@@ -454,9 +454,21 @@ Predicates:
 | `between` | `{channel: power, between: [-50, 50]}` | Inclusive range |
 | `unavailable` | `{entity: sensor.grid_power, unavailable: true}` | No usable data, or with `false`, has data |
 
-Every predicate except `unavailable` is **false** when the value is missing.
-A rule therefore never fires because of a dead sensor unless it asks about
-availability.
+The numeric comparisons (`lt`, `le`, `gt`, `ge`) can also compare against
+another value, plus an optional `offset`, written the same way as the value
+itself:
+
+```yaml
+# A room more than 3 degrees below its thermostat's setpoint:
+- entity: sensor.bedroom_temperature
+  lt: {entity: climate.upstairs, attribute: temperature, offset: -3}
+# On an element, against another of its channels:
+- {channel: pressure, lt: {channel: prv_setting}}
+```
+
+Every predicate except `unavailable` is **false** when the value is missing,
+including the value it's compared against. A rule therefore never fires
+because of a dead sensor unless it asks about availability.
 
 ## Defs
 

@@ -10,7 +10,16 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from mfdhome.conditions.model import TRUE, AnyOf, ChannelRef, Condition, Op, Rule
+from mfdhome.conditions.model import (
+    TRUE,
+    AnyOf,
+    ChannelRef,
+    Condition,
+    Op,
+    RefOperand,
+    Rule,
+    ValueRef,
+)
 from mfdhome.conditions.sugar import Thresholds, state_map_rules
 from mfdhome.config.errors import Issues, Loc
 from mfdhome.config.schema import (
@@ -113,8 +122,9 @@ def _thresholds(model: ThresholdsModel) -> Thresholds:
 def _channels(expr: AnyOf) -> Iterator[str]:
     for term in expr.terms:
         for cond in term.conditions:
-            if isinstance(cond.ref, ChannelRef):
-                yield cond.ref.channel
+            for ref in cond.refs():
+                if isinstance(ref, ChannelRef):
+                    yield ref.channel
 
 
 # --- conditions -------------------------------------------------------------------------------
@@ -174,18 +184,32 @@ class _Exprs:
         self.resolved[name] = expr
         return expr
 
+    def value_ref(
+        self, channel: str | None, entity: str | None, attribute: str | None, loc: Loc, bound: Bound
+    ) -> ValueRef:
+        """A channel or entity reference, checking the channel is bound where it's used."""
+        if channel is None:
+            return EntityRef(str(entity), attribute)
+        if bound is NO_CHANNELS:
+            self.issues.add((*loc, "channel"), "alerts have no channels; use 'entity'")
+        elif bound is not None and channel not in bound:
+            self.issues.add((*loc, "channel"), f"channel {channel!r} is not bound")
+        return ChannelRef(channel)
+
     def condition(self, term: TermModel, loc: Loc, bound: Bound) -> AnyOf:
-        if term.channel is not None:
-            ref: ChannelRef | EntityRef = ChannelRef(term.channel)
-            if bound is NO_CHANNELS:
-                self.issues.add((*loc, "channel"), "alerts have no channels; use 'entity'")
-            elif bound is not None and term.channel not in bound:
-                self.issues.add((*loc, "channel"), f"channel {term.channel!r} is not bound")
-        else:
-            ref = EntityRef(str(term.entity), term.attribute)
+        ref = self.value_ref(term.channel, term.entity, term.attribute, loc, bound)
         [(op, operand)] = term.predicates().items()
         if isinstance(operand, list):
             operand = tuple(operand)
+        elif isinstance(operand, dict):  # compare against another value
+            other = self.value_ref(
+                operand.get("channel"),
+                operand.get("entity"),
+                operand.get("attribute"),
+                (*loc, op),
+                bound,
+            )
+            operand = RefOperand(other, operand.get("offset", 0.0))
         return AnyOf.single(Condition(ref, Op(op), operand))
 
     def _term(self, term: TermModel, loc: Loc, bound: Bound) -> AnyOf:

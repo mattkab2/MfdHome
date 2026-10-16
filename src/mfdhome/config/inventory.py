@@ -14,8 +14,9 @@ from mfdhome.model.page import Element, GroupElement, LineElement, SymbolElement
 def _in_expr(expr: AnyOf) -> Iterator[str]:
     for term in expr.terms:
         for cond in term.conditions:
-            if isinstance(cond.ref, EntityRef):
-                yield cond.ref.entity_id
+            for ref in cond.refs():
+                if isinstance(ref, EntityRef):
+                    yield ref.entity_id
 
 
 def _in_rules(rules: Iterable[Rule]) -> Iterator[str]:
