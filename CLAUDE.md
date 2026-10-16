@@ -282,6 +282,9 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 
 ## Next milestone
 
+- **Roadmap in progress:** water, HVAC and floorplan/security pages, built on
+  synthetic fixtures; see `docs/roadmap.md` for milestones, settled decisions
+  and the severity guide.
 - **Real-house check (needs the owner):** run `mfdhome dump-states --scrub`
   against the real Home Assistant, add the result as a fixture, and build the
   real Electrical page against it (in the private config repo).
