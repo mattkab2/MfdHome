@@ -248,6 +248,8 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - **The real house config lives in a separate private repo**; the server is
   pointed at it with a path argument or `MFD_CONFIG`. Only generic examples
   live here.
+- **Deployment: a Home Assistant add-on** on the owner's HA OS (Raspberry
+  Pi 5), built from a container image that also runs on its own.
 - **Live runtime:** HA states arrive over HA's websocket API; bindings can
   `scale` values and set a `unit`; entities unreported for longer than
   `stale_after` count as unavailable. The alert board persists as JSON.
@@ -308,14 +310,31 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   with PG UP/PG DN, always reopening on the newest entries. The log page is
   listed last in `pages`, so it sits just before the alerts (home) page.
 
-## Next milestone
+## Milestone queue
 
-- **Real-house check (needs the owner):** run `mfdhome dump-states --scrub`
-  against the real Home Assistant, add the result as a fixture, map its
-  entities onto `docs/entities.md`, and build the real Electrical, Water,
-  HVAC and Security pages against it (in the private config repo). The
-  roadmap that built these pages on synthetic fixtures (`docs/roadmap.md`)
-  is complete.
+1. **Real-house check (needs the owner):** run `mfdhome dump-states --scrub`
+   against the real Home Assistant, add the result as a fixture, map its
+   entities onto `docs/entities.md`, and build the real Electrical, Water,
+   HVAC and Security pages against it (in the private config repo). The
+   roadmap that built these pages on synthetic fixtures (`docs/roadmap.md`)
+   is complete.
+2. **Home Assistant add-on (app):** run the server as an add-on on the
+   owner's HA OS (a Raspberry Pi 5, so the image must build for aarch64).
+   - A Dockerfile for a container that also runs outside HA (HA in plain
+     Docker, or a separate host).
+   - Supervisor mode in `sources/ha.py`: use `SUPERVISOR_TOKEN` and the
+     Supervisor's core websocket, so no long-lived token or `HA_URL` is
+     needed; `HA_URL`/`HA_TOKEN` keep working outside an add-on.
+   - The add-on wrapper (manifest, the display port exposed directly, since
+     HA ingress needs an HA login kiosks and ESP32s can't do) and an add-on
+     repository to install it from. Config in the add-on's config folder
+     (the private config repo, git-pulled); board and history in its data
+     folder, so HA backups include them. `MFD_DISPLAY_TOKEN` as an add-on
+     option.
+   - Follow-ons: reloading the config without a restart, and an example
+     ESPHome device YAML for the e-paper display (PNG fetch + key route).
+   Independent of the real-house check except the final install on the Pi,
+   so it can be built first.
 
 ## Future work (not yet scheduled)
 

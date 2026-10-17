@@ -20,7 +20,7 @@ the real-house check maps them to real entities.
 Order: M0, M1, then M2 and M4 (independent), M3, M5, M6.
 
 **Status: complete.** Every milestone is in, built and tested against
-synthetic fixtures; what remains is the real-house check (see CLAUDE.md).
+synthetic fixtures; what remains is queued in CLAUDE.md ("Milestone queue").
 
 ## Settled decisions
 
