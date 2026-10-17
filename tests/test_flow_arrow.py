@@ -1,9 +1,23 @@
 """The flow arrow: a harpoon beside the line, level with its readout, clear of core and labels."""
 
 import re
+import textwrap
+from pathlib import Path
 
+import pytest
+
+from mfdhome.conditions import AnyOf, Condition, Op
+from mfdhome.config import ConfigError, Defs, load_page
 from mfdhome.layout import Anchor
-from mfdhome.model import EntityRef, FlowSpec, LineElement, Readout, Status, snapshot_from_ha_states
+from mfdhome.model import (
+    EntityRef,
+    FlowSpec,
+    LineElement,
+    LineTag,
+    Readout,
+    Status,
+    snapshot_from_ha_states,
+)
 from mfdhome.render import render_element
 from mfdhome.symbols.line import Flow, line
 from mfdhome.themes import LCD
@@ -100,3 +114,64 @@ def test_default_threshold_shows_any_nonzero_rate() -> None:
     assert "<polygon" in svg("2.5")  # 2.5 gal/min flows
     assert "<polygon" in svg("-0.5")  # so does a small reverse flow
     assert "<polygon" not in svg("0")
+
+
+class TestConditionFlow:
+    """Flow from a condition, for lines with nothing to measure (ducts, gas, irrigation)."""
+
+    def duct(self, action: str, reverse: bool = False) -> str:
+        running = AnyOf.single(
+            Condition(EntityRef("climate.main", "hvac_action"), Op.IN, ("heating", "cooling"))
+        )
+        element = LineElement(
+            "duct", ((0.0, 0.0), (200.0, 0.0)), flow=FlowSpec(when=running, reverse=reverse)
+        )
+        state = snapshot_from_ha_states([ha_state("climate.main", "heat", hvac_action=action)])
+        return render_element(element, state, LCD)
+
+    def test_flows_while_the_condition_holds(self) -> None:
+        assert "<polygon" in self.duct("heating")
+        assert "<polygon" not in self.duct("idle")
+        assert f'stroke="{LCD.color(Status.ACTIVE)}"' in self.duct("cooling")  # solid core
+
+    def test_reverse(self) -> None:
+        forward, backward = points(self.duct("heating")), points(self.duct("heating", True))
+        assert forward[0][0] > forward[1][0] and backward[0][0] < backward[1][0]
+
+    def test_arrow_avoids_a_service_tag(self) -> None:
+        state = snapshot_from_ha_states([ha_state("sensor.p", "5")])
+        element = LineElement(
+            "gas",
+            ((0.0, 0.0), (200.0, 0.0)),
+            bind={"rate": EntityRef("sensor.p")},
+            flow=FlowSpec(),
+            tag=LineTag("GAS", 0.25),
+        )
+        tip_x = points(render_element(element, state, LCD))[0][0]
+        assert tip_x > 150  # in the other half from the tag at a quarter
+
+
+def test_condition_flow_config(tmp_path: Path) -> None:
+    page = tmp_path / "p.yaml"
+    body = textwrap.dedent(
+        """\
+        page: p
+        title: P
+        canvas: {width: 100, height: 100}
+        elements:
+          - id: duct
+            type: line
+            from: [0, 0]
+            to: [10, 0]
+            flow:
+              when: [{entity: climate.main, attribute: hvac_action, eq: heating}]
+              reverse: true
+        """
+    )
+    page.write_text(body)
+    [duct] = load_page(page, Defs()).elements
+    assert isinstance(duct, LineElement) and duct.flow is not None
+    assert duct.flow.when is not None and duct.flow.reverse
+    page.write_text(body.replace("reverse: true", "threshold: 5"))
+    with pytest.raises(ConfigError, match="flow from a condition has no 'from' or 'threshold'"):
+        load_page(page, Defs())

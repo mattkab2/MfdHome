@@ -192,7 +192,7 @@ Chains aren't allowed: the target channel can't itself be bound to an element.
   casing: false              # optional: a plain line (default: a hollow pipe)
   tag: HW                    # optional: what it carries, or {text: HW, along: 0.7}
   bind: {rate: sensor.grid_power}
-  flow: {threshold: 10}      # or just 'true' (threshold 0: any nonzero rate)
+  flow: {threshold: 10}      # or just 'true' (threshold 0: any nonzero rate), or a condition
   name: {text: GRID, along: 0, anchor: right}
   status: {...}
   readouts: [{value: rate, format: power, abs: true}]
@@ -232,13 +232,29 @@ positive flows from the first point toward the last, negative flows backward
 (e.g. grid export). A flowing
 line with normal status is drawn in the active color (Gruvbox blue).
 
+Where there's nothing to measure (an air duct, a gas line, an irrigation
+pipe), flow can come from a condition instead, written like a status rule's
+`when` or `any`: the line flows from its first point toward its last while
+the condition holds. `reverse: true` flips the direction (for a rate too).
+There's no rate, so there's nothing to read out.
+
+```yaml
+- id: supply_1
+  type: line
+  from: furnace.supply
+  to: trunk
+  flow:
+    when: [{entity: climate.main, attribute: hvac_action, in: [heating, cooling, fan]}]
+```
+
 The arrow is a harpoon (⇀) beside the line: a shaft parallel to it, set off
 from its edge, with a half-arrowhead flaring away from the line at the
 downstream end. It never covers the line's core, so the status patterns
 always show in full. It sits level with the line's first readout, on the
 other side of the line (below horizontal lines and left of vertical ones for
 default readout positions), sliding along the leg if needed so it never wraps
-a bend. A line without readouts gets it at the middle of its longest leg.
+a bend. A line without readouts gets it in the other half from its tag, or
+at the middle of its longest leg.
 
 #### Ports
 

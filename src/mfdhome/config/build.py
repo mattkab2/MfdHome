@@ -424,8 +424,14 @@ class _ElementBuilder:
         bound = self.bind(model, LINE_CHANNELS, frozenset(), loc)
         flow = None
         if model.flow is not None:
-            self.bound_channel(model.flow.from_, bound, (*loc, "flow", "from"))
-            flow = FlowSpec(model.flow.from_, model.flow.threshold)
+            f = model.flow
+            when = None
+            if f.when is not None or f.any_ is not None:
+                expr = ExprModel.model_construct(any_=f.any_, when=f.when)
+                when = self.exprs.expr(expr, (*loc, "flow"), bound)
+            else:
+                self.bound_channel(f.from_, bound, (*loc, "flow", "from"))
+            flow = FlowSpec(f.from_, f.threshold, when, f.reverse)
         self.pending.append(
             _PendingLine(
                 model.id,

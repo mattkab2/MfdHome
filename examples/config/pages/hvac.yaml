@@ -11,6 +11,19 @@ canvas: {width: 1000, height: 600}
 defs:
   thresholds:
     room_temp: {warning_low: 45, caution_low: 60, caution_high: 85}
+  # No airflow sensors: the ducts flow while each system's blower runs, its
+  # refrigerant lines while it cools, the gas while it heats.
+  conditions:
+    system_1_running:
+      when: [{entity: climate.main, attribute: hvac_action, in: [heating, cooling, fan]}]
+    system_1_cooling:
+      when: [{entity: climate.main, attribute: hvac_action, eq: cooling}]
+    system_1_heating:
+      when: [{entity: climate.main, attribute: hvac_action, eq: heating}]
+    system_2_running:
+      when: [{entity: climate.upstairs, attribute: hvac_action, in: [cooling, fan]}]
+    system_2_cooling:
+      when: [{entity: climate.upstairs, attribute: hvac_action, eq: cooling}]
 
 elements:
   - {id: title, type: text, at: [80, 40], text: HVAC}
@@ -27,6 +40,7 @@ elements:
     from: [40, 324]
     to: filter_1.in
     tag: {text: RA, along: 0.4}
+    flow: {when: [{use: system_1_running}]}
 
   - id: filter_1
     type: tank
@@ -36,7 +50,8 @@ elements:
     status: {thresholds: {caution_low: 10}}
     readouts: [{value: state, format: "{:.0f}%", anchor: top}]
 
-  - {id: to_furnace, type: line, from: filter_1.out, to: furnace.return}
+  - {id: to_furnace, type: line, from: filter_1.out, to: furnace.return,
+     flow: {when: [{use: system_1_running}]}}
 
   - id: furnace
     type: furnace
@@ -52,6 +67,7 @@ elements:
     to: condenser_1.refrigerant
     casing: false
     tag: {text: REF, along: 0.5}
+    flow: {when: [{use: system_1_cooling}]}
 
   - id: condenser_1
     type: condenser
@@ -64,18 +80,22 @@ elements:
     from: [420, 500]
     to: furnace.gas
     tag: {text: GAS, along: 0.3}
+    flow: {when: [{use: system_1_heating}]}
 
   - id: supply_1
     type: line
     from: furnace.supply
     to: trunk
     tag: {text: SA, along: 0.5}
+    flow: {when: [{use: system_1_running}]}
 
   - {id: trunk, type: node, at: [250, 214]}
 
-  - {id: to_floor_2, type: line, from: trunk, to: floor_2.left}
+  - {id: to_floor_2, type: line, from: trunk, to: floor_2.left,
+     flow: {when: [{use: system_1_running}]}}
 
-  - {id: to_floor_1, type: line, from: trunk, to: floor_1.left}
+  - {id: to_floor_1, type: line, from: trunk, to: floor_1.left,
+     flow: {when: [{use: system_1_running}]}}
 
   # --- floors: room temperatures ---------------------------------------------------------
   - id: floor_2
@@ -106,6 +126,7 @@ elements:
     from: [680, 342]
     to: filter_2.in
     tag: {text: RA, along: 0.5}
+    flow: {when: [{use: system_2_running}]}
 
   - id: filter_2
     type: tank
@@ -115,7 +136,8 @@ elements:
     status: {thresholds: {caution_low: 10}}
     readouts: [{value: state, format: "{:.0f}%", anchor: bottom}]
 
-  - {id: to_air_handler, type: line, from: filter_2.out, to: air_handler.return}
+  - {id: to_air_handler, type: line, from: filter_2.out, to: air_handler.return,
+     flow: {when: [{use: system_2_running}]}}
 
   - id: air_handler
     type: air_handler
@@ -128,6 +150,7 @@ elements:
     from: air_handler.refrigerant
     to: condenser_2.refrigerant
     casing: false
+    flow: {when: [{use: system_2_cooling}]}
 
   - id: condenser_2
     type: condenser
@@ -140,6 +163,7 @@ elements:
     from: air_handler.supply
     to: floor_2.right
     tag: {text: SA, along: 0.3}
+    flow: {when: [{use: system_2_running}]}
 
   # --- thermostats ---------------------------------------------------------------------------
   - id: main

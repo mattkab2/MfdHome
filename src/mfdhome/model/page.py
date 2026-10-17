@@ -29,7 +29,7 @@ from mfdhome.model.binding import Binding
 
 if TYPE_CHECKING:
     # Annotation-only: conditions imports model.binding, so a runtime import would cycle.
-    from mfdhome.conditions.model import Rule
+    from mfdhome.conditions.model import AnyOf, Rule
 
 
 class Orientation(StrEnum):
@@ -90,14 +90,19 @@ class StatusSpec:
 
 @dataclass(frozen=True)
 class FlowSpec:
-    """Draw a flow arrow when ``|channel| > threshold``; the sign sets direction.
+    """When a line shows flow (the arrow and solid core).
 
+    From a rate: when ``|channel| > threshold``, the sign setting direction.
     The default threshold of 0 shows any nonzero rate; noisy sensors (power
-    hovering around zero) should set their own.
+    hovering around zero) should set their own. From a condition: while
+    ``when`` holds (a thermostat's action, a valve's state), for lines with no
+    rate to read. ``reverse`` flips the direction either way.
     """
 
     channel: str = "rate"
     threshold: float = 0.0
+    when: AnyOf | None = None
+    reverse: bool = False
 
 
 @dataclass(frozen=True)

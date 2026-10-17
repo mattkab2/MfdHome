@@ -210,10 +210,27 @@ class TagModel(Strict):
 
 
 class FlowModel(Strict):
-    """Flow arrow rule; ``flow: true`` is shorthand for the defaults."""
+    """Flow arrow rule; ``flow: true`` is shorthand for the defaults.
+
+    Flow comes from a rate (``from``, ``threshold``) or, with ``when``/``any``
+    (the same forms as status rules), from a condition.
+    """
 
     from_: str = Field(default="rate", alias="from")
     threshold: Annotated[float, Field(ge=0.0)] = 0.0
+    any_: list[TermModel] | None = Field(default=None, alias="any")
+    when: list[TermModel] | None = None
+    reverse: bool = False
+
+    @model_validator(mode="after")
+    def _rate_or_condition(self) -> Self:
+        if self.any_ is not None and self.when is not None:
+            raise ValueError("give at most one of 'any' or 'when'")
+        if (self.any_ is not None or self.when is not None) and (
+            {"from_", "threshold"} & self.model_fields_set
+        ):
+            raise ValueError("flow from a condition has no 'from' or 'threshold'")
+        return self
 
 
 class _Bound(Strict):

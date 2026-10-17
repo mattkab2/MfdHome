@@ -6,6 +6,7 @@ import logging
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
+from mfdhome.conditions.evaluate import holds
 from mfdhome.conditions.values import Value
 from mfdhome.layout.anchors import (
     LINE_GAP,
@@ -165,13 +166,21 @@ def _render_symbol(element: SymbolElement, c: _Ctx) -> str:
     return body + "".join(_draw_labels(labels, lambda _: box, SYMBOL_GAP, theme))
 
 
-def _flow(element: LineElement, values: Mapping[str, Value]) -> Flow | None:
-    if element.flow is None:
+def _flow(element: LineElement, values: Mapping[str, Value], c: _Ctx) -> Flow | None:
+    """Which way the line flows now: from its condition, or from its rate's sign."""
+    spec = element.flow
+    if spec is None:
         return None
-    rate = values[element.flow.channel].number
-    if rate is None or abs(rate) <= element.flow.threshold:
-        return None
-    return Flow.FORWARD if rate > 0 else Flow.REVERSE
+    if spec.when is not None:
+        if not holds(spec.when, c.resolver.context(element.bind)):
+            return None
+        forward = True
+    else:
+        rate = values[spec.channel].number
+        if rate is None or abs(rate) <= spec.threshold:
+            return None
+        forward = rate > 0
+    return Flow.FORWARD if forward != spec.reverse else Flow.REVERSE
 
 
 def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
@@ -180,11 +189,15 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
     resolved = c.resolver.element(element)
     assert resolved is not None
     status, values = resolved.status, resolved.values
-    flow = _flow(element, values)
+    flow = _flow(element, values, c)
     if flow is not None and status is Status.NORMAL:
         status = Status.ACTIVE
-    # The flow arrow sits level with the first readout, on the other side of the line.
+    # The flow arrow sits level with the first readout, on the other side of the
+    # line; with no readout but a service tag, in the other half from the tag.
     readout = element.readouts[0] if element.readouts else None
+    arrow_at = readout.along if readout else None
+    if readout is None and element.tag is not None:
+        arrow_at = 0.75 if element.tag.along < 0.5 else 0.25
     parts = line(
         element.points,
         status,
@@ -192,7 +205,7 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
         theme,
         element.casing,
         element.id,
-        arrow_at=readout.along if readout else None,
+        arrow_at=arrow_at,
         arrow_avoid=_toward(readout.anchor) if readout and readout.anchor else None,
     )
 

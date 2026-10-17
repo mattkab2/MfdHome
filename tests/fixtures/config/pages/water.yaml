@@ -77,7 +77,8 @@ elements:
     params: {label: HB, outdoor: true}
     name: {text: HOSE, anchor: right}
 
-  - {id: to_irrigation, type: line, from: main, to: irrigation.in}
+  - {id: to_irrigation, type: line, from: main, to: irrigation.in,
+     flow: {when: [{entity: valve.irrigation, eq: open}]}}
 
   - id: irrigation
     type: ball_valve
@@ -86,7 +87,8 @@ elements:
     name: {text: IRR, anchor: bottom}
     bind: {state: valve.irrigation}   # running shows as an advisory, not a fault
 
-  - {id: to_zones, type: line, from: irrigation.out, to: zones.in}
+  - {id: to_zones, type: line, from: irrigation.out, to: zones.in,
+     flow: {when: [{entity: valve.irrigation, eq: open}]}}
 
   - id: zones
     type: outlet
@@ -153,6 +155,7 @@ elements:
     from: gas_meter.out
     to: heater.gas
     tag: {text: GAS, along: 0.5}
+    flow: {when: [{entity: binary_sensor.water_heater_burner, eq: "on"}]}
 
   # --- detectors ---------------------------------------------------------------
   - id: leak_heater

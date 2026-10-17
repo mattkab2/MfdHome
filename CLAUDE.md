@@ -219,7 +219,9 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - **Connections route with at most one elbow**, following port directions,
   unless `via` gives bends explicitly. **A flowing cased line has a solid
   core**, using the same threshold as its flow arrow; a blank (hollow) core
-  means no flow. **The flow arrow is a harpoon beside the line**, set off
+  means no flow. **Flow can also come from a condition** (`flow: {when:
+  ...}`) for lines with nothing to measure, such as ducts driven by a
+  thermostat's action. **The flow arrow is a harpoon beside the line**, set off
   from its edge (never over the core), level with the first readout on the
   opposite side, never wrapping a bend.
 - **Lines attach to elements** by `element.port` (edge/corner ports named like
