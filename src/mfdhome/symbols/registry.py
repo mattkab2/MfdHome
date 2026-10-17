@@ -36,12 +36,14 @@ from mfdhome.symbols.floorplan import OpeningKind, alarm_panel, opening, opening
 from mfdhome.symbols.floorplan import panel_box as alarm_panel_box
 from mfdhome.symbols.format import format_value, is_valid_format
 from mfdhome.symbols.hvac import (
+    Cabinet,
     DamperState,
+    air_handler,
+    condenser,
+    condenser_box,
+    condenser_port,
     damper,
     damper_box,
-    furnace,
-    furnace_box,
-    furnace_ports,
     thermostat,
     thermostat_box,
 )
@@ -538,17 +540,84 @@ def _draw_alarm_panel(inp: SymbolInput, theme: Theme) -> str:
 
 
 DEFAULT_HEATING_ACTIONS = frozenset({"heating", "on"})
+DEFAULT_COOLING_ACTIONS = frozenset({"cooling"})
 DEFAULT_BLOWING_ACTIONS = frozenset({"heating", "cooling", "fan", "on"})
 
 
-def _draw_furnace(inp: SymbolInput, theme: Theme) -> str:
-    heating = _in_states(inp, "heating", DEFAULT_HEATING_ACTIONS, channel="action") is True
-    blowing = _in_states(inp, "blowing", DEFAULT_BLOWING_ACTIONS, channel="action") is True
-    return furnace(*inp.at, heating, blowing, inp.status, theme)
+def _cabinet_params(burner: bool, coil: bool) -> ParamsValidator:
+    """Params for an air handler (``burner`` False) or furnace: the action states for
+    heating, cooling and the blower, and whether it has an AC ``coil``."""
+    states = _state_lists(
+        heating=DEFAULT_HEATING_ACTIONS,
+        cooling=DEFAULT_COOLING_ACTIONS,
+        blowing=DEFAULT_BLOWING_ACTIONS,
+    )
+
+    def validate(raw: Mapping[str, object]) -> Mapping[str, object]:
+        has_coil = raw.get("coil", coil)
+        if not isinstance(has_coil, bool):
+            raise ValueError("'coil' must be true or false")
+        return {
+            **states({k: v for k, v in raw.items() if k != "coil"}),
+            "cabinet": Cabinet(coil=has_coil, burner=burner),
+        }
+
+    return validate
 
 
-def _furnace_port(name: str) -> PortFn:
-    return lambda at, _orientation: furnace_ports(*at)[name]
+def _cabinet(params: Mapping[str, object]) -> Cabinet:
+    cabinet = params["cabinet"]
+    assert isinstance(cabinet, Cabinet)
+    return cabinet
+
+
+def _draw_cabinet(inp: SymbolInput, theme: Theme) -> str:
+    def acting(param: str, default: frozenset[str]) -> bool:
+        return _in_states(inp, param, default, channel="action") is True
+
+    return air_handler(
+        *inp.at,
+        _cabinet(inp.params),
+        acting("heating", DEFAULT_HEATING_ACTIONS),
+        acting("cooling", DEFAULT_COOLING_ACTIONS),
+        acting("blowing", DEFAULT_BLOWING_ACTIONS),
+        inp.status,
+        theme,
+    )
+
+
+def _cabinet_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
+    cabinet = _cabinet(params)
+
+    def port(name: str) -> PortFn:
+        return lambda at, _orientation: cabinet.ports(*at)[name]
+
+    return {name: port(name) for name in cabinet.ports(0.0, 0.0)}
+
+
+def _cabinet_spec(type_name: str, burner: bool, coil: bool) -> SymbolSpec:
+    validate = _cabinet_params(burner, coil)
+    default = _cabinet(validate({}))
+    return SymbolSpec(
+        type=type_name,
+        channels=("action",),
+        required=frozenset(),
+        primary="action",
+        numeric=frozenset(),
+        box=lambda at, _orientation: default.box(*at),
+        draw=_draw_cabinet,
+        params=validate,
+        ports_for=_cabinet_ports,
+        box_for=lambda at, _orientation, params: _cabinet(params).box(*at),
+    )
+
+
+DEFAULT_COMPRESSOR_ACTIONS = frozenset({"cooling", "on"})
+
+
+def _draw_condenser(inp: SymbolInput, theme: Theme) -> str:
+    running = _in_states(inp, "running", DEFAULT_COMPRESSOR_ACTIONS, channel="action") is True
+    return condenser(*inp.at, running, inp.status, theme)
 
 
 _DAMPER_STATES = {
@@ -752,16 +821,18 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         box=lambda at, _orientation: alarm_panel_box(*at),
         draw=_draw_alarm_panel,
     ),
-    "furnace": SymbolSpec(
-        type="furnace",
+    "furnace": _cabinet_spec("furnace", burner=True, coil=False),
+    "air_handler": _cabinet_spec("air_handler", burner=False, coil=True),
+    "condenser": SymbolSpec(
+        type="condenser",
         channels=("action",),
         required=frozenset(),
         primary="action",
         numeric=frozenset(),
-        box=lambda at, _orientation: furnace_box(*at),
-        draw=_draw_furnace,
-        params=_state_lists(heating=DEFAULT_HEATING_ACTIONS, blowing=DEFAULT_BLOWING_ACTIONS),
-        ports={name: _furnace_port(name) for name in ("supply", "return", "gas")},
+        box=lambda at, _orientation: condenser_box(*at),
+        draw=_draw_condenser,
+        params=_state_list_params("running", DEFAULT_COMPRESSOR_ACTIONS),
+        ports={"refrigerant": lambda at, _orientation: condenser_port(*at)},
     ),
     "damper": SymbolSpec(
         type="damper",

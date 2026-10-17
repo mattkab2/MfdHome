@@ -1,8 +1,9 @@
-# HVAC page: one gas furnace for the whole house, with the second floor on its
-# own zone. Supply air rises to a trunk: floor 1's rooms branch off directly,
-# floor 2's through a motorized zone damper. Return air comes back through the
-# filter. Each floor has a thermostat and room temperature sensors. Generic
-# entity ids only. Keep the bottom 40 units clear for the banner and keys.
+# HVAC page: two independent duct systems. System 1 (left) serves the whole
+# house: a gas furnace with an AC coil and its outdoor condenser. System 2
+# (right) serves only the upper floor: an air handler with an AC coil and its
+# own condenser, cooling only. Each has its own filter and thermostat; room
+# temperatures are grouped by floor. Generic entity ids only. Keep the bottom
+# 40 units clear for the banner and keys.
 page: hvac
 title: HVAC
 canvas: {width: 1000, height: 600}
@@ -20,13 +21,43 @@ elements:
     params: {format: "OUT {:.0f}°"}
     bind: {value: sensor.outdoor_temperature}
 
-  # --- furnace ---------------------------------------------------------------------
+  # --- system 1: whole house ---------------------------------------------------------
+  - id: return_1
+    type: line
+    from: [40, 324]
+    to: filter_1.in
+    tag: {text: RA, along: 0.4}
+
+  - id: filter_1
+    type: tank
+    at: [130, 324]
+    params: {tag: FILT, connections: sides}
+    bind: {state: sensor.furnace_filter_life}
+    status: {thresholds: {caution_low: 10}}
+    readouts: [{value: state, format: "{:.0f}%", anchor: top}]
+
+  - {id: to_furnace, type: line, from: filter_1.out, to: furnace.return}
+
   - id: furnace
     type: furnace
-    at: [260, 330]
-    name: {text: FURNACE, anchor: bottom}
+    at: [250, 330]
+    params: {coil: true}
+    name: {text: SYSTEM 1, anchor: bottom}
     bind: {action: {entity: climate.main, attribute: hvac_action}}
     status: {alerts: [hvac_fault]}
+
+  - id: refrigerant_1
+    type: line
+    from: furnace.refrigerant
+    to: condenser_1.refrigerant
+    casing: false
+    tag: {text: REF, along: 0.5}
+
+  - id: condenser_1
+    type: condenser
+    at: [380, 292]
+    name: {text: AC 1, anchor: top}
+    bind: {action: {entity: climate.main, attribute: hvac_action}}
 
   - id: gas
     type: line
@@ -34,54 +65,22 @@ elements:
     to: furnace.gas
     tag: {text: GAS, along: 0.3}
 
-  # --- return air through the filter ---------------------------------------------------
-  - id: return
-    type: line
-    from: [40, 350]
-    to: filter.in
-    tag: {text: RA, along: 0.4}
-
-  - id: filter
-    type: tank
-    at: [130, 350]
-    params: {tag: FILT, connections: sides}
-    name: {text: FILTER, anchor: bottom}
-    bind: {state: sensor.furnace_filter_life}
-    status: {thresholds: {caution_low: 10}}
-    readouts: [{value: state, format: "{:.0f}%", anchor: top}]
-
-  - {id: to_furnace, type: line, from: filter.out, to: furnace.return}
-
-  # --- supply air ------------------------------------------------------------------------
-  - id: supply
+  - id: supply_1
     type: line
     from: furnace.supply
     to: trunk
     tag: {text: SA, along: 0.5}
 
-  - {id: trunk, type: node, at: [260, 170]}
+  - {id: trunk, type: node, at: [250, 214]}
 
-  - id: to_floor_1
-    type: line
-    from: trunk
-    to: floor_1.left
-    via: [[400, 170], [400, 274]]
+  - {id: to_floor_2, type: line, from: trunk, to: floor_2.left}
 
-  - {id: to_damper, type: line, from: trunk, to: zone_damper.in}
-
-  - id: zone_damper
-    type: damper
-    at: [440, 110]
-    params: {actuated: true}
-    name: {text: ZONE 2, anchor: bottom}
-    bind: {state: cover.upstairs_damper}
-
-  - {id: to_floor_2, type: line, from: zone_damper.out, to: floor_2.left}
+  - {id: to_floor_1, type: line, from: trunk, to: floor_1.left}
 
   # --- floors: room temperatures ---------------------------------------------------------
   - id: floor_2
     type: group
-    at: [600, 86]
+    at: [470, 70]
     layout: {grid: {columns: 3, gap: 12, padding: 12}}
     name: {text: FLOOR 2, anchor: top}
     item_defaults: {type: gauge, status: {thresholds: room_temp}}
@@ -92,7 +91,7 @@ elements:
 
   - id: floor_1
     type: group
-    at: [600, 250]
+    at: [470, 190]
     layout: {grid: {columns: 3, gap: 12, padding: 12}}
     name: {text: FLOOR 1, anchor: top}
     item_defaults: {type: gauge, status: {thresholds: room_temp}}
@@ -101,23 +100,64 @@ elements:
       - {id: kitchen, params: {format: "KIT {:.0f}°"}, bind: {value: sensor.kitchen_temperature}}
       - {id: den, params: {format: "DEN {:.0f}°"}, bind: {value: sensor.den_temperature}}
 
-  # --- thermostats -------------------------------------------------------------------------
-  - id: upstairs
-    type: thermostat
-    at: [920, 110]
-    name: {text: UPSTAIRS, anchor: top}
-    bind:
-      temperature: {entity: climate.upstairs, attribute: current_temperature}
-      setpoint: {entity: climate.upstairs, attribute: temperature}
-      action: {entity: climate.upstairs, attribute: hvac_action}
-    status: {alerts: [upstairs_below_setpoint]}
+  # --- system 2: upper floor ---------------------------------------------------------------
+  - id: return_2
+    type: line
+    from: [680, 342]
+    to: filter_2.in
+    tag: {text: RA, along: 0.5}
 
+  - id: filter_2
+    type: tank
+    at: [760, 342]
+    params: {tag: FILT, connections: sides}
+    bind: {state: sensor.upstairs_filter_life}
+    status: {thresholds: {caution_low: 10}}
+    readouts: [{value: state, format: "{:.0f}%", anchor: bottom}]
+
+  - {id: to_air_handler, type: line, from: filter_2.out, to: air_handler.return}
+
+  - id: air_handler
+    type: air_handler
+    at: [850, 330]
+    name: {text: SYSTEM 2, anchor: bottom}
+    bind: {action: {entity: climate.upstairs, attribute: hvac_action}}
+
+  - id: refrigerant_2
+    type: line
+    from: air_handler.refrigerant
+    to: condenser_2.refrigerant
+    casing: false
+
+  - id: condenser_2
+    type: condenser
+    at: [950, 310]
+    name: {text: AC 2, anchor: top}
+    bind: {action: {entity: climate.upstairs, attribute: hvac_action}}
+
+  - id: supply_2
+    type: line
+    from: air_handler.supply
+    to: floor_2.right
+    tag: {text: SA, along: 0.3}
+
+  # --- thermostats ---------------------------------------------------------------------------
   - id: main
     type: thermostat
-    at: [920, 274]
+    at: [540, 440]
     name: {text: MAIN, anchor: top}
     bind:
       temperature: {entity: climate.main, attribute: current_temperature}
       setpoint: {entity: climate.main, attribute: temperature}
       action: {entity: climate.main, attribute: hvac_action}
-    status: {alerts: [main_below_setpoint, freeze_risk]}
+    status: {alerts: [main_not_heating, main_not_cooling, freeze_risk]}
+
+  - id: upstairs
+    type: thermostat
+    at: [690, 440]
+    name: {text: UPSTAIRS, anchor: top}
+    bind:
+      temperature: {entity: climate.upstairs, attribute: current_temperature}
+      setpoint: {entity: climate.upstairs, attribute: temperature}
+      action: {entity: climate.upstairs, attribute: hvac_action}
+    status: {alerts: [upstairs_not_cooling]}

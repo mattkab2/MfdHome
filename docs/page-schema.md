@@ -79,7 +79,9 @@ Any registered symbol type, centered at `at`:
 | `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
 | `sensor` | `state` | none | `code`: up to 3 characters drawn inside (`W`, `S`, `CO`, ...); `active`: states that mean tripped, default `[on]` |
 | `gauge` | `value` (numeric) | `value` | `format`: a named format or format string, default `number`; `unit`: replaces the entity's unit |
-| `furnace` | `action` | none | `heating`: actions that mean the burner is lit, default `[heating, on]`; `blowing`: actions that mean the blower runs, default `[heating, cooling, fan, on]` |
+| `furnace` | `action` | none | `coil`: true adds an AC coil; `heating`: actions that light the burner, default `[heating, on]`; `cooling`: actions that chill the coil, default `[cooling]`; `blowing`: actions that run the blower, default `[heating, cooling, fan, on]` |
+| `air_handler` | `action` | none | as for `furnace` (no burner); `coil` defaults to true |
+| `condenser` | `action` | none | `running`: actions that run the compressor, default `[cooling, on]` |
 | `damper` | `state`, `position` (numeric) | `state` | as for `ball_valve` (`open`, `moving`, `actuated`) |
 | `thermostat` | `temperature` (numeric), `setpoint` (numeric), `action` | `temperature` | `format`: for both temperatures, default `{:.0f}°` |
 | `opening` | `state` | none | `kind`: `door` (default) or `window`; `length` (default 36); `swing`: `up`/`left` or `down`/`right`; `hinge`: `start` or `end`; `open`: states that mean open, default `[on, open]` |
@@ -352,10 +354,16 @@ first, so PREV from it lands on the log.
 
 ### HVAC
 
-A `furnace` is a cabinet with its blower (a fan) above its burner (a flame).
-Bind `action` to the thermostat's `hvac_action` attribute: the flame is solid
-while heating and the fan filled while the blower runs. Its ports are
-`supply` (top), `return` (left) and `gas` (right). A `damper` is a blade on a
+An `air_handler` is a cabinet with an AC evaporator coil on top and its
+blower (a fan); a `furnace` is one with a gas burner (a flame) at the bottom,
+and a coil only with `coil: true`. Bind `action` to the thermostat's
+`hvac_action` attribute: the coil is filled while cooling, the fan while the
+blower runs and the flame while heating. Ports: `supply` (top), `return`
+(left, at the blower), `refrigerant` (right, at the coil) and `gas` (right,
+at the burner), each only where the cabinet has that section. A `condenser`
+is the outdoor AC unit, its fan seen from above, filled while the compressor
+runs; its `refrigerant` port faces the air handler (a plain line tagged
+`REF`). A `damper` is a blade on a
 pivot in a duct: along the flow when open, across it when closed, diagonal
 while moving; `actuated: true` marks a motorized zone damper. A `thermostat`
 shows the room temperature, the setpoint and what it's doing (HEAT, IDLE,

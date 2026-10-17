@@ -33,7 +33,8 @@ src/mfdhome/
   symbols/     # I&C symbol primitives, each returning SVG fragments: electrical
                # (breaker, transfer, battery, panel, meter, combiner), water
                # (valve, fittings, vessels, water_heater, outlet), hvac
-               # (furnace, damper, thermostat), sensor (sensor, gauge),
+               # (air handler/furnace, condenser, damper, thermostat), sensor
+               # (sensor, gauge),
                # floorplan (rooms, walls, openings, alarm panel), line, tile.
                # registry.py declares each type's channels, box, ports and
                # params; geometry.py gives element boxes and port points;

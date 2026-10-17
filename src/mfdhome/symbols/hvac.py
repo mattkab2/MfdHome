@@ -1,15 +1,18 @@
-"""HVAC symbols: furnace, damper and thermostat.
+"""HVAC symbols: air handler and furnace, outdoor condenser, damper and thermostat.
 
-A furnace is a cabinet with the blower (a fan) above the burner (a flame):
-the flame is solid while heating, the fan filled while the blower runs. A
-damper is a blade on a pivot in a duct: along the flow when open, across it
-when closed, diagonal while moving. A thermostat shows the room temperature,
-its setpoint and what it's doing.
+An air handler is a cabinet with an optional AC coil on top and the blower
+(a fan); a furnace is one with a gas burner (a flame) below. The coil is
+filled while cooling, the fan while the blower runs and the flame while
+heating. A condenser is the outdoor AC unit, its fan seen from above, filled
+while the compressor runs. A damper is a blade on a pivot in a duct: along
+the flow when open, across it when closed, diagonal while moving. A
+thermostat shows the room temperature, its setpoint and what it's doing.
 """
 
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from enum import StrEnum
 
 from mfdhome.layout.anchors import Box
@@ -23,13 +26,18 @@ from mfdhome.symbols.valve import ACTUATOR_HEIGHT, ACTUATOR_REACH, ACTUATOR_WIDT
 from mfdhome.symbols.water_heater import flame_path
 from mfdhome.themes.theme import Theme
 
-FURNACE_WIDTH = 64.0
-FURNACE_HEIGHT = 96.0
+CABINET_WIDTH = 64.0
+CABINET_PAD = 4.0  # between the cabinet wall and its first and last section
+COIL_SECTION = 24.0
+FAN_SECTION = 40.0
+BURNER_SECTION = 36.0
 FAN_RADIUS = 14.0
-FAN_RISE = 20.0  # fan center above the cabinet's center
-FLAME_BASE = 12.0  # above the cabinet's bottom
-RETURN_DROP = 20.0  # return connection below the center, on the left
-GAS_DROP = 34.0  # gas connection below the center, on the right
+COIL_WIDTH = 44.0
+COIL_HEIGHT = 16.0
+COIL_ZIGS = 6
+
+CONDENSER_SIZE = 64.0
+CONDENSER_FAN_RADIUS = 24.0
 
 DAMPER_LENGTH = 36.0
 DAMPER_HEIGHT = 24.0
@@ -40,23 +48,60 @@ THERMOSTAT_WIDTH = 128.0
 THERMOSTAT_HEIGHT = 60.0
 
 
-def furnace_box(x: float, y: float) -> Box:
-    """Bounding box of a furnace centered at (x, y)."""
-    return Box(
-        x - FURNACE_WIDTH / 2, y - FURNACE_HEIGHT / 2, x + FURNACE_WIDTH / 2, y + FURNACE_HEIGHT / 2
-    )
+@dataclass(frozen=True)
+class Cabinet:
+    """An air handler's layout: optional coil on top, the blower, optional burner below."""
+
+    coil: bool
+    burner: bool
+
+    @property
+    def height(self) -> float:
+        """The cabinet's height, from its sections."""
+        sections = (
+            FAN_SECTION
+            + (COIL_SECTION if self.coil else 0)
+            + (BURNER_SECTION if self.burner else 0)
+        )
+        return sections + 2 * CABINET_PAD
+
+    def top(self, y: float) -> float:
+        """The cabinet's top edge, centered on ``y``."""
+        return y - self.height / 2
+
+    def coil_y(self, y: float) -> float:
+        """The coil section's center."""
+        return self.top(y) + CABINET_PAD + COIL_SECTION / 2
+
+    def fan_y(self, y: float) -> float:
+        """The blower's center."""
+        return self.top(y) + CABINET_PAD + (COIL_SECTION if self.coil else 0) + FAN_SECTION / 2
+
+    def burner_y(self, y: float) -> float:
+        """The burner section's center."""
+        return self.top(y) + self.height - CABINET_PAD - BURNER_SECTION / 2
+
+    def box(self, x: float, y: float) -> Box:
+        """Bounding box of the cabinet centered at (x, y)."""
+        half = CABINET_WIDTH / 2
+        return Box(x - half, self.top(y), x + half, self.top(y) + self.height)
+
+    def ports(self, x: float, y: float) -> dict[str, Port]:
+        """Supply air out of the top, return air in on the left at the blower; the
+        refrigerant line on the right at the coil, gas on the right at the burner."""
+        left, right = x - CABINET_WIDTH / 2, x + CABINET_WIDTH / 2
+        ports = {
+            "supply": Port((x, self.top(y)), (0.0, -1.0)),
+            "return": Port((left, self.fan_y(y)), (-1.0, 0.0)),
+        }
+        if self.coil:
+            ports["refrigerant"] = Port((right, self.coil_y(y)), (1.0, 0.0))
+        if self.burner:
+            ports["gas"] = Port((right, self.burner_y(y)), (1.0, 0.0))
+        return ports
 
 
-def furnace_ports(x: float, y: float) -> dict[str, Port]:
-    """Supply air out of the top, return air in on the left, gas in on the right."""
-    return {
-        "supply": Port((x, y - FURNACE_HEIGHT / 2), (0.0, -1.0)),
-        "return": Port((x - FURNACE_WIDTH / 2, y + RETURN_DROP), (-1.0, 0.0)),
-        "gas": Port((x + FURNACE_WIDTH / 2, y + GAS_DROP), (1.0, 0.0)),
-    }
-
-
-def _fan(cx: float, cy: float, running: bool, status: Status, theme: Theme) -> str:
+def _fan(cx: float, cy: float, radius: float, running: bool, status: Status, theme: Theme) -> str:
     """A fan: a circle with three blades; filled (blades in the background color) when running."""
     outline = stroke(status, theme, theme.symbol_stroke_width)
     blade_color = theme.background if running else theme.color(status)
@@ -66,7 +111,7 @@ def _fan(cx: float, cy: float, running: bool, status: Status, theme: Theme) -> s
             {
                 "cx": cx,
                 "cy": cy,
-                "r": FAN_RADIUS,
+                "r": radius,
                 "fill": theme.color(status) if running else "none",
                 **outline,
             },
@@ -74,7 +119,7 @@ def _fan(cx: float, cy: float, running: bool, status: Status, theme: Theme) -> s
     ]
     for degrees in (90.0, 210.0, 330.0):
         a = math.radians(degrees)
-        tip = (cx + math.cos(a) * FAN_RADIUS * 0.7, cy - math.sin(a) * FAN_RADIUS * 0.7)
+        tip = (cx + math.cos(a) * radius * 0.7, cy - math.sin(a) * radius * 0.7)
         parts.append(
             svg.element(
                 "line",
@@ -92,26 +137,75 @@ def _fan(cx: float, cy: float, running: bool, status: Status, theme: Theme) -> s
     return "".join(parts)
 
 
-def furnace(x: float, y: float, heating: bool, blowing: bool, status: Status, theme: Theme) -> str:
-    """Render a furnace centered at (x, y): the blower above the burner."""
-    box = furnace_box(x, y)
+def _coil(cx: float, cy: float, cooling: bool, status: Status, theme: Theme) -> str:
+    """An evaporator coil: a zigzag in a box; filled (zigzag in the background) while cooling."""
     outline = stroke(status, theme, theme.symbol_stroke_width)
-    base = box.bottom - FLAME_BASE
-    return "".join(
-        [
-            svg.element(
-                "rect",
-                {
-                    "x": box.left,
-                    "y": box.top,
-                    "width": FURNACE_WIDTH,
-                    "height": FURNACE_HEIGHT,
-                    "rx": 4,
-                    "fill": "none",
-                    **outline,
-                },
-            ),
-            _fan(x, y - FAN_RISE, blowing, status, theme),
+    half_w, half_h = COIL_WIDTH / 2, COIL_HEIGHT / 2
+    inset = 3.0
+    step = (COIL_WIDTH - 2 * inset) / COIL_ZIGS
+    zigzag = [
+        (cx - half_w + inset + i * step, cy + (half_h - inset) * (1 if i % 2 else -1))
+        for i in range(COIL_ZIGS + 1)
+    ]
+    return svg.element(
+        "rect",
+        {
+            "x": cx - half_w,
+            "y": cy - half_h,
+            "width": COIL_WIDTH,
+            "height": COIL_HEIGHT,
+            "fill": theme.color(status) if cooling else "none",
+            **outline,
+        },
+    ) + svg.element(
+        "polyline",
+        {
+            "points": svg.points(zigzag),
+            "fill": "none",
+            "stroke": theme.background if cooling else theme.color(status),
+            "stroke-width": theme.symbol_stroke_width,
+            "stroke-linejoin": "round",
+        },
+    )
+
+
+def air_handler(
+    x: float,
+    y: float,
+    cabinet: Cabinet,
+    heating: bool,
+    cooling: bool,
+    blowing: bool,
+    status: Status,
+    theme: Theme,
+) -> str:
+    """Render an air handler (or a furnace: one with a burner) centered at (x, y).
+
+    The coil is filled while cooling, the fan while the blower runs and the
+    flame while heating.
+    """
+    box = cabinet.box(x, y)
+    outline = stroke(status, theme, theme.symbol_stroke_width)
+    parts = [
+        svg.element(
+            "rect",
+            {
+                "x": box.left,
+                "y": box.top,
+                "width": CABINET_WIDTH,
+                "height": cabinet.height,
+                "rx": 4,
+                "fill": "none",
+                **outline,
+            },
+        )
+    ]
+    if cabinet.coil:
+        parts.append(_coil(x, cabinet.coil_y(y), cooling, status, theme))
+    parts.append(_fan(x, cabinet.fan_y(y), FAN_RADIUS, blowing, status, theme))
+    if cabinet.burner:
+        base = cabinet.burner_y(y) + 12
+        parts += [
             svg.element(
                 "path",
                 {
@@ -122,11 +216,39 @@ def furnace(x: float, y: float, heating: bool, blowing: bool, status: Status, th
                 },
             ),
             svg.element(
-                "line",
-                {"x1": x - 10, "y1": base + 2, "x2": x + 10, "y2": base + 2, **outline},
+                "line", {"x1": x - 10, "y1": base + 2, "x2": x + 10, "y2": base + 2, **outline}
             ),
         ]
-    )
+    return "".join(parts)
+
+
+def condenser_box(x: float, y: float) -> Box:
+    """Bounding box of an outdoor condenser centered at (x, y)."""
+    half = CONDENSER_SIZE / 2
+    return Box(x - half, y - half, x + half, y + half)
+
+
+def condenser_port(x: float, y: float) -> Port:
+    """The refrigerant line set connection: the left side."""
+    return Port((x - CONDENSER_SIZE / 2, y), (-1.0, 0.0))
+
+
+def condenser(x: float, y: float, running: bool, status: Status, theme: Theme) -> str:
+    """Render an outdoor AC condenser: a square unit with its fan seen from above,
+    filled while the compressor runs."""
+    box = condenser_box(x, y)
+    return svg.element(
+        "rect",
+        {
+            "x": box.left,
+            "y": box.top,
+            "width": CONDENSER_SIZE,
+            "height": CONDENSER_SIZE,
+            "rx": 4,
+            "fill": "none",
+            **stroke(status, theme, theme.symbol_stroke_width),
+        },
+    ) + _fan(x, y, CONDENSER_FAN_RADIUS, running, status, theme)
 
 
 class DamperState(StrEnum):

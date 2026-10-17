@@ -64,27 +64,37 @@ alerts:
     system: HVAC
     message: HVAC FAULT
     when: [{entity: binary_sensor.hvac_fault, eq: on}]
-  # A zone more than 3 degrees below its setpoint for half an hour while heating.
-  - id: main_below_setpoint
+  # A system more than 3 degrees off its setpoint for half an hour.
+  - id: main_not_heating
     severity: caution
     system: HVAC
-    message: MAIN FLOOR NOT HEATING
+    message: MAIN SYSTEM NOT HEATING
     for: 30m
     when:
       - entity: climate.main
         attribute: current_temperature
         lt: {entity: climate.main, attribute: temperature, offset: -3}
       - {entity: climate.main, eq: heat}
-  - id: upstairs_below_setpoint
+  - id: main_not_cooling
     severity: caution
     system: HVAC
-    message: UPSTAIRS NOT HEATING
+    message: MAIN SYSTEM NOT COOLING
+    for: 30m
+    when:
+      - entity: climate.main
+        attribute: current_temperature
+        gt: {entity: climate.main, attribute: temperature, offset: 3}
+      - {entity: climate.main, eq: cool}
+  - id: upstairs_not_cooling
+    severity: caution
+    system: HVAC
+    message: UPSTAIRS SYSTEM NOT COOLING
     for: 30m
     when:
       - entity: climate.upstairs
         attribute: current_temperature
-        lt: {entity: climate.upstairs, attribute: temperature, offset: -3}
-      - {entity: climate.upstairs, eq: heat}
+        gt: {entity: climate.upstairs, attribute: temperature, offset: 3}
+      - {entity: climate.upstairs, eq: cool}
   # Pipes freeze: the house itself is getting cold.
   - id: freeze_risk
     severity: warning
@@ -92,19 +102,28 @@ alerts:
     message: HOUSE BELOW 50°
     for: 15m
     when: [{entity: climate.main, attribute: current_temperature, lt: 50}]
-  - id: thermostat_offline
+  - id: main_thermostat_offline
     severity: caution
     system: HVAC
-    message: THERMOSTAT OFFLINE
+    message: MAIN THERMOSTAT OFFLINE
     for: 10m
-    any:
-      - {entity: climate.main, unavailable: true}
-      - {entity: climate.upstairs, unavailable: true}
-  - id: filter_overdue
+    when: [{entity: climate.main, unavailable: true}]
+  - id: upstairs_thermostat_offline
+    severity: caution
+    system: HVAC
+    message: UPSTAIRS THERMOSTAT OFFLINE
+    for: 10m
+    when: [{entity: climate.upstairs, unavailable: true}]
+  - id: furnace_filter_overdue
     severity: advisory
     system: HVAC
     message: REPLACE FURNACE FILTER
     when: [{entity: sensor.furnace_filter_life, lt: 10}]
+  - id: upstairs_filter_overdue
+    severity: advisory
+    system: HVAC
+    message: REPLACE UPSTAIRS FILTER
+    when: [{entity: sensor.upstairs_filter_life, lt: 10}]
   - id: humidity_out_of_range
     severity: advisory
     system: HVAC

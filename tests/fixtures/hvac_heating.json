@@ -1,34 +1,43 @@
 [
  {
+  "entity_id": "sensor.furnace_filter_life",
+  "state": "42",
+  "attributes": {
+   "unit_of_measurement": "%"
+  }
+ },
+ {
+  "entity_id": "sensor.upstairs_filter_life",
+  "state": "67",
+  "attributes": {
+   "unit_of_measurement": "%"
+  }
+ },
+ {
+  "entity_id": "binary_sensor.hvac_fault",
+  "state": "off",
+  "attributes": {
+   "device_class": "problem"
+  }
+ },
+ {
   "entity_id": "climate.main",
   "state": "heat",
   "attributes": {
    "current_temperature": 68.4,
    "temperature": 70,
    "hvac_action": "heating",
-   "current_humidity": 38
+   "current_humidity": 34
   }
  },
  {
   "entity_id": "climate.upstairs",
-  "state": "heat",
+  "state": "off",
   "attributes": {
-   "current_temperature": 66.2,
-   "temperature": 68,
-   "hvac_action": "heating",
-   "current_humidity": 40
-  }
- },
- {
-  "entity_id": "cover.upstairs_damper",
-  "state": "open",
-  "attributes": {}
- },
- {
-  "entity_id": "sensor.furnace_filter_life",
-  "state": "42",
-  "attributes": {
-   "unit_of_measurement": "%"
+   "current_temperature": 66.0,
+   "temperature": 74,
+   "hvac_action": "off",
+   "current_humidity": 36
   }
  },
  {
@@ -78,13 +87,6 @@
   "state": "67.8",
   "attributes": {
    "unit_of_measurement": "\u00b0F"
-  }
- },
- {
-  "entity_id": "binary_sensor.hvac_fault",
-  "state": "off",
-  "attributes": {
-   "device_class": "problem"
   }
  }
 ]

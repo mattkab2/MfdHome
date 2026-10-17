@@ -1,4 +1,4 @@
-"""HVAC: furnace, damper and thermostat symbols, the HVAC page and its alerts."""
+"""HVAC: air handler, furnace, condenser, damper and thermostat symbols; the page and alerts."""
 
 import re
 from pathlib import Path
@@ -10,7 +10,7 @@ from mfdhome.layout import Port
 from mfdhome.model import EntityRef, Orientation, Status, SymbolElement, snapshot_from_ha_states
 from mfdhome.render import render_element, render_page
 from mfdhome.symbols import get_symbol
-from mfdhome.symbols.geometry import element_box, find_port
+from mfdhome.symbols.geometry import element_box, find_port, port_names
 from mfdhome.themes import EINK_COLOR, EINK_MONO, LCD, MIRROR, Target, Theme
 from tests.support import FIXTURES, config_page, fixture_state, ha_state
 from tests.test_water import House
@@ -20,36 +20,74 @@ TABLET = Target("tablet", 1280, 768)
 GREEN = LCD.color(Status.NORMAL)
 
 
-def furnace(action: str) -> str:
+def cabinet(type_name: str, action: str, params: dict[str, object] | None = None) -> str:
     element = SymbolElement(
-        "f",
-        "furnace",
+        "c",
+        type_name,
         (100, 100),
         bind={"action": EntityRef("climate.main", "hvac_action")},
-        params=get_symbol("furnace").params({}),
+        params=get_symbol(type_name).params(params or {}),
     )
     snapshot = snapshot_from_ha_states([ha_state("climate.main", "heat", hvac_action=action)])
     return render_element(element, snapshot, LCD)
 
 
-class TestFurnace:
-    def test_flame_while_heating_fan_while_blowing(self) -> None:
-        def flame_filled(svg: str) -> bool:
-            return f'fill="{GREEN}"' in svg.split("<path")[1].split(">")[0]
+def filled(svg: str, tag: str) -> bool:
+    """Whether the first ``tag`` element (a flame path, fan circle or coil rect) is filled."""
+    return f'fill="{GREEN}"' in svg.split(f"<{tag}")[1].split(">")[0]
 
-        def fan_filled(svg: str) -> bool:
-            return f'fill="{GREEN}"' in svg.split("<circle")[1].split(">")[0]
 
-        heating, fan, idle = furnace("heating"), furnace("fan"), furnace("idle")
-        assert flame_filled(heating) and fan_filled(heating)
-        assert not flame_filled(fan) and fan_filled(fan)
-        assert not flame_filled(idle) and not fan_filled(idle)
+class TestCabinets:
+    def test_furnace_flame_while_heating_fan_while_blowing(self) -> None:
+        heating, fan, idle = (cabinet("furnace", a) for a in ("heating", "fan", "idle"))
+        assert filled(heating, "path") and filled(heating, "circle")
+        assert not filled(fan, "path") and filled(fan, "circle")
+        assert not filled(idle, "path") and not filled(idle, "circle")
+        assert "<polyline" not in heating  # no coil unless asked for
 
-    def test_ports(self) -> None:
-        element = SymbolElement("f", "furnace", (100, 100))
-        assert find_port(element, "supply") == Port((100, 52), (0.0, -1.0))
-        assert find_port(element, "return") == Port((68, 120), (-1.0, 0.0))
-        assert find_port(element, "gas") == Port((132, 134), (1.0, 0.0))
+    def test_coil_while_cooling(self) -> None:
+        cooling = cabinet("furnace", "cooling", {"coil": True})
+        heating = cabinet("furnace", "heating", {"coil": True})
+        coil = '<rect x="78" y="54" width="44" height="16"'  # the coil box, under the top
+        assert f'{coil} fill="{GREEN}"' in cooling
+        assert f'{coil} fill="none"' in heating
+        assert f'fill="{GREEN}"' in cabinet("air_handler", "cooling").split("<rect")[2]
+
+    def test_ports_follow_the_sections(self) -> None:
+        def ports(type_name: str, params: dict[str, object]) -> dict[str, Port]:
+            element = SymbolElement(
+                "c", type_name, (100, 100), params=get_symbol(type_name).params(params)
+            )
+            names = ("supply", "return", "refrigerant", "gas")
+            return {n: find_port(element, n) for n in names if n in port_names(element)}
+
+        up, left, right = (0.0, -1.0), (-1.0, 0.0), (1.0, 0.0)
+        assert ports("furnace", {}) == {
+            "supply": Port((100, 58), up),
+            "return": Port((68, 82), left),
+            "gas": Port((132, 120), right),
+        }
+        assert ports("furnace", {"coil": True}) == {
+            "supply": Port((100, 46), up),
+            "return": Port((68, 94), left),
+            "refrigerant": Port((132, 62), right),
+            "gas": Port((132, 132), right),
+        }
+        assert ports("air_handler", {}) == {
+            "supply": Port((100, 64), up),
+            "return": Port((68, 112), left),
+            "refrigerant": Port((132, 80), right),
+        }
+
+    def test_condenser_fan_while_the_compressor_runs(self) -> None:
+        assert filled(cabinet("condenser", "cooling"), "circle")
+        assert not filled(cabinet("condenser", "heating"), "circle")
+        element = SymbolElement("c", "condenser", (100, 100))
+        assert find_port(element, "refrigerant") == Port((68, 100), (-1.0, 0.0))
+
+    def test_params(self) -> None:
+        with pytest.raises(ValueError, match="'coil' must be true or false"):
+            get_symbol("furnace").params({"coil": "yes"})
 
 
 def damper(state: str, params: dict[str, object] | None = None) -> str:
@@ -116,7 +154,7 @@ class TestThermostat:
 
 
 @pytest.mark.parametrize("theme", [LCD, MIRROR, EINK_MONO, EINK_COLOR], ids=lambda t: t.name)
-@pytest.mark.parametrize("name", ["heating", "idle", "cold", "no_data"])
+@pytest.mark.parametrize("name", ["heating", "cooling", "idle", "hot", "no_data"])
 def test_hvac_snapshot(name: str, theme: Theme, svg_snapshot: SnapshotAssertion) -> None:
     state = {} if name == "no_data" else fixture_state(f"hvac_{name}")
     svg = render_page(config_page("hvac"), state, theme, TABLET)
@@ -130,30 +168,42 @@ def test_test_page_matches_the_example() -> None:
 
 
 class TestAlerts:
-    def test_a_zone_behind_its_setpoint_for_half_an_hour(self) -> None:
+    def test_a_system_behind_its_setpoint_for_half_an_hour(self) -> None:
         house = House()
-        cold = {"climate__upstairs": "heat"}
+        hot = {"climate__upstairs": "cool"}
         house.states["climate.upstairs"]["attributes"].update(
-            current_temperature=63.0, temperature=68, hvac_action="heating"
+            current_temperature=79.0, temperature=74, hvac_action="cooling"
         )
-        assert "upstairs_below_setpoint" not in house.at(0, **cold)
-        assert "upstairs_below_setpoint" not in house.at(29, **cold)
-        assert "upstairs_below_setpoint" in house.at(30, **cold)
+        assert "upstairs_not_cooling" not in house.at(0, **hot)
+        assert "upstairs_not_cooling" not in house.at(29, **hot)
+        assert "upstairs_not_cooling" in house.at(30, **hot)
 
     def test_within_three_degrees_is_fine(self) -> None:
         house = House()
         house.states["climate.upstairs"]["attributes"].update(
-            current_temperature=65.5, temperature=68
+            current_temperature=76.5, temperature=74
         )
-        house.at(0)
-        assert "upstairs_below_setpoint" not in house.at(60)
+        house.at(0, climate__upstairs="cool")
+        assert "upstairs_not_cooling" not in house.at(60, climate__upstairs="cool")
 
-    def test_freeze_risk_is_a_warning_and_filter_an_advisory(self) -> None:
+    def test_heating_and_cooling_are_judged_by_mode(self) -> None:
+        house = House()
+        house.states["climate.main"]["attributes"].update(current_temperature=64.0, temperature=70)
+        house.at(0, climate__main="heat")
+        assert "main_not_heating" in house.at(30, climate__main="heat")
+        cooling = House()
+        cooling.states["climate.main"]["attributes"].update(
+            current_temperature=64.0, temperature=70
+        )
+        cooling.at(0, climate__main="cool")  # cold while cooling is fine
+        assert "main_not_heating" not in cooling.at(30, climate__main="cool")
+
+    def test_freeze_risk_is_a_warning_and_filters_advisories(self) -> None:
         house = House()
         house.states["climate.main"]["attributes"].update(current_temperature=47.0)
-        house.at(0, sensor__furnace_filter_life="5")
+        house.at(0, sensor__furnace_filter_life="5", sensor__upstairs_filter_life="4")
         raised = house.at(15)
-        assert {"freeze_risk", "filter_overdue"} <= raised
+        assert {"freeze_risk", "furnace_filter_overdue", "upstairs_filter_overdue"} <= raised
         alerts = house.runtime.config.alerts.by_id()
         assert alerts["freeze_risk"].severity.value == "warning"
-        assert alerts["filter_overdue"].severity.value == "advisory"
+        assert alerts["upstairs_filter_overdue"].severity.value == "advisory"
