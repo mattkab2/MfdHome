@@ -1,6 +1,7 @@
 """Test helpers: fixture loading, inline HA state builders and alert boards."""
 
 from datetime import UTC, datetime, timedelta
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -33,8 +34,9 @@ def ha_state(entity_id: str, state: str, **attributes: Any) -> dict[str, Any]:
     return {"entity_id": entity_id, "state": state, "attributes": attributes}
 
 
+@cache
 def load_test_config() -> Config:
-    """Load ``tests/fixtures/config``."""
+    """Load ``tests/fixtures/config`` (once: configs are never modified)."""
     return load_config(CONFIG)
 
 
