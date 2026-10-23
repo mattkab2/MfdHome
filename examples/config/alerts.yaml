@@ -198,7 +198,75 @@ alerts:
     severity: warning
     system: NET
     message: INTERNET DOWN
+    for: 2m
     when: [{entity: binary_sensor.wan_online, eq: off}]
+  # The UniFi controller runs on the gateway, so when Home Assistant can't
+  # reach it every UniFi entity goes unavailable at once: one alert for that.
+  # The device alerts below need a reported disconnect, and a device behind a
+  # switch that's down is left to the switch's alert: one fault, one alert.
+  - id: gateway_offline
+    severity: warning
+    system: NET
+    message: GATEWAY UNREACHABLE
+    for: 2m
+    any:
+      - {entity: sensor.gateway_state, unavailable: true}
+      - {entity: sensor.gateway_state, eq: disconnected}
+  - id: core_switch_offline
+    severity: caution
+    system: NET
+    message: CORE SWITCH OFFLINE
+    for: 5m
+    when: [{entity: sensor.core_switch_state, in: [disconnected, heartbeat_missed]}]
+  - id: shop_switch_offline
+    severity: caution
+    system: NET
+    message: SHOP SWITCH OFFLINE
+    for: 5m
+    when: [{entity: sensor.shop_switch_state, in: [disconnected, heartbeat_missed]}]
+  - id: ap_house_offline
+    severity: caution
+    system: NET
+    message: HOUSE AP OFFLINE
+    for: 5m
+    when:
+      - {entity: sensor.ap_house_state, in: [disconnected, heartbeat_missed]}
+      - {entity: sensor.core_switch_state, eq: connected}
+  - id: ap_shop_offline
+    severity: caution
+    system: NET
+    message: SHOP AP OFFLINE
+    for: 5m
+    when:
+      - {entity: sensor.ap_shop_state, in: [disconnected, heartbeat_missed]}
+      - {entity: sensor.shop_switch_state, eq: connected}
+  - id: uplink_slow
+    severity: advisory
+    system: NET
+    message: SWITCH UPLINK SLOW
+    for: 5m
+    any:
+      - {entity: sensor.core_switch_port_1_link_speed, lt: 1000}
+      - {entity: sensor.shop_switch_port_9_link_speed, lt: 10000}
+  # The LoRa companion on USB: Home Assistant has lost its radio.
+  - id: lora_offline
+    severity: caution
+    system: NET
+    message: LORA RADIO OFFLINE
+    for: 5m
+    any:
+      - {entity: sensor.meshcore_a1b2c3_node_status, unavailable: true}
+      - {entity: sensor.meshcore_a1b2c3_node_status, eq: offline}
+  # The repeater doesn't serve the house, so its loss is information. Its
+  # Online sensor already waits 2.5 poll intervals, so no hold time; and it
+  # only counts while the companion itself is up.
+  - id: repeater_offline
+    severity: advisory
+    system: NET
+    message: MESH REPEATER OFFLINE
+    when:
+      - {entity: binary_sensor.meshcore_4d5e6f7a8b_online_yard, eq: off}
+      - {entity: sensor.meshcore_a1b2c3_node_status, eq: online}
 
   - id: alarm_triggered
     severity: warning

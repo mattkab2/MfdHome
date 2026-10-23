@@ -26,6 +26,7 @@ from mfdhome.symbols import get_symbol
 from mfdhome.symbols.geometry import element_box, find_port
 from mfdhome.themes import EINK_COLOR, EINK_MONO, LCD, MIRROR, Target, Theme
 from tests.support import FIXTURES, config_page, fixture_state, ha_state
+from tests.test_water import House
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
 
@@ -171,3 +172,58 @@ def test_controller_unreachable_grays_unifi_only() -> None:
         assert statuses[element_id] is Status.UNAVAILABLE, element_id
     assert statuses["wan"] is Status.WARNING
     assert statuses["host"] is Status.NORMAL and statuses["mesh"] is Status.NORMAL
+
+
+# --- the alerts (example config, quiet example house) ----------------------------------
+
+
+def test_one_alert_for_a_switch_and_the_ap_behind_it() -> None:
+    house = House()
+    down = {"sensor__shop_switch_state": "disconnected", "sensor__ap_shop_state": "disconnected"}
+    assert house.at(0, **down) == set()
+    raised = house.at(5, **down)
+    assert "shop_switch_offline" in raised and "ap_shop_offline" not in raised
+    lone = House()
+    lone.at(0, sensor__ap_shop_state="heartbeat_missed")
+    assert "ap_shop_offline" in lone.at(5, sensor__ap_shop_state="heartbeat_missed")
+
+
+def test_one_alert_when_the_controller_is_unreachable() -> None:
+    house = House()
+    gone = {
+        entity_id.replace(".", "__"): "unavailable"
+        for entity_id in house.states
+        if entity_id.startswith(("sensor.gateway", "sensor.core_switch", "sensor.shop_switch"))
+        or entity_id.startswith("sensor.ap_")
+    }
+    house.at(0, **gone)
+    raised = house.at(10, **gone)
+    assert raised == {"gateway_offline"}  # not one per switch and AP
+
+
+def test_internet_down_waits_two_minutes() -> None:
+    house = House()
+    assert "wan_down" not in house.at(0, binary_sensor__wan_online="off")
+    assert "wan_down" in house.at(2, binary_sensor__wan_online="off")
+    alerts = house.runtime.config.alerts.by_id()
+    assert alerts["wan_down"].severity.value == "warning"
+
+
+def test_slow_uplink_is_an_advisory() -> None:
+    house = House()
+    house.at(0, sensor__shop_switch_port_9_link_speed="1000")  # the fiber at 1G
+    assert "uplink_slow" in house.at(5, sensor__shop_switch_port_9_link_speed="1000")
+    assert house.runtime.config.alerts.by_id()["uplink_slow"].severity.value == "advisory"
+
+
+def test_radio_alerts() -> None:
+    house = House()
+    quiet = {"binary_sensor__meshcore_4d5e6f7a8b_online_yard": "off"}
+    assert "repeater_offline" in house.at(0, **quiet)  # its own window already waited
+    radio_gone = House()
+    lost = {**quiet, "sensor__meshcore_a1b2c3_node_status": "unavailable"}
+    assert radio_gone.at(0, **lost) == set()  # the repeater is no news without the radio
+    assert radio_gone.at(5, **lost) == {"lora_offline"}
+    alerts = house.runtime.config.alerts.by_id()
+    assert alerts["repeater_offline"].severity.value == "advisory"
+    assert alerts["lora_offline"].severity.value == "caution"
