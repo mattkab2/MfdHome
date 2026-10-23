@@ -6,7 +6,7 @@ and the renderer dispatches through it.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field
 
 from mfdhome.conditions.values import Value
@@ -65,10 +65,16 @@ from mfdhome.symbols.water_heater import (
 from mfdhome.themes.theme import Theme
 
 #: Channels accepted by line elements: ``rate``, what the line carries (power,
-#: water flow, throughput, ...), primary and numeric.
-LINE_CHANNELS = ("rate",)
-LINE_PRIMARY = "rate"
+#: water flow, throughput, ...), numeric; and ``state``, a link's own state (a
+#: radio link's reachability), for lines with nothing to measure.
+LINE_CHANNELS = ("rate", "state")
 LINE_NUMERIC = frozenset({"rate"})
+
+
+def line_primary(bound: Collection[str]) -> str:
+    """A line's primary channel: ``rate``, or ``state`` when only ``state`` is bound."""
+    return "state" if "state" in bound and "rate" not in bound else "rate"
+
 
 type PortFn = Callable[[Point, Orientation], Port]
 

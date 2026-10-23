@@ -81,7 +81,7 @@ from mfdhome.model.state import StalePolicy
 from mfdhome.render.panels import PANELS
 from mfdhome.symbols.format import FORMATS, is_valid_format
 from mfdhome.symbols.geometry import element_box, find_port
-from mfdhome.symbols.registry import LINE_CHANNELS, LINE_PRIMARY, REGISTRY
+from mfdhome.symbols.registry import LINE_CHANNELS, REGISTRY, line_primary
 from mfdhome.themes.builtin import THEMES
 
 
@@ -447,7 +447,7 @@ class _ElementBuilder:
             id=model.id,
             bind=bound,
             name=self.name(model.name, (*loc, "name")),
-            status=self.status(model.status, LINE_PRIMARY, bound, (*loc, "status")),
+            status=self.status(model.status, line_primary(bound), bound, (*loc, "status")),
             readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
             flow=flow,
             casing=model.casing,

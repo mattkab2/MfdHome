@@ -23,7 +23,7 @@ from mfdhome.model.page import (
 from mfdhome.model.state import StateSnapshot
 from mfdhome.render.alerts import AlertView
 from mfdhome.render.status import element_status
-from mfdhome.symbols.registry import LINE_CHANNELS, LINE_NUMERIC, LINE_PRIMARY, get_symbol
+from mfdhome.symbols.registry import LINE_CHANNELS, LINE_NUMERIC, get_symbol, line_primary
 
 _NO_VALUES: Mapping[str, Value] = {}
 
@@ -71,9 +71,8 @@ class Resolver:
                     element, spec.channels, spec.primary, spec.primary in spec.numeric
                 )
             case LineElement():
-                result = self._bound(
-                    element, LINE_CHANNELS, LINE_PRIMARY, LINE_PRIMARY in LINE_NUMERIC
-                )
+                primary = line_primary(element.bind)
+                result = self._bound(element, LINE_CHANNELS, primary, primary in LINE_NUMERIC)
             case TileElement():
                 result = self._tile(element)
             case GroupElement():

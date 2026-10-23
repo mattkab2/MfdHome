@@ -6,17 +6,16 @@ from mfdhome.symbols.line import Flow, line
 from mfdhome.symbols.registry import (
     LINE_CHANNELS,
     LINE_NUMERIC,
-    LINE_PRIMARY,
     REGISTRY,
     SymbolInput,
     SymbolSpec,
     get_symbol,
+    line_primary,
 )
 
 __all__ = [
     "LINE_CHANNELS",
     "LINE_NUMERIC",
-    "LINE_PRIMARY",
     "REGISTRY",
     "Flow",
     "SymbolInput",
@@ -25,4 +24,5 @@ __all__ = [
     "breaker",
     "get_symbol",
     "line",
+    "line_primary",
 ]

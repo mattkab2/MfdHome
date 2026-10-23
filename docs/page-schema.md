@@ -224,7 +224,7 @@ elbow:
 `elbow` forces which leg comes first, and `route: straight` draws a diagonal
 instead.
 
-Lines have one channel, `rate` (numeric, primary): whatever the line carries,
+Lines have two channels. `rate` (numeric, primary) is whatever the line carries,
 such as power in W, water flow in gal/min or throughput in Mbps. With `flow`,
 an arrow is drawn when `|rate| > threshold` (default 0, so any nonzero rate;
 set a threshold for noisy sensors, such as power hovering around zero):
@@ -245,6 +245,23 @@ There's no rate, so there's nothing to read out.
   to: trunk
   flow:
     when: [{entity: climate.main, attribute: hvac_action, in: [heating, cooling, fan]}]
+```
+
+`state` is the link's own state, for a line whose health can be read but
+not measured, such as a radio link's reachability or the device at the far
+end of a cable. A line with only `state` bound takes it as its primary
+channel, so `map` reads it and a link with no data is drawn gray and dotted.
+Beside a `rate`, give `from: state` to map it:
+
+```yaml
+- id: rf
+  type: line
+  from: radio.right
+  to: repeater.left
+  casing: false
+  tag: RF
+  bind: {state: binary_sensor.repeater_online}
+  status: {map: {"on": normal, "off": caution}}
 ```
 
 The arrow is a harpoon (⇀) beside the line: a shaft parallel to it, set off
