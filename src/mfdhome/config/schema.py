@@ -513,10 +513,11 @@ class PageModel(Strict):
 
 
 class ScenarioStateModel(Strict):
-    """One entity's state in a scenario step: a state string, or with attributes."""
+    """One entity's state in a scenario step: a state string (keeping the entity's
+    attributes), or with attributes that replace them."""
 
     state: str
-    attributes: dict[str, Any] = {}
+    attributes: dict[str, Any] | None = None
 
 
 class ScenarioStepModel(Strict):

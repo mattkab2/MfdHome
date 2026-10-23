@@ -51,6 +51,7 @@ def test_load_scenario(tmp_path: Path) -> None:
                 set:
                   binary_sensor.grid_connected: "off"
                   sensor.grid_power: {state: "0", attributes: {unit_of_measurement: W}}
+                  sensor.load_power: "4200"
               - {at: 10s, connected: false}
               - {at: 1m, remove: [sensor.grid_power]}
             """
@@ -62,6 +63,11 @@ def test_load_scenario(tmp_path: Path) -> None:
     assert scenario.base["binary_sensor.grid_connected"].state == "on"
     grid = scenario.steps[1].set["sensor.grid_power"]
     assert (grid.state, grid.attributes) == ("0", {"unit_of_measurement": "W"})
+    state, _ = state_at(scenario, 45 * S)
+    assert state["sensor.grid_power"].attributes == {"unit_of_measurement": "W"}  # replaced
+    load = state["sensor.load_power"]  # a state alone keeps the entity's attributes
+    assert load.state == "4200"
+    assert load.attributes == {"unit_of_measurement": "W", "state_class": "measurement"}
 
 
 def test_scenario_errors(tmp_path: Path) -> None:

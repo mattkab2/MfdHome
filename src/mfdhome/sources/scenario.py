@@ -43,12 +43,17 @@ class StateSource(Protocol):
 
 @dataclass(frozen=True)
 class Step:
-    """At ``at`` into the scenario: set and remove entities, and maybe (dis)connect."""
+    """At ``at`` into the scenario: set and remove entities, and maybe (dis)connect.
+
+    Entities in ``keep`` keep the attributes they had (the step gave only a
+    state, as most Home Assistant changes do); the others take the step's.
+    """
 
     at: timedelta
     set: Mapping[str, EntityState] = field(default_factory=dict)
     remove: frozenset[str] = frozenset()
     connected: bool | None = None
+    keep: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -69,7 +74,11 @@ def state_at(scenario: Scenario, elapsed: timedelta) -> tuple[StateSnapshot, boo
     for step in scenario.steps:
         if step.at > elapsed:
             break
-        states.update(step.set)
+        for entity_id, new in step.set.items():
+            old = states.get(entity_id)
+            if entity_id in step.keep and old is not None:
+                new = EntityState(new.state, old.attributes)
+            states[entity_id] = new
         for entity_id in step.remove:
             states.pop(entity_id, None)
         if step.connected is not None:

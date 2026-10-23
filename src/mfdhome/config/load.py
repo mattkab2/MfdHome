@@ -193,9 +193,10 @@ def load_scenario(path: str | Path) -> Scenario:
             (
                 Step(
                     s.at,
-                    {e: EntityState(v.state, dict(v.attributes)) for e, v in s.set.items()},
+                    {e: EntityState(v.state, dict(v.attributes or {})) for e, v in s.set.items()},
                     frozenset(s.remove),
                     s.connected,
+                    frozenset(e for e, v in s.set.items() if v.attributes is None),
                 )
                 for s in model.steps
             ),

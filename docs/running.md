@@ -51,8 +51,8 @@ loop: 4m                         # optional: start over after this long
 steps:
   - at: 20s
     set:
-      binary_sensor.grid_connected: "off"                         # a state string
-      sensor.grid_power: {state: "0", attributes: {unit_of_measurement: W}}
+      binary_sensor.grid_connected: "off"                         # a state (attributes kept)
+      sensor.grid_power: {state: "0", attributes: {unit_of_measurement: W}}  # replaced
   - {at: 2m, connected: false}   # Home Assistant goes away (alerts freeze)
   - {at: 130s, connected: true}
   - {at: 3m, remove: [sensor.grid_power]}                          # an entity disappears
