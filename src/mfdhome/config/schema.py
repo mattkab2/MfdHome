@@ -425,10 +425,19 @@ class StaleModel(Strict):
     entities: dict[EntityId, Duration] = {}
 
 
+class AveragingModel(Strict):
+    """Entities a time-averaging display averages (``true``) or shows live (``false``),
+    overriding the default (Home Assistant measurements)."""
+
+    entities: dict[EntityId, bool] = {}
+
+
 class DefsModel(Strict):
-    """Shared definitions: thresholds, state maps, conditions and staleness limits."""
+    """Shared definitions: thresholds, state maps, conditions, staleness limits and
+    averaging overrides."""
 
     stale_after: StaleModel | None = None
+    averaging: AveragingModel | None = None
     thresholds: dict[Ident, ThresholdsModel] = {}
     maps: dict[Ident, StateMapModel] = {}
     conditions: dict[Ident, ExprModel] = {}
@@ -476,6 +485,8 @@ class DisplayModel(Strict):
     pages: list[Ident] = []
     alerts_page: Ident | None = None  # default: home
     panel: str | None = None  # e-paper panel profile: served as PNG snapshots
+    refresh: Duration | None = None  # how often a panel fetches its image (default 5m)
+    average: Duration | None = None  # averaging window (panels: refresh; 0: live)
 
 
 class DisplaysModel(Strict):

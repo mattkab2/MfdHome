@@ -7,7 +7,7 @@ from typing import ClassVar
 
 import pytest
 
-from mfdhome.config import ConfigError, load_config
+from mfdhome.config import ConfigError, load_config, load_defs, load_page
 from mfdhome.config.load import load_displays
 from mfdhome.mfd import AlertState, Display, Phase
 from mfdhome.mfd.keys import DEFAULT_ACTIONS, Action
@@ -78,6 +78,63 @@ class TestDisplays:
         msgs = [f"{i.loc}: {i.message}" for i in info.value.issues]
         assert msgs[0].startswith("displays.a.panel: unknown panel 'plasma'; expected: mono")
         assert msgs[1].startswith("displays.b.panel: panel 'mono' cannot show theme 'eink_color'")
+
+
+class TestTiming:
+    def load(self, tmp_path: Path, *lines: str) -> dict[str, Display]:
+        path = tmp_path / "displays.yaml"
+        path.write_text("displays:\n" + "".join(f"  {line}\n" for line in lines))
+        return load_displays(path, {"status"})
+
+    def test_panels_average_over_their_refresh(self, tmp_path: Path) -> None:
+        panel = "{theme: eink_mono, size: [800, 480], home: status, panel: mono"
+        displays = self.load(
+            tmp_path,
+            f"a: {panel}}}",
+            f"b: {panel}, refresh: 2m}}",
+            f"c: {panel}, refresh: 2m, average: 1m}}",
+            f"d: {panel}, average: 0}}",
+        )
+        minutes = timedelta(minutes=1)
+        assert (displays["a"].refresh, displays["a"].average) == (5 * minutes, 5 * minutes)
+        assert (displays["b"].refresh, displays["b"].average) == (2 * minutes, 2 * minutes)
+        assert displays["c"].average == minutes
+        assert displays["d"].refresh == 5 * minutes and displays["d"].average is None  # live
+
+    def test_browser_displays_are_live_unless_asked(self, tmp_path: Path) -> None:
+        displays = self.load(
+            tmp_path,
+            "a: {theme: lcd, size: [10, 10], home: status}",
+            "b: {theme: mirror, size: [10, 10], home: status, average: 30s}",
+        )
+        assert displays["a"].refresh is None and displays["a"].average is None
+        assert displays["b"].average == timedelta(seconds=30)
+
+    def test_limits(self, tmp_path: Path) -> None:
+        with pytest.raises(ConfigError) as info:
+            self.load(
+                tmp_path,
+                "a: {theme: lcd, size: [10, 10], home: status, refresh: 1m}",
+                "b: {theme: eink_mono, size: [10, 10], home: status, panel: mono, refresh: 5s}",
+                "c: {theme: lcd, size: [10, 10], home: status, average: 2h}",
+            )
+        assert [f"{i.loc}: {i.message}" for i in info.value.issues] == [
+            "displays.a.refresh: refresh is for e-paper panels, which fetch on a timer",
+            "displays.b.refresh: refresh must be at least 10s",
+            "displays.c.average: average must be at most 1h",
+        ]
+
+    def test_averaging_overrides_are_house_wide(self, tmp_path: Path) -> None:
+        defs = tmp_path / "defs.yaml"
+        defs.write_text("averaging: {entities: {sensor.soc: false, sensor.tpl: true}}\n")
+        assert load_defs(defs).averaging.entities == {"sensor.soc": False, "sensor.tpl": True}
+        page = tmp_path / "p.yaml"
+        page.write_text(
+            "page: p\ntitle: P\ncanvas: {width: 1, height: 1}\n"
+            "defs: {averaging: {entities: {sensor.soc: false}}}\n"
+        )
+        with pytest.raises(ConfigError, match=r"averaging is house-wide: set it in defs\.yaml"):
+            load_page(page)
 
 
 class TestStore:

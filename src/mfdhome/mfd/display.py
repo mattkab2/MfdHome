@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 
 
 @dataclass(frozen=True)
@@ -13,8 +14,10 @@ class Display:
     always includes ``home``). A display with a single page, such as a mirror,
     is fixed to it. ``theme`` names a built-in theme; ``width``/``height`` are
     its pixel size. Displays with more than one page have the four keys
-    (``controls``); ALERTS jumps to ``alerts_page``. A display with a ``panel`` (an e-paper
-    panel profile name) is served as PNG snapshots quantized to that panel.
+    (``controls``); ALERTS jumps to ``alerts_page``. A display with a ``panel``
+    (an e-paper panel profile name) is served as PNG snapshots quantized to
+    that panel, which the device fetches every ``refresh``. A display with an
+    ``average`` window shows measurements averaged over it (``None``: live).
     """
 
     id: str
@@ -25,6 +28,8 @@ class Display:
     pages: tuple[str, ...]
     alerts_page: str = ""
     panel: str | None = None
+    refresh: timedelta | None = None
+    average: timedelta | None = None
 
     @property
     def controls(self) -> bool:

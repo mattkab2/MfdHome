@@ -27,6 +27,7 @@ from mfdhome.config.schema import (
     AlertsModel,
     DefsModel,
     DerivedModel,
+    DisplayModel,
     DisplaysModel,
     ExprModel,
     GroupModel,
@@ -77,7 +78,7 @@ from mfdhome.model.page import (
     TileElement,
     WallElement,
 )
-from mfdhome.model.state import StalePolicy
+from mfdhome.model.state import AveragingPolicy, StalePolicy
 from mfdhome.render.panels import PANELS
 from mfdhome.symbols.format import FORMATS, is_valid_format
 from mfdhome.symbols.geometry import element_box, find_port
@@ -93,6 +94,7 @@ class Defs:
     conditions: Mapping[str, AnyOf] = field(default_factory=dict)
     stale_after: StalePolicy = field(default_factory=StalePolicy)
     maps: Mapping[str, StateMap] = field(default_factory=dict)
+    averaging: AveragingPolicy = field(default_factory=AveragingPolicy)
 
     def merge(self, other: Defs) -> tuple[Defs, list[str]]:
         """Combine two sets of defs; returns the result and any duplicated names."""
@@ -107,6 +109,7 @@ class Defs:
             conditions={**self.conditions, **other.conditions},
             stale_after=self.stale_after,
             maps={**self.maps, **other.maps},
+            averaging=self.averaging,
         )
         return merged, dupes
 
@@ -268,7 +271,8 @@ def build_defs(
     thresholds = {name: _thresholds(t) for name, t in model.thresholds.items()}
     maps = {name: _state_map(m.states, m.default) for name, m in model.maps.items()}
     stale = model.stale_after or StaleModel()
-    return Defs(thresholds, conditions, StalePolicy(stale.default, stale.entities), maps)
+    averaging = AveragingPolicy(model.averaging.entities if model.averaging else {})
+    return Defs(thresholds, conditions, StalePolicy(stale.default, stale.entities), maps, averaging)
 
 
 # --- elements ---------------------------------------------------------------------------------
@@ -616,8 +620,9 @@ def build_page(
     """
     defs = shared
     if model.defs is not None:
-        if model.defs.stale_after is not None:
-            issues.add(("defs", "stale_after"), "stale_after is house-wide: set it in defs.yaml")
+        for key in ("stale_after", "averaging"):
+            if getattr(model.defs, key) is not None:
+                issues.add(("defs", key), f"{key} is house-wide: set it in defs.yaml")
         local = build_defs(model.defs, issues, base=shared)
         defs, dupes = shared.merge(local)
         for dupe in dupes:
@@ -846,14 +851,51 @@ def build_displays(
                 issues.add(where, f"unknown page {page!r}")
         if d.panel is not None:
             _check_panel(loc, d.theme, d.panel, issues)
+        refresh, average = _timing(d, loc, issues)
         alerts_page = d.alerts_page or d.home
         pages = (d.home, *(p for p in d.pages if p != d.home))
         if alerts_page not in pages:
             pages = (*pages, alerts_page)
         out[display_id] = Display(
-            display_id, d.theme, d.size[0], d.size[1], d.home, pages, alerts_page, d.panel
+            display_id,
+            d.theme,
+            d.size[0],
+            d.size[1],
+            d.home,
+            pages,
+            alerts_page,
+            d.panel,
+            refresh,
+            average,
         )
     return out
+
+
+#: How often a panel fetches its image unless its display says otherwise.
+DEFAULT_REFRESH = timedelta(minutes=5)
+#: Shortest panel refresh, and longest averaging window.
+MIN_REFRESH = timedelta(seconds=10)
+MAX_AVERAGE = timedelta(hours=1)
+
+
+def _timing(d: DisplayModel, loc: Loc, issues: Issues) -> tuple[timedelta | None, timedelta | None]:
+    """A display's refresh period (panels only) and averaging window (``None``: live).
+
+    A panel averages over its refresh period unless ``average`` says otherwise;
+    other displays are live unless given an ``average``.
+    """
+    refresh = None
+    if d.panel is None:
+        if d.refresh is not None:
+            issues.add((*loc, "refresh"), "refresh is for e-paper panels, which fetch on a timer")
+    else:
+        refresh = d.refresh or DEFAULT_REFRESH
+        if refresh < MIN_REFRESH:
+            issues.add((*loc, "refresh"), f"refresh must be at least {MIN_REFRESH.seconds}s")
+    average = d.average if d.average is not None else refresh
+    if average is not None and average > MAX_AVERAGE:
+        issues.add((*loc, "average"), "average must be at most 1h")
+    return refresh, average or None
 
 
 def _check_panel(loc: Loc, theme: str, panel: str, issues: Issues) -> None:
