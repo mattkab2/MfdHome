@@ -757,6 +757,9 @@ needs attention soon or means something isn't as it should be. An
 can bounce gets a `for:` hold time. Status (what a symbol shows now) is kept
 separate from alerts (what latches and needs acknowledging). On security and
 life-safety systems a sensor that stops reporting is a caution, not just gray.
+One fault raises one alert: a device behind one that is already down, or
+every device when their controller can't be reached, is left to that one's
+alert (see the NET alerts in `examples/config/alerts.yaml`).
 
 | System | Warning | Caution | Advisory |
 |---|---|---|---|
@@ -766,6 +769,7 @@ life-safety systems a sensor that stops reporting is a caution, not just gray.
 | HVAC | no heat with the house below a freeze-risk temperature | a zone can't reach setpoint (more than 3° off, `for: 30m`); thermostat offline | filter overdue; humidity out of range |
 | SEC | alarm triggered | armed with a zone open; zone tamper or trouble; panel offline | zone battery low; door left open (`for: 10m`) |
 | FIRE | smoke detected | detector offline or trouble | detector battery low |
+| NET | internet down (`for: 2m`); network controller unreachable | a switch, access point or the LoRa radio offline (`for: 5m`) | slow link speed; a mesh repeater gone quiet |
 
 ## Displays
 

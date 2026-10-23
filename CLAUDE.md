@@ -71,8 +71,8 @@ tests/
   snapshots/   # Expected SVG/PNG output for snapshot tests
 examples/
   config/      # Example config: defs, alerts, displays, pages (status,
-               # electrical, water, hvac, security, log). Do not hardcode house
-               # specifics in src/
+               # electrical, water, hvac, security, network, log). Do not
+               # hardcode house specifics in src/
   scenarios/   # A quiet example house and looping scenarios for
                # 'serve --scenario' (grid outage, water leak, break-in,
                # network outage)
@@ -306,6 +306,16 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   first. **Logged entities** (`log:` in alerts.yaml, e.g. arming) appear in
   the alert log as information rows. Severities follow the guide in
   `docs/page-schema.md` ("Choosing a severity").
+- **Network page:** UniFi devices from Home Assistant's UniFi integration
+  (`router`, `network_switch`, `access_point`, `host` symbols sharing a
+  named state map, `maps` in defs) and a MeshCore LoRa link from meshcore-ha
+  (`radio` symbols; companion on USB). Links bind a `state` channel (the far
+  device's state, a repeater's reachability); a radio link is a plain line
+  tagged `RF`. Throughput readouts use `data_rate`. **One fault, one
+  alert:** devices behind a dead switch, or all of them when the UniFi
+  controller is unreachable, don't raise their own. Fine marks inside a
+  symbol keep a fixed weight (only outlines carry status weight), and
+  plain lines dash long in caution so it never reads as no-data dots.
 - **Alert log** (`alert_log` element): one row per change, newest first;
   advisories read START/END; repeat raise/clear cycles within 5 minutes
   fold into one FLAPPING row per alert; batches separated by rules; paged
