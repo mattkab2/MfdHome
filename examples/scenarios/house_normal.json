@@ -3,70 +3,80 @@
   "entity_id": "sensor.pv_p1_power",
   "state": "540",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.pv_p2_power",
   "state": "535",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.pv_p3_power",
   "state": "530",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.pv_p4_power",
   "state": "530",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.pv_p5_power",
   "state": "535",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.pv_p6_power",
   "state": "530",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.battery_soc",
   "state": "82",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.battery_power",
   "state": "1500",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.grid_power",
   "state": "300",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.load_power",
   "state": "2000",
   "attributes": {
-   "unit_of_measurement": "W"
+   "unit_of_measurement": "W",
+   "state_class": "measurement"
   }
  },
  {
@@ -88,7 +98,8 @@
   "entity_id": "sensor.water_pressure",
   "state": "55",
   "attributes": {
-   "unit_of_measurement": "psi"
+   "unit_of_measurement": "psi",
+   "state_class": "measurement"
   }
  },
  {
@@ -135,21 +146,24 @@
   "entity_id": "sensor.wind_speed",
   "state": "12",
   "attributes": {
-   "unit_of_measurement": "mph"
+   "unit_of_measurement": "mph",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.water_flow",
   "state": "0",
   "attributes": {
-   "unit_of_measurement": "gal/min"
+   "unit_of_measurement": "gal/min",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.water_usage_today",
   "state": "84",
   "attributes": {
-   "unit_of_measurement": "gal"
+   "unit_of_measurement": "gal",
+   "state_class": "total_increasing"
   }
  },
  {
@@ -183,7 +197,8 @@
   "entity_id": "sensor.gas_flow",
   "state": "0",
   "attributes": {
-   "unit_of_measurement": "ft\u00b3/h"
+   "unit_of_measurement": "ft\u00b3/h",
+   "state_class": "measurement"
   }
  },
  {
@@ -287,63 +302,72 @@
   "entity_id": "sensor.furnace_filter_life",
   "state": "42",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.outdoor_temperature",
   "state": "78",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.living_temperature",
   "state": "73.6",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.kitchen_temperature",
   "state": "74.1",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.den_temperature",
   "state": "73.2",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.bed_1_temperature",
   "state": "73.8",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.bed_2_temperature",
   "state": "74.0",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.office_temperature",
   "state": "73.5",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.upstairs_filter_life",
   "state": "67",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
@@ -357,7 +381,8 @@
   "entity_id": "sensor.gateway_cpu_utilization",
   "state": "18",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
@@ -365,7 +390,8 @@
   "state": "126",
   "attributes": {
    "unit_of_measurement": "\u00b0F",
-   "device_class": "temperature"
+   "device_class": "temperature",
+   "state_class": "measurement"
   }
  },
  {
@@ -373,7 +399,8 @@
   "state": "412.6",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -388,7 +415,8 @@
   "state": "238.4",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -396,7 +424,8 @@
   "state": "1000",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -411,7 +440,8 @@
   "state": "1240",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -419,7 +449,8 @@
   "state": "10000",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -432,7 +463,9 @@
  {
   "entity_id": "sensor.ap_house_clients",
   "state": "23",
-  "attributes": {}
+  "attributes": {
+   "state_class": "measurement"
+  }
  },
  {
   "entity_id": "sensor.ap_shop_state",
@@ -444,13 +477,16 @@
  {
   "entity_id": "sensor.ap_shop_clients",
   "state": "6",
-  "attributes": {}
+  "attributes": {
+   "state_class": "measurement"
+  }
  },
  {
   "entity_id": "sensor.system_monitor_processor_use",
   "state": "7",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
@@ -458,7 +494,8 @@
   "state": "118",
   "attributes": {
    "unit_of_measurement": "\u00b0F",
-   "device_class": "temperature"
+   "device_class": "temperature",
+   "state_class": "measurement"
   }
  },
  {
@@ -477,14 +514,16 @@
   "entity_id": "sensor.meshcore_4d5e6f7a8b_out_path_len_yard",
   "state": "2",
   "attributes": {
-   "unit_of_measurement": "hops"
+   "unit_of_measurement": "hops",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.meshcore_4d5e6f7a8b_last_snr_yard",
   "state": "6.25",
   "attributes": {
-   "unit_of_measurement": "dB"
+   "unit_of_measurement": "dB",
+   "state_class": "measurement"
   }
  }
 ]

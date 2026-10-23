@@ -8,7 +8,8 @@
   "entity_id": "sensor.water_pressure",
   "state": "58",
   "attributes": {
-   "unit_of_measurement": "psi"
+   "unit_of_measurement": "psi",
+   "state_class": "measurement"
   }
  },
  {
@@ -29,14 +30,16 @@
   "entity_id": "sensor.water_flow",
   "state": "6.5",
   "attributes": {
-   "unit_of_measurement": "gal/min"
+   "unit_of_measurement": "gal/min",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.water_usage_today",
   "state": "84",
   "attributes": {
-   "unit_of_measurement": "gal"
+   "unit_of_measurement": "gal",
+   "state_class": "total_increasing"
   }
  },
  {
@@ -70,7 +73,8 @@
   "entity_id": "sensor.gas_flow",
   "state": "0",
   "attributes": {
-   "unit_of_measurement": "ft\u00b3/h"
+   "unit_of_measurement": "ft\u00b3/h",
+   "state_class": "measurement"
   }
  },
  {

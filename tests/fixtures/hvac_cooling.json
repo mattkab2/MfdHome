@@ -3,14 +3,16 @@
   "entity_id": "sensor.furnace_filter_life",
   "state": "42",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.upstairs_filter_life",
   "state": "67",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
@@ -44,49 +46,56 @@
   "entity_id": "sensor.outdoor_temperature",
   "state": "91",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.living_temperature",
   "state": "74.2",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.kitchen_temperature",
   "state": "75.0",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.den_temperature",
   "state": "73.8",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.bed_1_temperature",
   "state": "75.9",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.bed_2_temperature",
   "state": "76.4",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.office_temperature",
   "state": "75.1",
   "attributes": {
-   "unit_of_measurement": "\u00b0F"
+   "unit_of_measurement": "\u00b0F",
+   "state_class": "measurement"
   }
  }
 ]

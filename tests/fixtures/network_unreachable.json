@@ -18,7 +18,8 @@
   "entity_id": "sensor.gateway_cpu_utilization",
   "state": "unavailable",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
@@ -26,7 +27,8 @@
   "state": "unavailable",
   "attributes": {
    "unit_of_measurement": "\u00b0F",
-   "device_class": "temperature"
+   "device_class": "temperature",
+   "state_class": "measurement"
   }
  },
  {
@@ -34,7 +36,8 @@
   "state": "unavailable",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -49,7 +52,8 @@
   "state": "unavailable",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -57,7 +61,8 @@
   "state": "unavailable",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -72,7 +77,8 @@
   "state": "unavailable",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -80,7 +86,8 @@
   "state": "unavailable",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
-   "device_class": "data_rate"
+   "device_class": "data_rate",
+   "state_class": "measurement"
   }
  },
  {
@@ -93,7 +100,9 @@
  {
   "entity_id": "sensor.ap_house_clients",
   "state": "unavailable",
-  "attributes": {}
+  "attributes": {
+   "state_class": "measurement"
+  }
  },
  {
   "entity_id": "sensor.ap_shop_state",
@@ -105,13 +114,16 @@
  {
   "entity_id": "sensor.ap_shop_clients",
   "state": "unavailable",
-  "attributes": {}
+  "attributes": {
+   "state_class": "measurement"
+  }
  },
  {
   "entity_id": "sensor.system_monitor_processor_use",
   "state": "7",
   "attributes": {
-   "unit_of_measurement": "%"
+   "unit_of_measurement": "%",
+   "state_class": "measurement"
   }
  },
  {
@@ -119,7 +131,8 @@
   "state": "118",
   "attributes": {
    "unit_of_measurement": "\u00b0F",
-   "device_class": "temperature"
+   "device_class": "temperature",
+   "state_class": "measurement"
   }
  },
  {
@@ -138,14 +151,16 @@
   "entity_id": "sensor.meshcore_4d5e6f7a8b_out_path_len_yard",
   "state": "2",
   "attributes": {
-   "unit_of_measurement": "hops"
+   "unit_of_measurement": "hops",
+   "state_class": "measurement"
   }
  },
  {
   "entity_id": "sensor.meshcore_4d5e6f7a8b_last_snr_yard",
   "state": "6.25",
   "attributes": {
-   "unit_of_measurement": "dB"
+   "unit_of_measurement": "dB",
+   "state_class": "measurement"
   }
  }
 ]
