@@ -5,7 +5,7 @@ from __future__ import annotations
 from mfdhome.layout.anchors import Box
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import font, stroke
+from mfdhome.symbols.style import stroke, text_at
 from mfdhome.themes.theme import Theme
 
 RADIUS = 20.0
@@ -23,23 +23,6 @@ def meter(x: float, y: float, label: str, status: Status, theme: Theme) -> str:
     The circle is the same in both orientations and the label always reads
     upright; only the ports move.
     """
-    return svg.element(
-        "circle",
-        {
-            "cx": x,
-            "cy": y,
-            "r": RADIUS,
-            "fill": "none",
-            **stroke(status, theme, theme.symbol_stroke_width),
-        },
-    ) + svg.element(
-        "text",
-        {
-            "x": x,
-            "y": y,
-            "text-anchor": "middle",
-            "dominant-baseline": "middle",
-            **font(theme, theme.font_size * LABEL_SCALE, theme.text_in(status)),
-        },
-        [svg.text(label)],
-    )
+    return svg.circle(
+        x, y, RADIUS, {"fill": "none", **stroke(status, theme, theme.symbol_stroke_width)}
+    ) + text_at(x, y, label, theme, theme.font_size * LABEL_SCALE, theme.text_in(status))

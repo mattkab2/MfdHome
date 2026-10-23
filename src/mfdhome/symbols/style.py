@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from mfdhome.model.binding import Status
+from mfdhome.symbols import svg
 from mfdhome.symbols.svg import AttrValue
 from mfdhome.themes.theme import Theme
 
@@ -29,3 +30,27 @@ def detail(status: Status, theme: Theme, width: float) -> dict[str, AttrValue]:
 def font(theme: Theme, size: float, fill: str) -> dict[str, AttrValue]:
     """Text attributes for the theme's font."""
     return {"font-family": theme.font_family, "font-size": size, "fill": fill}
+
+
+def text_at(
+    x: float,
+    y: float,
+    content: str,
+    theme: Theme,
+    size: float,
+    fill: str,
+    anchor: str = "middle",
+) -> str:
+    """One line of text in the theme's font, vertically centered on ``y``;
+    ``anchor`` (``start``, ``middle``, ``end``) places it horizontally on ``x``."""
+    return svg.element(
+        "text",
+        {
+            "x": x,
+            "y": y,
+            "text-anchor": anchor,
+            "dominant-baseline": "middle",
+            **font(theme, size, fill),
+        },
+        [svg.text(content)],
+    )

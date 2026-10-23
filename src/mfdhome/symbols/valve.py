@@ -89,47 +89,28 @@ def valve(
             )
         )
     if body is Body.BALL:
-        parts.append(
-            svg.element(
-                "circle",
-                {"cx": x, "cy": y, "r": BALL_RADIUS, "fill": theme.background, **outline},
-            )
-        )
+        parts.append(svg.circle(x, y, BALL_RADIUS, {"fill": theme.background, **outline}))
     else:
         parts.append(
-            svg.element(
-                "circle",
-                {
-                    "cx": x,
-                    "cy": y,
-                    "r": GLOBE_RADIUS,
-                    "fill": color,
-                    "stroke": theme.background,
-                    "stroke-width": GLOBE_RING,
-                },
+            svg.circle(
+                x,
+                y,
+                GLOBE_RADIUS,
+                {"fill": color, "stroke": theme.background, "stroke-width": GLOBE_RING},
             )
         )
     if actuated:
         # The stem rises from the center mark (where the triangles meet), the bonnet.
         box_top = y - half_h - ACTUATOR_REACH
         stem_from = y - (BALL_RADIUS if body is Body.BALL else GLOBE_RADIUS + GLOBE_RING / 2)
+        parts.append(svg.line(x, stem_from, x, box_top + ACTUATOR_HEIGHT, outline))
         parts.append(
-            svg.element(
-                "line",
-                {"x1": x, "y1": stem_from, "x2": x, "y2": box_top + ACTUATOR_HEIGHT, **outline},
-            )
-        )
-        parts.append(
-            svg.element(
-                "rect",
-                {
-                    "x": x - ACTUATOR_WIDTH / 2,
-                    "y": box_top,
-                    "width": ACTUATOR_WIDTH,
-                    "height": ACTUATOR_HEIGHT,
-                    "fill": "none",
-                    **outline,
-                },
+            svg.rect(
+                x - ACTUATOR_WIDTH / 2,
+                box_top,
+                ACTUATOR_WIDTH,
+                ACTUATOR_HEIGHT,
+                {"fill": "none", **outline},
             )
         )
     # Vertical: rotated about the center, so the actuator ends up on the right.

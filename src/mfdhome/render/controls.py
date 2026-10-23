@@ -11,7 +11,7 @@ from mfdhome.layout.anchors import Box
 from mfdhome.mfd.keys import DEFAULT_ACTIONS, Action, KeyActions
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import font
+from mfdhome.symbols.style import text_at
 from mfdhome.symbols.tile import TileLook, attention_group, panel
 from mfdhome.themes.theme import Theme
 
@@ -61,19 +61,7 @@ def banner_box(strip: Box) -> Box:
 
 def _key(slot: int, box: Box, look: TileLook, label: str, theme: Theme) -> str:
     parts, text_color = panel(box, look, theme, opaque=True, ring=False)
-    parts.append(
-        svg.element(
-            "text",
-            {
-                "x": box.cx,
-                "y": box.cy,
-                "text-anchor": "middle",
-                "dominant-baseline": "middle",
-                **font(theme, theme.font_size, text_color),
-            },
-            [svg.text(label)],
-        )
-    )
+    parts.append(text_at(box.cx, box.cy, label, theme, theme.font_size, text_color))
     group = attention_group(parts, look.attention, theme)
     return svg.element("g", {"id": f"key-{slot}"}, [group])
 

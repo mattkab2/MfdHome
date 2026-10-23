@@ -14,7 +14,7 @@ from mfdhome.layout.anchors import Box
 from mfdhome.layout.path import Point
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import font, stroke
+from mfdhome.symbols.style import stroke, text_at
 from mfdhome.themes.theme import Theme
 
 #: Exterior walls relative to the theme's symbol stroke width.
@@ -44,43 +44,20 @@ def room(
         if quiet
         else stroke(status, theme, theme.symbol_stroke_width)
     )
-    parts = [
-        svg.element(
-            "polygon",
-            {
-                "points": svg.points(points),
-                "fill": "none",
-                "stroke-linejoin": "miter",
-                **outline,
-            },
-        )
-    ]
+    parts = [svg.polygon(points, {"fill": "none", "stroke-linejoin": "miter", **outline})]
     if name:
         x, y = label_at or _middle(points)
         color = theme.structure_color if quiet else theme.text_in(status)
-        parts.append(
-            svg.element(
-                "text",
-                {
-                    "x": x,
-                    "y": y,
-                    "text-anchor": "middle",
-                    "dominant-baseline": "middle",
-                    **font(theme, theme.font_size * ROOM_LABEL_SCALE, color),
-                },
-                [svg.text(name)],
-            )
-        )
+        parts.append(text_at(x, y, name, theme, theme.font_size * ROOM_LABEL_SCALE, color))
     return "".join(parts)
 
 
 def wall(points: Sequence[Point], exterior: bool, theme: Theme) -> str:
     """Render a wall: a static polyline in the structure color."""
     width = theme.symbol_stroke_width * (EXTERIOR_WEIGHT if exterior else 1.0)
-    return svg.element(
-        "polyline",
+    return svg.polyline(
+        points,
         {
-            "points": svg.points(points),
             "fill": "none",
             "stroke": theme.structure_color,
             "stroke-width": width,
@@ -157,7 +134,7 @@ def opening(
         return (x + v, y + u) if vertical else (x + u, y + v)
 
     def seg(a: Point, b: Point, attrs: dict[str, svg.AttrValue]) -> str:
-        return svg.element("line", {"x1": a[0], "y1": a[1], "x2": b[0], "y2": b[1], **attrs})
+        return svg.line(*a, *b, attrs)
 
     half = length / 2
     leaf = stroke(status, theme, theme.symbol_stroke_width * LEAF_WEIGHT)
@@ -230,25 +207,10 @@ def alarm_panel(x: float, y: float, state: str | None, status: Status, theme: Th
     look = Status.ACTIVE if status is Status.NORMAL and armed else status
     box = panel_box(x, y)
     label = "---" if state is None else PANEL_LABELS.get(state, state.upper().replace("_", " "))
-    return svg.element(
-        "rect",
-        {
-            "x": box.left,
-            "y": box.top,
-            "width": PANEL_WIDTH,
-            "height": PANEL_HEIGHT,
-            "rx": 4,
-            "fill": "none",
-            **stroke(look, theme, theme.symbol_stroke_width),
-        },
-    ) + svg.element(
-        "text",
-        {
-            "x": x,
-            "y": y,
-            "text-anchor": "middle",
-            "dominant-baseline": "middle",
-            **font(theme, theme.label_font_size, theme.text_in(look)),
-        },
-        [svg.text(label)],
-    )
+    return svg.rect(
+        box.left,
+        box.top,
+        PANEL_WIDTH,
+        PANEL_HEIGHT,
+        {"rx": 4, "fill": "none", **stroke(look, theme, theme.symbol_stroke_width)},
+    ) + text_at(x, y, label, theme, theme.label_font_size, theme.text_in(look))

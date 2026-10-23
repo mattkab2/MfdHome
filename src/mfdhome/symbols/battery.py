@@ -28,35 +28,21 @@ def battery(x: float, y: float, fill_fraction: float | None, status: Status, the
     left, top = x - WIDTH / 2, y - HEIGHT / 2
     outline = stroke(status, theme, theme.symbol_stroke_width)
     parts = [
-        svg.element(
-            "rect",
-            {"x": left, "y": top, "width": WIDTH, "height": HEIGHT, "fill": "none", **outline},
-        ),
-        svg.element(
-            "rect",
-            {
-                "x": x - NUB_WIDTH / 2,
-                "y": top - NUB_HEIGHT,
-                "width": NUB_WIDTH,
-                "height": NUB_HEIGHT,
-                "fill": "none",
-                **outline,
-            },
+        svg.rect(left, top, WIDTH, HEIGHT, {"fill": "none", **outline}),
+        svg.rect(
+            x - NUB_WIDTH / 2, top - NUB_HEIGHT, NUB_WIDTH, NUB_HEIGHT, {"fill": "none", **outline}
         ),
     ]
     if fill_fraction is not None:
         inner = HEIGHT - 2 * INSET
         bar = inner * min(max(fill_fraction, 0.0), 1.0)
         parts.append(
-            svg.element(
-                "rect",
-                {
-                    "x": left + INSET,
-                    "y": top + INSET + inner - bar,
-                    "width": WIDTH - 2 * INSET,
-                    "height": bar,
-                    "fill": theme.color(status),
-                },
+            svg.rect(
+                left + INSET,
+                top + INSET + inner - bar,
+                WIDTH - 2 * INSET,
+                bar,
+                {"fill": theme.color(status)},
             )
         )
     return "".join(parts)

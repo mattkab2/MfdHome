@@ -24,27 +24,11 @@ def solar_panel(x: float, y: float, status: Status, theme: Theme) -> str:
     box = panel_box(x, y)
     outline = stroke(status, theme, theme.symbol_stroke_width)
     inner = stroke(status, theme, theme.symbol_stroke_width / 2)
-    parts = [
-        svg.element(
-            "rect",
-            {
-                "x": box.left,
-                "y": box.top,
-                "width": WIDTH,
-                "height": HEIGHT,
-                "fill": "none",
-                **outline,
-            },
-        )
-    ]
+    parts = [svg.rect(box.left, box.top, WIDTH, HEIGHT, {"fill": "none", **outline})]
     for r in range(1, ROWS):
         yy = box.top + HEIGHT * r / ROWS
-        parts.append(
-            svg.element("line", {"x1": box.left, "y1": yy, "x2": box.right, "y2": yy, **inner})
-        )
+        parts.append(svg.line(box.left, yy, box.right, yy, inner))
     for c in range(1, COLUMNS):
         xx = box.left + WIDTH * c / COLUMNS
-        parts.append(
-            svg.element("line", {"x1": xx, "y1": box.top, "x2": xx, "y2": box.bottom, **inner})
-        )
+        parts.append(svg.line(xx, box.top, xx, box.bottom, inner))
     return "".join(parts)

@@ -14,7 +14,7 @@ from mfdhome.layout.route import Port
 from mfdhome.model.binding import Status
 from mfdhome.model.page import Orientation
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import font, stroke
+from mfdhome.symbols.style import stroke, text_at
 from mfdhome.themes.theme import Theme
 
 TANK_WIDTH = 40.0
@@ -60,31 +60,16 @@ def tank_ports(x: float, y: float, connections: Connections) -> dict[str, Port]:
 def tank(x: float, y: float, tag: str, status: Status, theme: Theme) -> str:
     """Render a tank centered at (x, y) with ``tag`` across its middle."""
     box = tank_box(x, y)
-    body = svg.element(
-        "rect",
-        {
-            "x": box.left,
-            "y": box.top,
-            "width": TANK_WIDTH,
-            "height": TANK_HEIGHT,
-            "rx": TANK_CORNER,
-            "fill": "none",
-            **stroke(status, theme, theme.symbol_stroke_width),
-        },
+    body = svg.rect(
+        box.left,
+        box.top,
+        TANK_WIDTH,
+        TANK_HEIGHT,
+        {"rx": TANK_CORNER, "fill": "none", **stroke(status, theme, theme.symbol_stroke_width)},
     )
     if not tag:
         return body
-    return body + svg.element(
-        "text",
-        {
-            "x": x,
-            "y": y,
-            "text-anchor": "middle",
-            "dominant-baseline": "middle",
-            **font(theme, theme.font_size * TAG_SCALE, theme.text_in(status)),
-        },
-        [svg.text(tag)],
-    )
+    return body + text_at(x, y, tag, theme, theme.font_size * TAG_SCALE, theme.text_in(status))
 
 
 def pump_box(x: float, y: float) -> Box:
@@ -102,14 +87,7 @@ def pump(
         points = ((x - t, y - t), (x + t, y - t), (x, y + t))
     else:
         points = ((x - t, y - t), (x - t, y + t), (x + t, y))
-    return svg.element(
-        "circle", {"cx": x, "cy": y, "r": PUMP_RADIUS, "fill": "none", **outline}
-    ) + svg.element(
-        "polygon",
-        {
-            "points": svg.points(points),
-            "fill": theme.color(status) if running else "none",
-            "stroke-linejoin": "round",
-            **outline,
-        },
+    return svg.circle(x, y, PUMP_RADIUS, {"fill": "none", **outline}) + svg.polygon(
+        points,
+        {"fill": theme.color(status) if running else "none", "stroke-linejoin": "round", **outline},
     )

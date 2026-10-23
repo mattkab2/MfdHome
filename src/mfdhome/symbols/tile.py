@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from mfdhome.layout.anchors import Box
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import dotted, font
+from mfdhome.symbols.style import dotted, font, text_at
 from mfdhome.themes.theme import AttentionKind, Theme, TileFill
 
 TILE_WIDTH = 160.0
@@ -46,17 +46,12 @@ def attention_group(parts: list[str], attention: bool, theme: Theme) -> str:
 
 
 def _ring(box: Box, color: str, theme: Theme) -> str:
-    return svg.element(
-        "rect",
-        {
-            "x": box.left - RING_OUTSET,
-            "y": box.top - RING_OUTSET,
-            "width": box.right - box.left + 2 * RING_OUTSET,
-            "height": box.bottom - box.top + 2 * RING_OUTSET,
-            "fill": "none",
-            "stroke": color,
-            "stroke-width": theme.symbol_stroke_width,
-        },
+    return svg.rect(
+        box.left - RING_OUTSET,
+        box.top - RING_OUTSET,
+        box.right - box.left + 2 * RING_OUTSET,
+        box.bottom - box.top + 2 * RING_OUTSET,
+        {"fill": "none", "stroke": color, "stroke-width": theme.symbol_stroke_width},
     )
 
 
@@ -110,19 +105,7 @@ def tile(x: float, y: float, label: str, look: TileLook, theme: Theme) -> str:
     """Render an annunciator tile centered at (x, y)."""
     box = tile_box(x, y)
     parts, text_color = panel(box, look, theme, opaque=False, ring=True)
-    parts.append(
-        svg.element(
-            "text",
-            {
-                "x": x,
-                "y": y,
-                "text-anchor": "middle",
-                "dominant-baseline": "middle",
-                **font(theme, theme.label_font_size, text_color),
-            },
-            [svg.text(label)],
-        )
-    )
+    parts.append(text_at(x, y, label, theme, theme.label_font_size, text_color))
     if look.status is not None and look.cleared:
         parts.append(
             svg.element(
@@ -187,16 +170,6 @@ def stamp(box: Box, text: str, theme: Theme) -> str:
     step = size * 1.15
     first = box.cy - step * (len(lines) - 1) / 2
     return "".join(
-        svg.element(
-            "text",
-            {
-                "x": box.cx,
-                "y": first + i * step,
-                "text-anchor": "middle",
-                "dominant-baseline": "middle",
-                **font(theme, size, theme.text_color),
-            },
-            [svg.text(line)],
-        )
+        text_at(box.cx, first + i * step, line, theme, size, theme.text_color)
         for i, line in enumerate(lines)
     )

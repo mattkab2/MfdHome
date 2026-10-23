@@ -69,18 +69,7 @@ def water_heater(x: float, y: float, heating: bool | None, status: Status, theme
     burner = base + 2
     return "".join(
         [
-            svg.element(
-                "rect",
-                {
-                    "x": box.left,
-                    "y": box.top,
-                    "width": WIDTH,
-                    "height": HEIGHT,
-                    "rx": CORNER,
-                    "fill": "none",
-                    **outline,
-                },
-            ),
+            svg.rect(box.left, box.top, WIDTH, HEIGHT, {"rx": CORNER, "fill": "none", **outline}),
             svg.element(
                 "path",
                 {
@@ -90,15 +79,6 @@ def water_heater(x: float, y: float, heating: bool | None, status: Status, theme
                     **outline,
                 },
             ),
-            svg.element(
-                "line",
-                {
-                    "x1": x - BURNER_HALF_WIDTH,
-                    "y1": burner,
-                    "x2": x + BURNER_HALF_WIDTH,
-                    "y2": burner,
-                    **outline,
-                },
-            ),
+            svg.line(x - BURNER_HALF_WIDTH, burner, x + BURNER_HALF_WIDTH, burner, outline),
         ]
     )

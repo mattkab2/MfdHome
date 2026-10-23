@@ -18,7 +18,7 @@ from mfdhome.layout.path import Point
 from mfdhome.layout.route import Port
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import font, stroke
+from mfdhome.symbols.style import stroke, text_at
 from mfdhome.themes.theme import Theme
 
 LENGTH = 56.0  # flat back to tip
@@ -57,33 +57,16 @@ def outlet(x: float, y: float, label: str, outdoor: bool, status: Status, theme:
     """Render an outlet centered at (x, y), fed from the left."""
     outline = stroke(status, theme, theme.symbol_stroke_width)
     parts = [
-        svg.element(
-            "polygon",
-            {
-                "points": svg.points((x + u, y + v) for u, v in _flag()),
-                "fill": "none",
-                "stroke-linejoin": "round",
-                **outline,
-            },
+        svg.polygon(
+            ((x + u, y + v) for u, v in _flag()),
+            {"fill": "none", "stroke-linejoin": "round", **outline},
         )
     ]
     if outdoor:
         wall = x - LENGTH / 2 + WALL_INSET
         half = HEIGHT / 2
-        parts.append(
-            svg.element("line", {"x1": wall, "y1": y - half, "x2": wall, "y2": y + half, **outline})
-        )
+        parts.append(svg.line(wall, y - half, wall, y + half, outline))
     parts.append(
-        svg.element(
-            "text",
-            {
-                "x": x + LABEL_AT,
-                "y": y,
-                "text-anchor": "middle",
-                "dominant-baseline": "middle",
-                **font(theme, theme.font_size * LABEL_SCALE, theme.text_in(status)),
-            },
-            [svg.text(label)],
-        )
+        text_at(x + LABEL_AT, y, label, theme, theme.font_size * LABEL_SCALE, theme.text_in(status))
     )
     return "".join(parts)

@@ -43,49 +43,29 @@ def breaker(
     """
     half = SIZE / 2
     outline = stroke(status, theme, theme.symbol_stroke_width)
-    parts = [
-        svg.element(
-            "rect",
-            {
-                "x": x - half,
-                "y": y - half,
-                "width": SIZE,
-                "height": SIZE,
-                "fill": "none",
-                **outline,
-            },
-        )
-    ]
+    parts = [svg.rect(x - half, y - half, SIZE, SIZE, {"fill": "none", **outline})]
     if closed is not None:
         end_y = y if closed else y - SIZE * OPEN_RISE
         end_x = x + half if closed else x + half * 0.8
         parts.append(
-            svg.element(
-                "line",
-                {
-                    "x1": x - half,
-                    "y1": y,
-                    "x2": end_x,
-                    "y2": end_y,
-                    **stroke(status, theme, theme.line_width),
-                    "stroke-linecap": "round",
-                },
+            svg.line(
+                x - half,
+                y,
+                end_x,
+                end_y,
+                {**stroke(status, theme, theme.line_width), "stroke-linecap": "round"},
             )
         )
     if actuator:
         top = y + ACTUATOR_GAP
-        parts.append(svg.element("line", {"x1": x, "y1": y, "x2": x, "y2": top, **outline}))
+        parts.append(svg.line(x, y, x, top, outline))
         parts.append(
-            svg.element(
-                "rect",
-                {
-                    "x": x - ACTUATOR_WIDTH / 2,
-                    "y": top,
-                    "width": ACTUATOR_WIDTH,
-                    "height": ACTUATOR_HEIGHT,
-                    "fill": "none",
-                    **outline,
-                },
+            svg.rect(
+                x - ACTUATOR_WIDTH / 2,
+                top,
+                ACTUATOR_WIDTH,
+                ACTUATOR_HEIGHT,
+                {"fill": "none", **outline},
             )
         )
     transform = (

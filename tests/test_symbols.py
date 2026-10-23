@@ -3,8 +3,9 @@
 import re
 
 from mfdhome.model import Orientation, Status
-from mfdhome.symbols import Flow, battery, breaker, line
+from mfdhome.symbols import Flow, battery, breaker, line, svg
 from mfdhome.symbols.line import LineParts
+from mfdhome.symbols.style import text_at
 from mfdhome.symbols.svg import element, fmt, text
 from mfdhome.themes import EINK_MONO, LCD
 
@@ -17,6 +18,18 @@ def test_fmt_is_stable() -> None:
 
 def test_element_escapes_and_drops_none() -> None:
     assert element("text", {"x": 1, "id": None}, [text("a<b")]) == '<text x="1">a&lt;b</text>'
+
+
+def test_shape_helpers_put_geometry_first() -> None:
+    assert svg.rect(1, 2, 3, 4, {"rx": 1}) == '<rect x="1" y="2" width="3" height="4" rx="1"/>'
+    assert svg.line(0, 0, 5, 5) == '<line x1="0" y1="0" x2="5" y2="5"/>'
+    assert svg.circle(1, 1, 2, {"fill": "none"}) == '<circle cx="1" cy="1" r="2" fill="none"/>'
+    assert svg.polygon([(0, 0), (1, 0)]) == '<polygon points="0,0 1,0"/>'
+    assert svg.polyline([(0, 0), (1, 1)]) == '<polyline points="0,0 1,1"/>'
+    assert text_at(5, 6, "A&B", LCD, 10, "#fff", anchor="end") == (
+        '<text x="5" y="6" text-anchor="end" dominant-baseline="middle"'
+        f' font-family="{LCD.font_family}" font-size="10" fill="#fff">A&amp;B</text>'
+    )
 
 
 def test_unavailable_symbols_are_gray_and_dotted() -> None:

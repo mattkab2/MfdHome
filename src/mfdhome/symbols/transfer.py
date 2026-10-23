@@ -47,28 +47,13 @@ def transfer_switch(
     color = theme.color(status)
     grid_x, load_x = x - half_w + CONTACT_INSET, x + half_w - CONTACT_INSET
     parts = [
-        svg.element(
-            "rect",
-            {
-                "x": x - half_w,
-                "y": y - half_h,
-                "width": ATS_WIDTH,
-                "height": ATS_HEIGHT,
-                "fill": "none",
-                **outline,
-            },
-        ),
+        svg.rect(x - half_w, y - half_h, ATS_WIDTH, ATS_HEIGHT, {"fill": "none", **outline}),
         *(
-            svg.element(
-                "circle",
-                {
-                    "cx": cx,
-                    "cy": y,
-                    "r": CONTACT_RADIUS,
-                    "fill": "none",
-                    "stroke": color,
-                    "stroke-width": theme.symbol_stroke_width,
-                },
+            svg.circle(
+                cx,
+                y,
+                CONTACT_RADIUS,
+                {"fill": "none", "stroke": color, "stroke-width": theme.symbol_stroke_width},
             )
             for cx in (grid_x, load_x)
         ),
@@ -77,16 +62,12 @@ def transfer_switch(
         run = load_x - grid_x
         end = (grid_x, y) if connected else (grid_x + run * 0.15, y - run * OPEN_RISE)
         parts.append(
-            svg.element(
-                "line",
-                {
-                    "x1": load_x,
-                    "y1": y,
-                    "x2": end[0],
-                    "y2": end[1],
-                    **stroke(status, theme, theme.line_width),
-                    "stroke-linecap": "round",
-                },
+            svg.line(
+                load_x,
+                y,
+                end[0],
+                end[1],
+                {**stroke(status, theme, theme.line_width), "stroke-linecap": "round"},
             )
         )
     transform = (
@@ -107,22 +88,12 @@ def load_panel(x: float, y: float, status: Status, theme: Theme) -> str:
     inner = stroke(status, theme, theme.symbol_stroke_width)
     top, bottom = box.top + 12, box.bottom - 12
     parts = [
-        svg.element(
-            "rect",
-            {
-                "x": box.left,
-                "y": box.top,
-                "width": PANEL_WIDTH,
-                "height": PANEL_HEIGHT,
-                "fill": "none",
-                **outline,
-            },
-        ),
-        svg.element("line", {"x1": x, "y1": top, "x2": x, "y2": bottom, **inner}),
+        svg.rect(box.left, box.top, PANEL_WIDTH, PANEL_HEIGHT, {"fill": "none", **outline}),
+        svg.line(x, top, x, bottom, inner),
     ]
     step = (bottom - top) / (PANEL_BREAKERS - 1)
     for i in range(PANEL_BREAKERS):
         yy = top + i * step
         for x1, x2 in ((x - 14, x - 4), (x + 4, x + 14)):
-            parts.append(svg.element("line", {"x1": x1, "y1": yy, "x2": x2, "y2": yy, **inner}))
+            parts.append(svg.line(x1, yy, x2, yy, inner))
     return "".join(parts)

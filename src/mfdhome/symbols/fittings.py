@@ -69,21 +69,12 @@ def _check_mark(cx: float, y: float, outline: dict[str, svg.AttrValue]) -> list[
     """A check: a triangle pointing downstream, centered at cx, with a bar at its tip."""
     h = CHECK_HALF
     return [
-        svg.element(
-            "polygon",
-            {
-                "points": svg.points(((cx - h, y - h), (cx - h, y + h), (cx + h, y))),
-                "fill": "none",
-                "stroke-linejoin": "round",
-                **outline,
-            },
+        svg.polygon(
+            ((cx - h, y - h), (cx - h, y + h), (cx + h, y)),
+            {"fill": "none", "stroke-linejoin": "round", **outline},
         ),
-        svg.element("line", {"x1": cx + h, "y1": y - h, "x2": cx + h, "y2": y + h, **outline}),
+        svg.line(cx + h, y - h, cx + h, y + h, outline),
     ]
-
-
-def _line(x1: float, y1: float, x2: float, y2: float, outline: dict[str, svg.AttrValue]) -> str:
-    return svg.element("line", {"x1": x1, "y1": y1, "x2": x2, "y2": y2, **outline})
 
 
 def check_valve(x: float, y: float, status: Status, orientation: Orientation, theme: Theme) -> str:
@@ -91,9 +82,9 @@ def check_valve(x: float, y: float, status: Status, orientation: Orientation, th
     outline = stroke(status, theme, theme.symbol_stroke_width)
     half = CHECK_LENGTH / 2
     parts = [
-        _line(x - half, y, x - CHECK_HALF, y, outline),
+        svg.line(x - half, y, x - CHECK_HALF, y, outline),
         *_check_mark(x, y, outline),
-        _line(x + CHECK_HALF, y, x + half, y, outline),
+        svg.line(x + CHECK_HALF, y, x + half, y, outline),
     ]
     return _rotated(x, y, orientation, parts)
 
@@ -106,22 +97,12 @@ def backflow_preventer(
     half_l, half_h = BFP_LENGTH / 2, BFP_HEIGHT / 2
     first, second = x - 14.0, x + 14.0
     parts = [
-        svg.element(
-            "rect",
-            {
-                "x": x - half_l,
-                "y": y - half_h,
-                "width": BFP_LENGTH,
-                "height": BFP_HEIGHT,
-                "fill": "none",
-                **outline,
-            },
-        ),
-        _line(x - half_l, y, first - CHECK_HALF, y, outline),
+        svg.rect(x - half_l, y - half_h, BFP_LENGTH, BFP_HEIGHT, {"fill": "none", **outline}),
+        svg.line(x - half_l, y, first - CHECK_HALF, y, outline),
         *_check_mark(first, y, outline),
-        _line(first + CHECK_HALF, y, second - CHECK_HALF, y, outline),
+        svg.line(first + CHECK_HALF, y, second - CHECK_HALF, y, outline),
         *_check_mark(second, y, outline),
-        _line(second + CHECK_HALF, y, x + half_l, y, outline),
+        svg.line(second + CHECK_HALF, y, x + half_l, y, outline),
     ]
     return _rotated(x, y, orientation, parts)
 
@@ -131,23 +112,16 @@ def prv(x: float, y: float, status: Status, orientation: Orientation, theme: The
     outline = stroke(status, theme, theme.symbol_stroke_width)
     half_l, half_h = VALVE_LENGTH / 2, VALVE_HEIGHT / 2
     parts = [
-        svg.element(
-            "polygon",
-            {
-                "points": svg.points(
-                    ((x + side * half_l, y - half_h), (x + side * half_l, y + half_h), (x, y))
-                ),
-                "fill": "none",
-                "stroke-linejoin": "round",
-                **outline,
-            },
+        svg.polygon(
+            ((x + side * half_l, y - half_h), (x + side * half_l, y + half_h), (x, y)),
+            {"fill": "none", "stroke-linejoin": "round", **outline},
         )
         for side in (-1, 1)
     ]
     dome_base = y - half_h - DOME_STEM
     r = DOME_RADIUS
     parts += [
-        _line(x, y, x, dome_base, outline),
+        svg.line(x, y, x, dome_base, outline),
         svg.element(
             "path",
             {

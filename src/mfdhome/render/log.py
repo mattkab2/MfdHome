@@ -20,7 +20,7 @@ from mfdhome.model.binding import Status
 from mfdhome.model.page import LogElement
 from mfdhome.render.alerts import SEVERITY_STATUS, AlertView
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import font, stroke
+from mfdhome.symbols.style import stroke, text_at
 from mfdhome.themes.theme import Theme
 
 #: A raise this soon after the same alert cleared continues a flapping run.
@@ -154,17 +154,7 @@ def _clip(text: str, chars: int) -> str:
 
 
 def _text(x: float, y: float, text: str, anchor: str, color: str, theme: Theme) -> str:
-    return svg.element(
-        "text",
-        {
-            "x": x,
-            "y": y,
-            "text-anchor": anchor,
-            "dominant-baseline": "middle",
-            **font(theme, theme.font_size, color),
-        },
-        [svg.text(text)],
-    )
+    return text_at(x, y, text, theme, theme.font_size, color, anchor=anchor)
 
 
 def _mark(x: float, y: float, severity: Severity, theme: Theme) -> str:
@@ -172,16 +162,12 @@ def _mark(x: float, y: float, severity: Severity, theme: Theme) -> str:
     status = SEVERITY_STATUS[severity]
     fill = theme.color(status) if severity is Severity.WARNING else "none"
     half = MARK_SIZE / 2
-    return svg.element(
-        "rect",
-        {
-            "x": x,
-            "y": y - half,
-            "width": MARK_SIZE,
-            "height": MARK_SIZE,
-            "fill": fill,
-            **stroke(status, theme, theme.symbol_stroke_width),
-        },
+    return svg.rect(
+        x,
+        y - half,
+        MARK_SIZE,
+        MARK_SIZE,
+        {"fill": fill, **stroke(status, theme, theme.symbol_stroke_width)},
     )
 
 
@@ -216,16 +202,12 @@ def alert_log(element: LogElement, view: AlertView, theme: Theme) -> str:
     parts = [
         _text(left, header_y, scope, "start", theme.text_color, theme),
         _text(right, header_y, count, "end", theme.text_color, theme),
-        svg.element(
-            "line",
-            {
-                "x1": left,
-                "y1": top + ROW_HEIGHT,
-                "x2": right,
-                "y2": top + ROW_HEIGHT,
-                "stroke": theme.text_color,
-                "stroke-width": 1,
-            },
+        svg.line(
+            left,
+            top + ROW_HEIGHT,
+            right,
+            top + ROW_HEIGHT,
+            {"stroke": theme.text_color, "stroke-width": 1},
         ),
     ]
     rule = theme.color(Status.UNAVAILABLE)
@@ -257,19 +239,7 @@ def alert_log(element: LogElement, view: AlertView, theme: Theme) -> str:
             parts.append(_text(right, y, _clip(event, event_chars), "end", color, theme))
         if i + 1 < len(shown) and row.at - shown[i + 1].at > BATCH_GAP:
             rule_y = top + ROW_HEIGHT * (i + 2)
-            parts.append(
-                svg.element(
-                    "line",
-                    {
-                        "x1": left,
-                        "y1": rule_y,
-                        "x2": right,
-                        "y2": rule_y,
-                        "stroke": rule,
-                        "stroke-width": 1,
-                    },
-                )
-            )
+            parts.append(svg.line(left, rule_y, right, rule_y, {"stroke": rule, "stroke-width": 1}))
     return "".join(parts)
 
 

@@ -17,7 +17,7 @@ from itertools import pairwise
 from mfdhome.layout.path import Point, point_along
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import dotted, font, stroke
+from mfdhome.symbols.style import dotted, stroke, text_at
 from mfdhome.themes.theme import Theme
 
 #: The flow arrow's proportions, as multiples of the line's drawn width (at
@@ -62,9 +62,7 @@ class LineParts:
 
 
 def _polyline(pts: Sequence[Point], attrs: dict[str, svg.AttrValue]) -> str:
-    return svg.element(
-        "polyline", {"points": svg.points(pts), "fill": "none", **attrs, "stroke-linejoin": "round"}
-    )
+    return svg.polyline(pts, {"fill": "none", **attrs, "stroke-linejoin": "round"})
 
 
 def _arrow_spot(
@@ -126,28 +124,15 @@ def _arrow(
     head, depth = width * ARROW_HEAD, width * ARROW_DEPTH
     shaft = max(1.0, width * ARROW_SHAFT)
     tail, tip = at_(-length / 2, inner + shaft / 2), at_(length / 2 - head, inner + shaft / 2)
-    return svg.element(
-        "line",
-        {
-            "x1": tail[0],
-            "y1": tail[1],
-            "x2": tip[0],
-            "y2": tip[1],
-            "stroke": color,
-            "stroke-width": shaft,
-        },
-    ) + svg.element(
-        "polygon",
-        {
-            "points": svg.points(
-                (
-                    at_(length / 2, inner),
-                    at_(length / 2 - head, inner),
-                    at_(length / 2 - head, inner + depth),
-                )
-            ),
-            "fill": color,
-        },
+    return svg.line(
+        tail[0], tail[1], tip[0], tip[1], {"stroke": color, "stroke-width": shaft}
+    ) + svg.polygon(
+        (
+            at_(length / 2, inner),
+            at_(length / 2 - head, inner),
+            at_(length / 2 - head, inner + depth),
+        ),
+        {"fill": color},
     )
 
 
@@ -162,29 +147,14 @@ def tag_plate(at: Point, text: str, status: Status, theme: Theme) -> str:
     size = theme.font_size * TAG_SCALE
     width = len(text) * size * 0.6 + 2 * TAG_PAD
     x, y = at
-    plate = svg.element(
-        "rect",
-        {
-            "x": x - width / 2,
-            "y": y - TAG_HEIGHT / 2,
-            "width": width,
-            "height": TAG_HEIGHT,
-            "rx": 2,
-            "fill": theme.background,
-            **stroke(status, theme, theme.symbol_stroke_width),
-        },
+    plate = svg.rect(
+        x - width / 2,
+        y - TAG_HEIGHT / 2,
+        width,
+        TAG_HEIGHT,
+        {"rx": 2, "fill": theme.background, **stroke(status, theme, theme.symbol_stroke_width)},
     )
-    label = svg.element(
-        "text",
-        {
-            "x": x,
-            "y": y,
-            "text-anchor": "middle",
-            "dominant-baseline": "middle",
-            **font(theme, size, theme.text_in(status)),
-        },
-        [svg.text(text)],
-    )
+    label = text_at(x, y, text, theme, size, theme.text_in(status))
     return plate + label
 
 
@@ -212,13 +182,8 @@ def _hatch(line_id: str, pts: Sequence[Point], width: float, color: str, theme: 
             continue
         angle = math.degrees(math.atan2(by - ay, bx - ax)) + HATCH_ANGLE
         pattern_id = f"hatch-{line_id}-{i}"
-        stripe = svg.element(
-            "rect", {"x": 0, "y": 0, "width": spacing / 2, "height": spacing, "fill": color}
-        )
-        background = svg.element(
-            "rect",
-            {"x": 0, "y": 0, "width": spacing, "height": spacing, "fill": theme.background},
-        )
+        stripe = svg.rect(0, 0, spacing / 2, spacing, {"fill": color})
+        background = svg.rect(0, 0, spacing, spacing, {"fill": theme.background})
         parts.append(
             svg.element(
                 "pattern",

@@ -266,13 +266,12 @@ def _render_group(element: GroupElement, c: _Ctx) -> str:
     if element.frame is Frame.OUTLINE:
         calm = status in (Status.NORMAL, Status.ACTIVE)
         parts.append(
-            svg.element(
-                "rect",
+            svg.rect(
+                box.left,
+                box.top,
+                box.right - box.left,
+                box.bottom - box.top,
                 {
-                    "x": box.left,
-                    "y": box.top,
-                    "width": box.right - box.left,
-                    "height": box.bottom - box.top,
                     "fill": "none",
                     "stroke": theme.dim if calm else theme.color(status),
                     "stroke-width": theme.symbol_stroke_width * theme.weight(status),
@@ -345,14 +344,11 @@ JUNCTION_RADIUS = 1.5
 def _render_node(element: NodeElement, theme: Theme) -> str:
     if not element.junction:
         return ""
-    return svg.element(
-        "circle",
-        {
-            "cx": element.at[0],
-            "cy": element.at[1],
-            "r": theme.line_width * JUNCTION_RADIUS,
-            "fill": theme.color(Status.NORMAL),
-        },
+    return svg.circle(
+        element.at[0],
+        element.at[1],
+        theme.line_width * JUNCTION_RADIUS,
+        {"fill": theme.color(Status.NORMAL)},
     )
 
 
@@ -417,10 +413,7 @@ def render_page(
     layers = [_render_layers(element, c) for element in ordered]
     underlays = [underlay for underlay, _ in layers if underlay]
     children = [
-        svg.element(
-            "rect",
-            {"x": 0, "y": 0, "width": page.width, "height": page.height, "fill": theme.background},
-        ),
+        svg.rect(0, 0, page.width, page.height, {"fill": theme.background}),
         # Every line's casing beneath every line's body, so hollow pipes merge at joints.
         *([svg.element("g", {"id": "casings"}, underlays)] if underlays else []),
         *(group for _, group in layers),

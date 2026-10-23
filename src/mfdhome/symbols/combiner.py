@@ -57,22 +57,18 @@ def combiner(
     outline = stroke(status, theme, theme.symbol_stroke_width)
     box = combiner_box(x, y, orientation)
     parts = [
-        svg.element(
-            "rect",
-            {
-                "x": box.left,
-                "y": box.top,
-                "width": box.right - box.left,
-                "height": box.bottom - box.top,
-                "fill": "none",
-                **outline,
-            },
+        svg.rect(
+            box.left,
+            box.top,
+            box.right - box.left,
+            box.bottom - box.top,
+            {"fill": "none", **outline},
         )
     ]
 
     def line(u1: float, v1: float, u2: float, v2: float) -> str:
         (x1, y1), (x2, y2) = (_place(x, y, orientation, u1, v1), _place(x, y, orientation, u2, v2))
-        return svg.element("line", {"x1": x1, "y1": y1, "x2": x2, "y2": y2, **outline})
+        return svg.line(x1, y1, x2, y2, outline)
 
     offsets = input_offsets(inputs)
     for v in offsets:
@@ -83,19 +79,7 @@ def combiner(
             if orientation is Orientation.VERTICAL
             else (MARK_LENGTH, MARK_DEPTH)
         )
-        parts.append(
-            svg.element(
-                "rect",
-                {
-                    "x": cx - w / 2,
-                    "y": cy - h / 2,
-                    "width": w,
-                    "height": h,
-                    "fill": "none",
-                    **outline,
-                },
-            )
-        )
+        parts.append(svg.rect(cx - w / 2, cy - h / 2, w, h, {"fill": "none", **outline}))
     parts.append(line(BUS_U, min(offsets[0], 0.0), BUS_U, max(offsets[-1], 0.0)))
     parts.append(line(BUS_U, 0.0, LENGTH / 2, 0.0))
     return "".join(parts)

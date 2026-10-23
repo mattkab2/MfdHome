@@ -16,12 +16,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from mfdhome.layout.anchors import Box
-from mfdhome.layout.path import Point
 from mfdhome.layout.route import Port
 from mfdhome.model.binding import Status
 from mfdhome.model.page import Orientation
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import font, stroke
+from mfdhome.symbols.style import stroke, text_at
 from mfdhome.symbols.valve import ACTUATOR_HEIGHT, ACTUATOR_REACH, ACTUATOR_WIDTH
 from mfdhome.symbols.water_heater import flame_path
 from mfdhome.themes.theme import Theme
@@ -106,28 +105,18 @@ def _fan(cx: float, cy: float, radius: float, running: bool, status: Status, the
     outline = stroke(status, theme, theme.symbol_stroke_width)
     blade_color = theme.background if running else theme.color(status)
     parts = [
-        svg.element(
-            "circle",
-            {
-                "cx": cx,
-                "cy": cy,
-                "r": radius,
-                "fill": theme.color(status) if running else "none",
-                **outline,
-            },
-        )
+        svg.circle(cx, cy, radius, {"fill": theme.color(status) if running else "none", **outline})
     ]
     for degrees in (90.0, 210.0, 330.0):
         a = math.radians(degrees)
         tip = (cx + math.cos(a) * radius * 0.7, cy - math.sin(a) * radius * 0.7)
         parts.append(
-            svg.element(
-                "line",
+            svg.line(
+                cx,
+                cy,
+                tip[0],
+                tip[1],
                 {
-                    "x1": cx,
-                    "y1": cy,
-                    "x2": tip[0],
-                    "y2": tip[1],
                     "stroke": blade_color,
                     "stroke-width": theme.symbol_stroke_width * 1.5,
                     "stroke-linecap": "round",
@@ -147,20 +136,15 @@ def _coil(cx: float, cy: float, cooling: bool, status: Status, theme: Theme) -> 
         (cx - half_w + inset + i * step, cy + (half_h - inset) * (1 if i % 2 else -1))
         for i in range(COIL_ZIGS + 1)
     ]
-    return svg.element(
-        "rect",
+    return svg.rect(
+        cx - half_w,
+        cy - half_h,
+        COIL_WIDTH,
+        COIL_HEIGHT,
+        {"fill": theme.color(status) if cooling else "none", **outline},
+    ) + svg.polyline(
+        zigzag,
         {
-            "x": cx - half_w,
-            "y": cy - half_h,
-            "width": COIL_WIDTH,
-            "height": COIL_HEIGHT,
-            "fill": theme.color(status) if cooling else "none",
-            **outline,
-        },
-    ) + svg.element(
-        "polyline",
-        {
-            "points": svg.points(zigzag),
             "fill": "none",
             "stroke": theme.background if cooling else theme.color(status),
             "stroke-width": theme.symbol_stroke_width,
@@ -187,17 +171,8 @@ def air_handler(
     box = cabinet.box(x, y)
     outline = stroke(status, theme, theme.symbol_stroke_width)
     parts = [
-        svg.element(
-            "rect",
-            {
-                "x": box.left,
-                "y": box.top,
-                "width": CABINET_WIDTH,
-                "height": cabinet.height,
-                "rx": 4,
-                "fill": "none",
-                **outline,
-            },
+        svg.rect(
+            box.left, box.top, CABINET_WIDTH, cabinet.height, {"rx": 4, "fill": "none", **outline}
         )
     ]
     if cabinet.coil:
@@ -215,9 +190,7 @@ def air_handler(
                     **outline,
                 },
             ),
-            svg.element(
-                "line", {"x1": x - 10, "y1": base + 2, "x2": x + 10, "y2": base + 2, **outline}
-            ),
+            svg.line(x - 10, base + 2, x + 10, base + 2, outline),
         ]
     return "".join(parts)
 
@@ -237,17 +210,12 @@ def condenser(x: float, y: float, running: bool, status: Status, theme: Theme) -
     """Render an outdoor AC condenser: a square unit with its fan seen from above,
     filled while the compressor runs."""
     box = condenser_box(x, y)
-    return svg.element(
-        "rect",
-        {
-            "x": box.left,
-            "y": box.top,
-            "width": CONDENSER_SIZE,
-            "height": CONDENSER_SIZE,
-            "rx": 4,
-            "fill": "none",
-            **stroke(status, theme, theme.symbol_stroke_width),
-        },
+    return svg.rect(
+        box.left,
+        box.top,
+        CONDENSER_SIZE,
+        CONDENSER_SIZE,
+        {"rx": 4, "fill": "none", **stroke(status, theme, theme.symbol_stroke_width)},
     ) + _fan(x, y, CONDENSER_FAN_RADIUS, running, status, theme)
 
 
@@ -290,36 +258,26 @@ def damper(
     outline = stroke(status, theme, theme.symbol_stroke_width)
     half_l, half_h = DAMPER_LENGTH / 2, DAMPER_HEIGHT / 2
 
-    def line(a: Point, b: Point, attrs: dict[str, svg.AttrValue]) -> str:
-        return svg.element("line", {"x1": a[0], "y1": a[1], "x2": b[0], "y2": b[1], **attrs})
-
     angle = {DamperState.OPEN: 0.0, DamperState.CLOSED: 90.0}.get(state, 45.0)
     dx = math.cos(math.radians(angle)) * BLADE_HALF
     dy = math.sin(math.radians(angle)) * BLADE_HALF
     blade = stroke(status, theme, theme.symbol_stroke_width * 1.5)
     parts = [
-        line((x - half_l, y - half_h), (x + half_l, y - half_h), outline),  # duct walls
-        line((x - half_l, y + half_h), (x + half_l, y + half_h), outline),
-        line((x - dx, y + dy), (x + dx, y - dy), {**blade, "stroke-linecap": "round"}),
-        svg.element(
-            "circle",
-            {"cx": x, "cy": y, "r": PIVOT_RADIUS, "fill": theme.color(status), "stroke": "none"},
-        ),
+        svg.line(x - half_l, y - half_h, x + half_l, y - half_h, outline),  # duct walls
+        svg.line(x - half_l, y + half_h, x + half_l, y + half_h, outline),
+        svg.line(x - dx, y + dy, x + dx, y - dy, {**blade, "stroke-linecap": "round"}),
+        svg.circle(x, y, PIVOT_RADIUS, {"fill": theme.color(status), "stroke": "none"}),
     ]
     if actuated:
         top = y - half_h - ACTUATOR_REACH
-        parts.append(line((x, y - half_h), (x, top + ACTUATOR_HEIGHT), outline))
+        parts.append(svg.line(x, y - half_h, x, top + ACTUATOR_HEIGHT, outline))
         parts.append(
-            svg.element(
-                "rect",
-                {
-                    "x": x - ACTUATOR_WIDTH / 2,
-                    "y": top,
-                    "width": ACTUATOR_WIDTH,
-                    "height": ACTUATOR_HEIGHT,
-                    "fill": "none",
-                    **outline,
-                },
+            svg.rect(
+                x - ACTUATOR_WIDTH / 2,
+                top,
+                ACTUATOR_WIDTH,
+                ACTUATOR_HEIGHT,
+                {"fill": "none", **outline},
             )
         )
     vertical = orientation is Orientation.VERTICAL
@@ -368,31 +326,16 @@ def thermostat(
     action_color = theme.text_in(Status.ACTIVE) if running else theme.text_in(status)
 
     def text(tx: float, ty: float, value: str, size: float, color: str, anchor: str) -> str:
-        return svg.element(
-            "text",
-            {
-                "x": tx,
-                "y": ty,
-                "text-anchor": anchor,
-                "dominant-baseline": "middle",
-                **font(theme, size, color),
-            },
-            [svg.text(value)],
-        )
+        return text_at(tx, ty, value, theme, size, color, anchor=anchor)
 
     return "".join(
         [
-            svg.element(
-                "rect",
-                {
-                    "x": box.left,
-                    "y": box.top,
-                    "width": THERMOSTAT_WIDTH,
-                    "height": THERMOSTAT_HEIGHT,
-                    "rx": 6,
-                    "fill": "none",
-                    **stroke(status, theme, theme.symbol_stroke_width),
-                },
+            svg.rect(
+                box.left,
+                box.top,
+                THERMOSTAT_WIDTH,
+                THERMOSTAT_HEIGHT,
+                {"rx": 6, "fill": "none", **stroke(status, theme, theme.symbol_stroke_width)},
             ),
             text(
                 box.left + 12,

@@ -42,17 +42,12 @@ ANTENNA_WIDTH, ANTENNA_HEIGHT = 18.0, 10.0  # the inverted triangle atop the mas
 
 
 def _body(x: float, y: float, width: float, height: float, status: Status, theme: Theme) -> str:
-    return svg.element(
-        "rect",
-        {
-            "x": x - width / 2,
-            "y": y - height / 2,
-            "width": width,
-            "height": height,
-            "rx": 3,
-            "fill": "none",
-            **stroke(status, theme, theme.symbol_stroke_width),
-        },
+    return svg.rect(
+        x - width / 2,
+        y - height / 2,
+        width,
+        height,
+        {"rx": 3, "fill": "none", **stroke(status, theme, theme.symbol_stroke_width)},
     )
 
 
@@ -72,25 +67,15 @@ def router(x: float, y: float, status: Status, theme: Theme) -> str:
     r, c = ROUTE_RADIUS, CHEVRON
     parts = [
         _body(x, y, ROUTER_WIDTH, ROUTER_HEIGHT, status, theme),
-        svg.element("circle", {"cx": x, "cy": y, "r": r, "fill": "none", **marks}),
+        svg.circle(x, y, r, {"fill": "none", **marks}),
     ]
     inner = r - 3.0  # the routes stop short of the circle, chevrons inside it
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         tip = (x + dx * inner, y + dy * inner)
         back = (tip[0] - dx * c, tip[1] - dy * c)
         wings = [(back[0] + dy * c, back[1] + dx * c), tip, (back[0] - dy * c, back[1] - dx * c)]
-        parts.append(svg.element("line", {"x1": x, "y1": y, "x2": tip[0], "y2": tip[1], **marks}))
-        parts.append(
-            svg.element(
-                "polyline",
-                {
-                    "points": svg.points(wings),
-                    "fill": "none",
-                    "stroke-linejoin": "round",
-                    **marks,
-                },
-            )
-        )
+        parts.append(svg.line(x, y, tip[0], tip[1], marks))
+        parts.append(svg.polyline(wings, {"fill": "none", "stroke-linejoin": "round", **marks}))
     return "".join(parts)
 
 
@@ -107,16 +92,12 @@ def network_switch(x: float, y: float, status: Status, theme: Theme) -> str:
     parts = [_body(x, y, SWITCH_WIDTH, SWITCH_HEIGHT, status, theme)]
     for i in range(SWITCH_PORTS):
         parts.append(
-            svg.element(
-                "rect",
-                {
-                    "x": left + i * (PORT_SIZE + PORT_GAP),
-                    "y": y - PORT_SIZE / 2,
-                    "width": PORT_SIZE,
-                    "height": PORT_SIZE,
-                    "fill": "none",
-                    **ports,
-                },
+            svg.rect(
+                left + i * (PORT_SIZE + PORT_GAP),
+                y - PORT_SIZE / 2,
+                PORT_SIZE,
+                PORT_SIZE,
+                {"fill": "none", **ports},
             )
         )
     return "".join(parts)
@@ -134,9 +115,7 @@ def access_point(x: float, y: float, status: Status, theme: Theme) -> str:
     span = math.radians(ARC_SPAN)
     parts = [
         _body(x, y, AP_WIDTH, AP_HEIGHT, status, theme),
-        svg.element(
-            "circle", {"cx": cx, "cy": cy, "r": 1.5, "fill": theme.color(status), "stroke": "none"}
-        ),
+        svg.circle(cx, cy, 1.5, {"fill": theme.color(status), "stroke": "none"}),
     ]
     for r in ARC_RADII:
         dx, dy = r * math.sin(span), r * math.cos(span)
@@ -166,27 +145,11 @@ def host(x: float, y: float, status: Status, theme: Theme) -> str:
     for i in range(HOST_BAYS):
         if i:
             yy = top + i * bay
-            parts.append(
-                svg.element("line", {"x1": left, "y1": yy, "x2": right, "y2": yy, **marks})
-            )
+            parts.append(svg.line(left, yy, right, yy, marks))
         mid = top + (i + 0.5) * bay
+        parts.append(svg.line(left + 6, mid, right - 14, mid, marks))
         parts.append(
-            svg.element(
-                "line",
-                {"x1": left + 6, "y1": mid, "x2": right - 14, "y2": mid, **marks},
-            )
-        )
-        parts.append(
-            svg.element(
-                "circle",
-                {
-                    "cx": right - 7,
-                    "cy": mid,
-                    "r": LED_RADIUS,
-                    "fill": theme.color(status),
-                    "stroke": "none",
-                },
-            )
+            svg.circle(right - 7, mid, LED_RADIUS, {"fill": theme.color(status), "stroke": "none"})
         )
     return "".join(parts)
 
@@ -208,15 +171,7 @@ def radio(x: float, y: float, status: Status, theme: Theme) -> str:
     return "".join(
         [
             _body(x, y, RADIO_WIDTH, RADIO_HEIGHT, status, theme),
-            svg.element("line", {"x1": x, "y1": body_top, "x2": x, "y2": mast_top, **outline}),
-            svg.element(
-                "polygon",
-                {
-                    "points": svg.points(antenna),
-                    "fill": "none",
-                    "stroke-linejoin": "round",
-                    **outline,
-                },
-            ),
+            svg.line(x, body_top, x, mast_top, outline),
+            svg.polygon(antenna, {"fill": "none", "stroke-linejoin": "round", **outline}),
         ]
     )
