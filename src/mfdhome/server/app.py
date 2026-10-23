@@ -88,9 +88,8 @@ class Hub:
     async def push(self, display_ids: list[str] | None = None, force: bool = False) -> None:
         """Send a fresh frame to each connected display whose SVG changed.
 
-        E-paper displays poll instead; for them, only note what changed when.
+        E-paper displays poll instead, and are rendered when they do.
         """
-        self.images.observe(self.clock())
         for display_id in display_ids or list(self.sockets):
             sockets = self.sockets.get(display_id)
             if not sockets:

@@ -173,16 +173,30 @@ def banner(box: Box, message: str, others: int, status: Status, theme: Theme) ->
     return attention_group(parts, True, theme)
 
 
+#: Size of each line of a two-line stamp, relative to the theme's font size.
+STAMP_LINES_SCALE = 0.8
+
+
 def stamp(box: Box, text: str, theme: Theme) -> str:
-    """Render a short note (such as "AS OF 14:05") centered in ``box``, on the background."""
-    return svg.element(
-        "text",
-        {
-            "x": box.cx,
-            "y": box.cy,
-            "text-anchor": "middle",
-            "dominant-baseline": "middle",
-            **font(theme, theme.font_size, theme.text_color),
-        },
-        [svg.text(text)],
+    """Render a short note (such as "AS OF 14:05") centered in ``box``, on the background.
+
+    A newline splits it into two smaller lines ("AVG 5M" over "AS OF 14:05").
+    """
+    lines = text.split("\n")
+    size = theme.font_size * (STAMP_LINES_SCALE if len(lines) > 1 else 1.0)
+    step = size * 1.15
+    first = box.cy - step * (len(lines) - 1) / 2
+    return "".join(
+        svg.element(
+            "text",
+            {
+                "x": box.cx,
+                "y": first + i * step,
+                "text-anchor": "middle",
+                "dominant-baseline": "middle",
+                **font(theme, size, theme.text_color),
+            },
+            [svg.text(line)],
+        )
+        for i, line in enumerate(lines)
     )

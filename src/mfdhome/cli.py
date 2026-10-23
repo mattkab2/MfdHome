@@ -152,7 +152,7 @@ def cmd_render(args: argparse.Namespace) -> int:
         output.write_text(runtime.render(display.id), encoding="utf-8")
     else:
         output = Path(args.output or f"{display.id}.png")
-        svg = runtime.render(display.id, stamp_text(now))
+        svg = runtime.render(display.id, stamp_text(now, display.average))
         background = THEMES[display.theme].background
         output.write_bytes(rasterize(svg, PANELS[display.panel], background))
     print(f"wrote {output}", file=sys.stderr)

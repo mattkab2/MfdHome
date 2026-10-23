@@ -8,16 +8,17 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestClient
 from PIL import Image
 
 from mfdhome.config import load_config
 from mfdhome.mfd import Phase
-from mfdhome.model import snapshot_from_ha_states
+from mfdhome.model import StateSnapshot, snapshot_from_ha_states
 from mfdhome.render.raster import image_colors
 from mfdhome.server.app import create_app, refresh_loop
-from mfdhome.server.images import stamp_text
+from mfdhome.server.images import stamp_text, window_text
 from mfdhome.server.runtime import Runtime
 from mfdhome.server.store import BoardStore
 from tests.support import CONFIG, FIXTURES
@@ -205,3 +206,59 @@ async def test_panel_keys_respect_the_lock(aiohttp_client: ClientFactory) -> Non
 
 def test_stamp_uses_local_time() -> None:
     assert stamp_text(T0) == f"AS OF {T0.astimezone():%H:%M}"
+
+
+def test_stamp_names_the_averaging_window() -> None:
+    local = f"{T0.astimezone():%H:%M}"
+    assert stamp_text(T0, timedelta(minutes=5)) == f"AVG 5M\nAS OF {local}"
+    assert [window_text(timedelta(seconds=s)) for s in (30, 90, 120, 3600)] == [
+        "30S",
+        "90S",
+        "2M",
+        "1H",
+    ]
+
+
+def load_at(power: str) -> StateSnapshot:
+    attributes = {"state_class": "measurement", "unit_of_measurement": "W"}
+    return snapshot_from_ha_states(
+        [{"entity_id": "sensor.load_power", "state": power, "attributes": attributes}]
+    )
+
+
+async def test_panel_renders_averages_when_fetched(aiohttp_client: ClientFactory) -> None:
+    runtime = Runtime(load_config(CONFIG))
+    runtime.select("main_floor", "electrical")
+    runtime.update(load_at("500"), T0)
+    clock = Clock(T0 + timedelta(minutes=5))
+    client = await aiohttp_client(create_app(runtime, clock=clock))
+    first = await client.get("/display/main_floor.png")
+    etag = first.headers["ETag"]
+    images = client.app["hub"].images
+    assert images.changed_at("main_floor") == clock.now
+
+    # A kettle comes on. Live displays see it at once; the panel only when it
+    # next fetches, and then as part of its five-minute average.
+    clock.now = T0 + timedelta(minutes=5, seconds=10)
+    runtime.update(load_at("3000"), clock.now)
+    await client.app["hub"].push()
+    assert images.changed_at("main_floor") == T0 + timedelta(minutes=5)  # not rendered on push
+    clock.now = T0 + timedelta(minutes=5, seconds=40)
+    assert ">750 W<" in runtime.render("main_floor", now=clock.now)  # 30 s of 3 kW in 5 min
+    second = await client.get("/display/main_floor.png", headers={"If-None-Match": etag})
+    assert second.status == 200 and images.changed_at("main_floor") == clock.now
+
+
+async def test_panel_warns_when_the_device_polls_off_its_refresh(
+    aiohttp_client: ClientFactory, caplog: pytest.LogCaptureFixture
+) -> None:
+    clock = Clock(T0)
+    client = await aiohttp_client(create_app(islanded(), clock=clock))
+    for minute in range(8):  # every minute, but the display's refresh is 5 minutes
+        clock.now = T0 + timedelta(minutes=minute)
+        await client.get("/display/main_floor.png")
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert warnings == [
+        "display main_floor fetches about every 60s, but its refresh is 300s;"
+        " set the device's update interval to match"
+    ]
