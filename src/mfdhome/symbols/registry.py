@@ -48,6 +48,18 @@ from mfdhome.symbols.hvac import (
     thermostat_box,
 )
 from mfdhome.symbols.meter import meter, meter_box
+from mfdhome.symbols.network import (
+    access_point,
+    ap_box,
+    host,
+    host_box,
+    network_switch,
+    radio,
+    radio_box,
+    router,
+    router_box,
+    switch_box,
+)
 from mfdhome.symbols.outlet import inlet_ports, outlet, outlet_box
 from mfdhome.symbols.panel import panel_box, solar_panel
 from mfdhome.symbols.sensor import gauge, gauge_box, sensor, sensor_box
@@ -670,6 +682,30 @@ def _draw_thermostat(inp: SymbolInput, theme: Theme) -> str:
     )
 
 
+#: Readings most network devices report, beside their ``state``.
+DEVICE_CHANNELS = ("state", "cpu", "memory", "temperature")
+#: A radio node's link readings (``hops``: repeaters in between, 0 = heard directly).
+RADIO_CHANNELS = ("state", "rssi", "snr", "noise_floor", "hops", "battery")
+
+
+def _network_spec(
+    type_name: str,
+    box: Callable[[float, float], Box],
+    draw: Callable[[float, float, Status, Theme], str],
+    channels: tuple[str, ...] = DEVICE_CHANNELS,
+) -> SymbolSpec:
+    """A network device: ``state`` (primary, for status maps) plus numeric readings."""
+    return SymbolSpec(
+        type=type_name,
+        channels=channels,
+        required=frozenset(),
+        primary="state",
+        numeric=frozenset(channels[1:]),
+        box=lambda at, _orientation: box(*at),
+        draw=lambda inp, theme: draw(*inp.at, inp.status, theme),
+    )
+
+
 def _breaker_box(at: Point, _orientation: Orientation) -> Box:
     return breaker_box(*at)
 
@@ -862,6 +898,13 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         draw=_draw_thermostat,
         params=_thermostat_params,
     ),
+    "router": _network_spec("router", router_box, router),
+    "network_switch": _network_spec("network_switch", switch_box, network_switch),
+    "access_point": _network_spec(
+        "access_point", ap_box, access_point, channels=(*DEVICE_CHANNELS, "clients")
+    ),
+    "host": _network_spec("host", host_box, host),
+    "radio": _network_spec("radio", radio_box, radio, channels=RADIO_CHANNELS),
     "transfer_switch": SymbolSpec(
         type="transfer_switch",
         channels=("state",),

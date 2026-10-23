@@ -87,6 +87,11 @@ Any registered symbol type, centered at `at`:
 | `opening` | `state` | none | `kind`: `door` (default) or `window`; `length` (default 36); `swing`: `up`/`left` or `down`/`right`; `hinge`: `start` or `end`; `open`: states that mean open, default `[on, open]` |
 | `alarm_panel` | `state` | `state` | none |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
+| `router` | `state`, `cpu`, `memory`, `temperature` (numeric) | none | none |
+| `network_switch` | as for `router` | none | none |
+| `access_point` | as for `router`, plus `clients` (numeric) | none | none |
+| `host` | as for `router` | none | none |
+| `radio` | `state`, `rssi`, `snr`, `noise_floor`, `hops`, `battery` (numeric) | none | none |
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
 backup. Its grid contact faces left (top when vertical) and its load contact
@@ -144,6 +149,20 @@ cold inlet and hot outlet reach it without the pipes crossing. Outlets are
 always horizontal, fed from the left with the flag pointing right. No
 binding is needed; `state` is there for status rules (the line feeding the
 outlet shows whether water flows).
+
+Network devices are abstract boxes told apart by a mark inside or above:
+a `router` (a gateway) has a circle crossed by four routes, a
+`network_switch` a row of ports, an `access_point` Wi-Fi arcs rising from a
+flat body, a `host` (a server, such as the one running Home Assistant)
+stacked drive bays, and a `radio` (a LoRa node, such as a MeshCore companion
+or repeater) an antenna mast topped by the schematic antenna, an inverted
+triangle. They draw nothing from their state: bind `state` (a UniFi device
+state, a node's online sensor) for status rules, usually a named map, and
+the numeric channels for readouts. `hops` is how many repeaters a radio's
+messages pass through (0: heard directly). Only the outline takes the status
+weight; the marks inside keep theirs, so they stay legible on e-paper. The
+access point's arcs and the radio's mast stand above the body, inside the
+element's box, and their side ports are level with the body.
 
 Point sensors come in two kinds. A `sensor` is an on/off detector (leak,
 smoke, CO, gas, motion): a small diamond, so it can't be mistaken for a meter,

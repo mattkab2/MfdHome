@@ -18,6 +18,14 @@ def stroke(status: Status, theme: Theme, width: float) -> dict[str, AttrValue]:
     return {"stroke": theme.color(status), "stroke-width": width * theme.weight(status), **pattern}
 
 
+def detail(status: Status, theme: Theme, width: float) -> dict[str, AttrValue]:
+    """Stroke attributes for fine marks inside a symbol: palette color, dotted if
+    unavailable, but never the status weight, which would fill them in. The
+    outline around them carries the weight."""
+    pattern = dotted(theme) if status is Status.UNAVAILABLE else {}
+    return {"stroke": theme.color(status), "stroke-width": width, **pattern}
+
+
 def font(theme: Theme, size: float, fill: str) -> dict[str, AttrValue]:
     """Text attributes for the theme's font."""
     return {"font-family": theme.font_family, "font-size": size, "fill": fill}
