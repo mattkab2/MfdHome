@@ -3,7 +3,8 @@
 There are nine element kinds:
 
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
-- ``LineElement``: a connection along a polyline, carrying a ``rate``;
+- ``LineElement``: a connection along a polyline, carrying a ``rate`` (a
+  two-way line also a ``rate_back``) or reporting a link ``state``;
 - ``TextElement``: a static label;
 - ``TileElement``: an annunciator tile showing one system's alerts;
 - ``NodeElement``: a connection point lines can attach to;
@@ -57,7 +58,8 @@ class Name:
 class Readout:
     """A displayed value from one of the element's channels.
 
-    ``format`` is a named formatter (``power``, ``percent``, ``number``, ``raw``)
+    ``format`` is a named formatter (``power``, ``data_rate``, ``percent``,
+    ``number``, ``raw``)
     or a Python format string applied to the numeric value. ``unit`` overrides
     the entity's ``unit_of_measurement``. ``absolute`` shows the magnitude only
     (useful when direction is shown by a flow arrow). ``anchor=None`` uses the
@@ -137,7 +139,8 @@ class LineElement:
     """A line along ``points`` (set by routing when the page loads).
 
     Positive flow runs from the first point toward the last; negative flows
-    backward (e.g. grid export). ``casing`` draws the line as a hollow pipe
+    backward (e.g. grid export). A two-way line's ``rate_back`` flows backward,
+    beside its forward ``rate``. ``casing`` draws the line as a hollow pipe
     (the default); plain lines are for sensing and minor connections. ``tag``
     names what the line carries, the P&ID way, since color can't.
     """

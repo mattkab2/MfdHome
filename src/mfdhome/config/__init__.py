@@ -1,8 +1,9 @@
 """Loading and validating page definition files (YAML).
 
-A config directory holds an optional ``defs.yaml`` (shared thresholds, named
-conditions and staleness limits), an optional ``alerts.yaml`` (systems and
-alerts), an optional ``displays.yaml`` and one file per page under
+A config directory holds an optional ``defs.yaml`` (shared thresholds, state
+maps and named conditions, and the house-wide staleness limits and averaging
+overrides), an optional ``alerts.yaml`` (systems, alerts and logged
+entities), an optional ``displays.yaml`` and one file per page under
 ``pages/``. See ``docs/page-schema.md`` for the format.
 """
 

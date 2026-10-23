@@ -45,7 +45,8 @@ HISTORY_DAYS = 14
 
 
 class Runtime:
-    """Holds the current state, the shared alert board, its history and each display's page.
+    """Holds the current state, the shared alert board, its history, each display's
+    page, and recent samples for displays that show averages.
 
     ``history`` is every event in the last ``keep`` (oldest first), loaded from
     ``history_store`` and appended to it as the board changes. Log times are
@@ -87,7 +88,8 @@ class Runtime:
         return dict(self.config.displays)
 
     def update(self, raw: StateSnapshot, now: datetime, connected: bool = True) -> bool:
-        """Take a new snapshot: mark stale entities, step alerts, save the board if it changed.
+        """Take a new snapshot: mark stale entities, record samples for averaging, step
+        alerts, and save the board if it changed.
 
         Returns whether the board changed. Call it on every HA change and on a
         periodic tick (entities go stale without any event).

@@ -1,4 +1,5 @@
-"""Line symbol: a polyline, cased (hollow pipe) or plain, with an optional flow arrow.
+"""Line symbol: a polyline, cased (hollow pipe) or plain, with optional flow arrows
+(one per direction on a two-way line).
 
 Line severity is carried by pattern as well as color, so it survives palettes
 without color: solid = normal/active (solid core while flowing), dashed core =

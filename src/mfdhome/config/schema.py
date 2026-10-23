@@ -1,4 +1,4 @@
-"""Pydantic schema for the page, defs, alerts and displays YAML files.
+"""Pydantic schema for the page, defs, alerts, displays and scenario YAML files.
 
 These models only check the shape of the input. ``build`` turns them into the
 frozen model types and does the checks that need context (symbol registry,
@@ -220,7 +220,9 @@ class FlowModel(Strict):
     """Flow arrow rule; ``flow: true`` is shorthand for the defaults.
 
     Flow comes from a rate (``from``, ``threshold``) or, with ``when``/``any``
-    (the same forms as status rules), from a condition.
+    (the same forms as status rules), from a condition. On a two-way line
+    (``rate_back`` bound) the threshold applies to both directions, and a
+    condition isn't allowed. ``reverse`` flips the direction.
     """
 
     from_: str = Field(default="rate", alias="from")
@@ -477,7 +479,8 @@ class AlertsModel(Strict):
 
 
 class DisplayModel(Strict):
-    """One display: theme, pixel size, home page, selectable pages and (e-paper) panel."""
+    """One display: theme, pixel size, home page, selectable pages, and for e-paper
+    its panel and refresh; ``average`` sets an averaging window."""
 
     theme: str
     size: tuple[Annotated[int, Field(gt=0)], Annotated[int, Field(gt=0)]]

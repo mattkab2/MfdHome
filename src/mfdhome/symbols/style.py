@@ -1,4 +1,4 @@
-"""Stroke styling shared by all symbols."""
+"""Stroke and text styling shared by all symbols."""
 
 from __future__ import annotations
 

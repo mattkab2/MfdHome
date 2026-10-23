@@ -1,4 +1,4 @@
-"""Deterministic SVG text helpers."""
+"""Deterministic SVG helpers: number formatting, escaping, elements and basic shapes."""
 
 from __future__ import annotations
 

@@ -82,7 +82,8 @@ def _read(path: Path) -> Any:
 
 
 def load_defs(path: str | Path) -> Defs:
-    """Load a shared defs file (``thresholds`` and ``conditions``)."""
+    """Load a shared defs file (thresholds, maps, conditions, ``stale_after`` and
+    ``averaging``)."""
     path = Path(path)
     tree = _read(path)
     issues = Issues(path, tree)
@@ -95,7 +96,7 @@ def load_defs(path: str | Path) -> Defs:
 
 
 def load_alerts(path: str | Path, defs: Defs | None = None) -> Alerts:
-    """Load an alerts file (``systems`` and ``alerts``)."""
+    """Load an alerts file (``systems``, ``alerts`` and ``log``)."""
     path = Path(path)
     tree = _read(path)
     issues = Issues(path, tree)
@@ -122,7 +123,8 @@ def load_page(path: str | Path, defs: Defs | None = None, alerts: Alerts | None 
 
 
 def load_config(directory: str | Path) -> Config:
-    """Load ``defs.yaml`` and ``alerts.yaml`` (both optional) and ``pages/*.yaml``.
+    """Load ``defs.yaml``, ``alerts.yaml`` and ``displays.yaml`` (all optional) and
+    ``pages/*.yaml``.
 
     Problems in all page files are collected and raised together.
     """
