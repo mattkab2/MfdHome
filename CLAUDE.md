@@ -226,7 +226,10 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   ...}`) for lines with nothing to measure, such as ducts driven by a
   thermostat's action. **The flow arrow is a harpoon beside the line**, set off
   from its edge (never over the core), level with the first readout on the
-  opposite side, never wrapping a bend.
+  opposite side, never wrapping a bend. **Two-way lines** (`rate_back`:
+  upload beside download, export beside import) get one harpoon per
+  direction, one on each side, each under its own readout; not a separate
+  line type.
 - **Lines attach to elements** by `element.port` (edge/corner ports named like
   anchors, plus type-specific ports such as a breaker's `in`/`out`) or to
   `node` elements; nodes with 3+ attached lines get a junction dot. Endpoints
@@ -321,7 +324,8 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   named state map, `maps` in defs) and a MeshCore LoRa link from meshcore-ha
   (`radio` symbols; companion on USB). Links bind a `state` channel (the far
   device's state, a repeater's reachability); a radio link is a plain line
-  tagged `RF`. Throughput readouts use `data_rate`. **One fault, one
+  tagged `RF`. Measured links are two-way (RX download, TX upload), with
+  `data_rate` readouts. **One fault, one
   alert:** devices behind a dead switch, or all of them when the UniFi
   controller is unreachable, don't raise their own. Fine marks inside a
   symbol keep a fixed weight (only outlines carry status weight), and

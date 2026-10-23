@@ -41,6 +41,15 @@
   }
  },
  {
+  "entity_id": "sensor.gateway_port_5_tx",
+  "state": "unavailable",
+  "attributes": {
+   "unit_of_measurement": "Mbit/s",
+   "device_class": "data_rate",
+   "state_class": "measurement"
+  }
+ },
+ {
   "entity_id": "sensor.core_switch_state",
   "state": "unavailable",
   "attributes": {
@@ -49,6 +58,15 @@
  },
  {
   "entity_id": "sensor.core_switch_port_1_rx",
+  "state": "unavailable",
+  "attributes": {
+   "unit_of_measurement": "Mbit/s",
+   "device_class": "data_rate",
+   "state_class": "measurement"
+  }
+ },
+ {
+  "entity_id": "sensor.core_switch_port_1_tx",
   "state": "unavailable",
   "attributes": {
    "unit_of_measurement": "Mbit/s",
@@ -74,6 +92,15 @@
  },
  {
   "entity_id": "sensor.shop_switch_port_9_rx",
+  "state": "unavailable",
+  "attributes": {
+   "unit_of_measurement": "Mbit/s",
+   "device_class": "data_rate",
+   "state_class": "measurement"
+  }
+ },
+ {
+  "entity_id": "sensor.shop_switch_port_9_tx",
   "state": "unavailable",
   "attributes": {
    "unit_of_measurement": "Mbit/s",

@@ -2,7 +2,8 @@
 # and a MeshCore LoRa link. The gateway feeds both switches, the shop switch
 # over fiber. Home Assistant's host hangs off the core switch with its LoRa
 # companion radio on USB; the companion reaches a repeater elsewhere on the
-# property over the mesh, possibly through other repeaters. Generic entity
+# property over the mesh, possibly through other repeaters. Measured links
+# are two-way: download above (or right of) the line, upload below. Generic entity
 # ids only (see docs/entities.md). Keep the bottom 40 units clear for the
 # banner and keys.
 page: network
@@ -26,16 +27,21 @@ elements:
     type: line
     from: [130, 300]
     to: gateway.left
-    tag: {text: WAN, along: 0.25}
+    tag: {text: WAN, along: 0.2}
     name: {text: INTERNET, along: 0, anchor: left}
-    bind: {rate: sensor.gateway_port_5_rx, state: binary_sensor.wan_online}
+    bind:
+      rate: sensor.gateway_port_5_rx          # download
+      rate_back: sensor.gateway_port_5_tx     # upload
+      state: binary_sensor.wan_online
     status: {from: state, map: {"on": normal}, default: warning}
     flow: {threshold: 1}
-    readouts: [{value: rate, format: data_rate, along: 0.6, anchor: bottom}]
+    readouts:
+      - {value: rate, format: data_rate, along: 0.45}
+      - {value: rate_back, format: data_rate, along: 0.45}
 
   - id: gateway
     type: router
-    at: [280, 300]
+    at: [300, 300]
     name: GATEWAY
     bind:
       state: sensor.gateway_state
@@ -48,14 +54,17 @@ elements:
 
   - {id: to_lan, type: line, from: gateway.right, to: lan,
      bind: {state: sensor.gateway_state}, status: {map: unifi_device}}
-  - {id: lan, type: node, at: [380, 300]}
+  - {id: lan, type: node, at: [400, 300]}
 
   # --- core switch: the house -------------------------------------------------------
   - id: to_core
     type: line
     from: lan
     to: core_switch.left
-    bind: {rate: sensor.core_switch_port_1_rx, state: sensor.core_switch_state}
+    bind:
+      rate: sensor.core_switch_port_1_rx
+      rate_back: sensor.core_switch_port_1_tx
+      state: sensor.core_switch_state
     status:
       from: state
       map: unifi_device
@@ -63,7 +72,9 @@ elements:
         - level: caution    # a gigabit link that came up slow: usually a bad cable
           when: [{entity: sensor.core_switch_port_1_link_speed, lt: 1000}]
     flow: {threshold: 1}
-    readouts: [{value: rate, format: data_rate, along: 0.77}]
+    readouts:
+      - {value: rate, format: data_rate, along: 0.77}
+      - {value: rate_back, format: data_rate, along: 0.77}
 
   - id: core_switch
     type: network_switch
@@ -153,7 +164,10 @@ elements:
     from: lan
     to: shop_switch.left
     tag: {text: FO, along: 0.25}
-    bind: {rate: sensor.shop_switch_port_9_rx, state: sensor.shop_switch_state}
+    bind:
+      rate: sensor.shop_switch_port_9_rx
+      rate_back: sensor.shop_switch_port_9_tx
+      state: sensor.shop_switch_state
     status:
       from: state
       map: unifi_device
@@ -161,7 +175,9 @@ elements:
         - level: caution
           when: [{entity: sensor.shop_switch_port_9_link_speed, lt: 10000}]
     flow: {threshold: 1}
-    readouts: [{value: rate, format: data_rate, along: 0.77}]
+    readouts:
+      - {value: rate, format: data_rate, along: 0.77}
+      - {value: rate_back, format: data_rate, along: 0.77}
 
   - id: shop_switch
     type: network_switch

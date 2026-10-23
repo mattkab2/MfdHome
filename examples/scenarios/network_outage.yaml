@@ -12,6 +12,7 @@ steps:
     set:
       sensor.shop_switch_state: disconnected
       sensor.shop_switch_port_9_rx: unavailable
+      sensor.shop_switch_port_9_tx: unavailable
       sensor.shop_switch_port_9_link_speed: unavailable
       sensor.ap_shop_state: disconnected
       sensor.ap_shop_clients: "0"
@@ -25,8 +26,9 @@ steps:
   - at: 7m                          # the switch is back, the AP a moment later
     set:
       sensor.shop_switch_state: connected
-      sensor.shop_switch_port_9_rx: {state: "860", attributes: {unit_of_measurement: Mbit/s}}
-      sensor.shop_switch_port_9_link_speed: {state: "10000", attributes: {unit_of_measurement: Mbit/s}}
+      sensor.shop_switch_port_9_rx: "860"
+      sensor.shop_switch_port_9_tx: "74"
+      sensor.shop_switch_port_9_link_speed: "10000"
   - at: 430s
     set:
       sensor.ap_shop_state: connected
