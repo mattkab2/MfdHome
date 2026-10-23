@@ -15,7 +15,7 @@ from mfdhome.conditions.model import (
     RefOperand,
     Rule,
 )
-from mfdhome.conditions.sugar import StateMap, Thresholds, state_map_rules
+from mfdhome.conditions.sugar import StateMap, Thresholds
 from mfdhome.conditions.values import MISSING, Value, as_number, read
 
 __all__ = [
@@ -37,5 +37,4 @@ __all__ = [
     "highest_match",
     "holds",
     "read",
-    "state_map_rules",
 ]

@@ -35,18 +35,6 @@ class Thresholds:
         return tuple(out)
 
 
-def state_map_rules(
-    ref: ValueRef, mapping: Mapping[str, Status], default: Status = Status.NORMAL
-) -> tuple[Rule, ...]:
-    """Compile ``{state: level}`` plus a level for unlisted (but available) states."""
-    rules = [
-        Rule(level, AnyOf.single(Condition(ref, Op.EQ, state))) for state, level in mapping.items()
-    ]
-    if default is not Status.NORMAL:
-        rules.append(Rule(default, AnyOf.single(Condition(ref, Op.NOT_IN, tuple(mapping)))))
-    return tuple(rules)
-
-
 @dataclass(frozen=True)
 class StateMap:
     """Levels for listed states (lowercase) and a level for any other available state."""
@@ -55,5 +43,13 @@ class StateMap:
     default: Status = Status.NORMAL
 
     def rules(self, ref: ValueRef) -> tuple[Rule, ...]:
-        """Compile to rules on ``ref``."""
-        return state_map_rules(ref, self.states, self.default)
+        """Compile to rules on ``ref``: one per listed state, and one for the others
+        unless their level is normal."""
+        rules = [
+            Rule(level, AnyOf.single(Condition(ref, Op.EQ, state)))
+            for state, level in self.states.items()
+        ]
+        if self.default is not Status.NORMAL:
+            others = Condition(ref, Op.NOT_IN, tuple(self.states))
+            rules.append(Rule(self.default, AnyOf.single(others)))
+        return tuple(rules)

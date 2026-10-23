@@ -11,11 +11,11 @@ from mfdhome.conditions import (
     EvalContext,
     Op,
     Rule,
+    StateMap,
     Thresholds,
     check,
     highest_match,
     holds,
-    state_map_rules,
 )
 from mfdhome.model import EntityRef, Status, snapshot_from_ha_states
 from tests.support import ha_state
@@ -137,9 +137,7 @@ def test_thresholds_compile() -> None:
 
 
 def test_state_map_compiles_with_default() -> None:
-    rules = state_map_rules(
-        BREAKER, {"on": Status.NORMAL, "off": Status.CAUTION}, default=Status.WARNING
-    )
+    rules = StateMap({"on": Status.NORMAL, "off": Status.CAUTION}, Status.WARNING).rules(BREAKER)
     for raw, expected in [("on", Status.NORMAL), ("off", Status.CAUTION), ("x", Status.WARNING)]:
         context = ctx(ha_state("switch.main", raw), state="switch.main")
         assert highest_match(rules, context) is expected, raw
