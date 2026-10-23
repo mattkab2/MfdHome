@@ -108,13 +108,14 @@ def _no_params(raw: Mapping[str, object]) -> Mapping[str, object]:
     return {}
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class SymbolSpec:
     """A symbol type.
 
-    ``channels`` lists every accepted channel; ``required`` must be bound;
-    ``primary`` decides the no-data state; ``numeric`` channels count as no
-    data when their value is not a number. ``ports`` adds named connection
+    ``channels`` lists every accepted channel; ``required`` must be bound
+    (default: none); ``primary`` decides the no-data state; ``numeric``
+    channels (default: none) count as no data when their value is not a
+    number. ``ports`` adds named connection
     points beyond the box edges and corners every symbol has; ``ports_for``
     replaces it for types whose ports depend on their (normalized) params, as
     ``box_for`` does for the box.
@@ -124,9 +125,9 @@ class SymbolSpec:
 
     type: str
     channels: tuple[str, ...]
-    required: frozenset[str]
+    required: frozenset[str] = frozenset()
     primary: str
-    numeric: frozenset[str]
+    numeric: frozenset[str] = frozenset()
     box: Callable[[Point, Orientation], Box]
     draw: Callable[[SymbolInput, Theme], str]
     ports: Mapping[str, PortFn] = field(default_factory=lambda: {})
@@ -447,7 +448,6 @@ def _fitting_spec(
     return SymbolSpec(
         type=type_name,
         channels=channels,
-        required=frozenset(),
         primary=channels[0],
         numeric=frozenset(c for c in channels if c != "state"),
         box=spec_box,
@@ -619,9 +619,7 @@ def _cabinet_spec(type_name: str, burner: bool, coil: bool) -> SymbolSpec:
     return SymbolSpec(
         type=type_name,
         channels=("action",),
-        required=frozenset(),
         primary="action",
-        numeric=frozenset(),
         box=lambda at, _orientation: default.box(*at),
         draw=_draw_cabinet,
         params=validate,
@@ -698,7 +696,6 @@ def _network_spec(
     return SymbolSpec(
         type=type_name,
         channels=channels,
-        required=frozenset(),
         primary="state",
         numeric=frozenset(channels[1:]),
         box=lambda at, _orientation: box(*at),
@@ -718,7 +715,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "electric_meter": SymbolSpec(
         type="electric_meter",
         channels=("power", "energy"),
-        required=frozenset(),
         primary="power",
         numeric=frozenset({"power", "energy"}),
         box=_meter_box,
@@ -729,7 +725,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "water_meter": SymbolSpec(
         type="water_meter",
         channels=("flow", "total"),
-        required=frozenset(),
         primary="flow",
         numeric=frozenset({"flow", "total"}),
         box=_meter_box,
@@ -740,7 +735,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "combiner": SymbolSpec(
         type="combiner",
         channels=("power",),
-        required=frozenset(),
         primary="power",
         numeric=frozenset({"power"}),
         box=lambda at, orientation: combiner_box(*at, orientation),
@@ -767,7 +761,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "gas_meter": SymbolSpec(
         type="gas_meter",
         channels=("flow", "total"),
-        required=frozenset(),
         primary="flow",
         numeric=frozenset({"flow", "total"}),
         box=_meter_box,
@@ -778,9 +771,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "tank": SymbolSpec(
         type="tank",
         channels=("state",),
-        required=frozenset(),
         primary="state",
-        numeric=frozenset(),
         box=lambda at, _orientation: tank_box(*at),
         draw=_draw_tank,
         params=_tank_params,
@@ -789,7 +780,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "pump": SymbolSpec(
         type="pump",
         channels=("state", "power"),
-        required=frozenset(),
         primary="state",
         numeric=frozenset({"power"}),
         box=_pump_box,
@@ -800,7 +790,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "water_heater": SymbolSpec(
         type="water_heater",
         channels=("temperature", "heating"),
-        required=frozenset(),
         primary="temperature",
         numeric=frozenset({"temperature"}),
         box=lambda at, _orientation: heater_box(*at),
@@ -815,9 +804,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "outlet": SymbolSpec(
         type="outlet",
         channels=("state",),
-        required=frozenset(),
         primary="state",
-        numeric=frozenset(),
         box=lambda at, _orientation: outlet_box(*at),
         draw=_draw_outlet,
         params=_outlet_params,
@@ -826,9 +813,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "sensor": SymbolSpec(
         type="sensor",
         channels=("state",),
-        required=frozenset(),
         primary="state",
-        numeric=frozenset(),
         box=lambda at, _orientation: sensor_box(*at),
         draw=_draw_sensor,
         params=_sensor_params,
@@ -846,9 +831,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "opening": SymbolSpec(
         type="opening",
         channels=("state",),
-        required=frozenset(),
         primary="state",
-        numeric=frozenset(),
         box=lambda at, orientation: _opening_bounds(at, orientation, _OPENING_DEFAULTS),
         draw=_draw_opening,
         params=_opening_params,
@@ -859,7 +842,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         channels=("state",),
         required=frozenset({"state"}),
         primary="state",
-        numeric=frozenset(),
         box=lambda at, _orientation: alarm_panel_box(*at),
         draw=_draw_alarm_panel,
     ),
@@ -868,9 +850,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "condenser": SymbolSpec(
         type="condenser",
         channels=("action",),
-        required=frozenset(),
         primary="action",
-        numeric=frozenset(),
         box=lambda at, _orientation: condenser_box(*at),
         draw=_draw_condenser,
         params=_state_list_params("running", DEFAULT_COMPRESSOR_ACTIONS),
@@ -910,7 +890,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         channels=("state",),
         required=frozenset({"state"}),
         primary="state",
-        numeric=frozenset(),
         box=_ats_box,
         draw=_draw_ats,
         params=_state_list_params("connected", DEFAULT_CONNECTED_STATES),
@@ -919,7 +898,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "load_panel": SymbolSpec(
         type="load_panel",
         channels=("power",),
-        required=frozenset(),
         primary="power",
         numeric=frozenset({"power"}),
         box=lambda at, _orientation: load_panel_box(*at),
@@ -948,7 +926,6 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         channels=("state",),
         required=frozenset({"state"}),
         primary="state",
-        numeric=frozenset(),
         box=_breaker_box,
         draw=_draw_breaker,
         params=_state_list_params("closed", DEFAULT_CLOSED_STATES),
