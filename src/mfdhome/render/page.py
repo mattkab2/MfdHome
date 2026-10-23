@@ -44,11 +44,8 @@ from mfdhome.symbols import svg
 from mfdhome.symbols.floorplan import room, wall
 from mfdhome.symbols.format import format_value
 from mfdhome.symbols.geometry import element_box
-from mfdhome.symbols.line import Flow, line, tag_plate
-from mfdhome.symbols.registry import (
-    SymbolInput,
-    get_symbol,
-)
+from mfdhome.symbols.line import Flow, arrow_reach, line, tag_plate
+from mfdhome.symbols.registry import LINE_BACK, SymbolInput, get_symbol
 from mfdhome.symbols.style import dotted, font
 from mfdhome.symbols.tile import (
     ATTENTION_CLASS,
@@ -108,7 +105,7 @@ def _collect_labels(
     status: Status,
     theme: Theme,
     default_name: Callable[[float], Anchor],
-    default_readout: Callable[[float], Anchor],
+    default_readout: Callable[[Readout], Anchor],
 ) -> list[_Label]:
     labels = []
     if name is not None:
@@ -120,7 +117,7 @@ def _collect_labels(
         )
     for r in readouts:
         text = format_value(values[r.channel], r.format, r.unit, r.absolute)
-        anchor = r.anchor or default_readout(r.along)
+        anchor = r.anchor or default_readout(r)
         labels.append(
             _Label(text, theme.font_size, theme.text_in(status), anchor, r.along, r.offset)
         )
@@ -166,21 +163,31 @@ def _render_symbol(element: SymbolElement, c: _Ctx) -> str:
     return body + "".join(_draw_labels(labels, lambda _: box, SYMBOL_GAP, theme))
 
 
-def _flow(element: LineElement, values: Mapping[str, Value], c: _Ctx) -> Flow | None:
-    """Which way the line flows now: from its condition, or from its rate's sign."""
+def _flow(
+    element: LineElement, values: Mapping[str, Value], c: _Ctx
+) -> tuple[Flow | None, Flow | None]:
+    """Which way the line flows now, and a two-way line's flow the other way: from
+    its condition, from its rate's sign, or from each direction's rate."""
     spec = element.flow
     if spec is None:
-        return None
+        return None, None
+    forward, backward = (
+        (Flow.REVERSE, Flow.FORWARD) if spec.reverse else (Flow.FORWARD, Flow.REVERSE)
+    )
+
+    def flowing(channel: str) -> float | None:
+        rate = values[channel].number
+        return None if rate is None or abs(rate) <= spec.threshold else rate
+
     if spec.when is not None:
-        if not holds(spec.when, c.resolver.context(element.bind)):
-            return None
-        forward = True
-    else:
-        rate = values[spec.channel].number
-        if rate is None or abs(rate) <= spec.threshold:
-            return None
-        forward = rate > 0
-    return Flow.FORWARD if forward != spec.reverse else Flow.REVERSE
+        return (forward if holds(spec.when, c.resolver.context(element.bind)) else None), None
+    rate = flowing(spec.channel)
+    if spec.back is not None:
+        back = flowing(spec.back)
+        return (None if rate is None else forward), (None if back is None else backward)
+    if rate is None:
+        return None, None
+    return (forward if rate > 0 else backward), None
 
 
 def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
@@ -189,15 +196,33 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
     resolved = c.resolver.element(element)
     assert resolved is not None
     status, values = resolved.status, resolved.values
-    flow = _flow(element, values, c)
-    if flow is not None and status is Status.NORMAL:
+    flow, back = _flow(element, values, c)
+    if (flow is not None or back is not None) and status is Status.NORMAL:
         status = Status.ACTIVE
+    two_way = element.flow is not None and element.flow.back is not None
+
+    def default_anchor(along: float, backward: bool = False) -> Anchor:
+        return default_line_anchor(point_along(element.points, along)[1], backward)
+
+    def readout_anchor(r: Readout) -> Anchor:
+        return default_anchor(r.along, two_way and r.channel == LINE_BACK)
+
     # The flow arrow sits level with the first readout, on the other side of the
     # line; with no readout but a service tag, in the other half from the tag.
+    # A two-way line's forward arrow sits on its first readout's side instead,
+    # its backward arrow on the other side, each beneath its direction's readout.
     readout = element.readouts[0] if element.readouts else None
     arrow_at = readout.along if readout else None
     if readout is None and element.tag is not None:
         arrow_at = 0.75 if element.tag.along < 0.5 else 0.25
+    avoid = None
+    if two_way and readout is None:
+        avoid = _toward(default_anchor(0.5, backward=True))
+    elif two_way and readout is not None:
+        toward = _toward(readout.anchor or readout_anchor(readout))
+        avoid = toward if readout.channel == LINE_BACK else (-toward[0], -toward[1])
+    elif readout is not None and readout.anchor:
+        avoid = _toward(readout.anchor)
     parts = line(
         element.points,
         status,
@@ -206,19 +231,19 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
         element.casing,
         element.id,
         arrow_at=arrow_at,
-        arrow_avoid=_toward(readout.anchor) if readout and readout.anchor else None,
+        arrow_avoid=avoid,
+        back=back,
     )
-
-    def default_anchor(along: float) -> Anchor:
-        return default_line_anchor(point_along(element.points, along)[1])
 
     def box_at(along: float) -> Box:
         return Box.point(*point_along(element.points, along)[0])
 
     labels = _collect_labels(
-        element.name, element.readouts, values, status, theme, default_anchor, default_anchor
+        element.name, element.readouts, values, status, theme, default_anchor, readout_anchor
     )
-    gap = max(LINE_GAP, parts.half_width + LABEL_CLEARANCE)
+    # A two-way line's labels clear the harpoons on both sides.
+    edge = arrow_reach(parts.half_width) if two_way else parts.half_width
+    gap = max(LINE_GAP, edge + LABEL_CLEARANCE)
     tag = (
         tag_plate(
             point_along(element.points, element.tag.along)[0], element.tag.text, status, theme

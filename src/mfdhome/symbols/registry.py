@@ -77,10 +77,14 @@ from mfdhome.symbols.water_heater import (
 from mfdhome.themes.theme import Theme
 
 #: Channels accepted by line elements: ``rate``, what the line carries (power,
-#: water flow, throughput, ...), numeric; and ``state``, a link's own state (a
-#: radio link's reachability), for lines with nothing to measure.
-LINE_CHANNELS = ("rate", "state")
-LINE_NUMERIC = frozenset({"rate"})
+#: water flow, throughput, ...), numeric; ``rate_back``, what a two-way line
+#: carries the other way (upload beside download), numeric; and ``state``, a
+#: link's own state (a radio link's reachability), for lines with nothing to
+#: measure.
+LINE_CHANNELS = ("rate", "rate_back", "state")
+LINE_NUMERIC = frozenset({"rate", "rate_back"})
+#: The channel that makes a line two-way.
+LINE_BACK = "rate_back"
 
 
 def line_primary(bound: Collection[str]) -> str:

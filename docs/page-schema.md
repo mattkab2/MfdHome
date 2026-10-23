@@ -243,7 +243,7 @@ elbow:
 `elbow` forces which leg comes first, and `route: straight` draws a diagonal
 instead.
 
-Lines have two channels. `rate` (numeric, primary) is whatever the line carries,
+Lines have three channels. `rate` (numeric, primary) is whatever the line carries,
 such as power in W, water flow in gal/min or throughput in Mbps. With `flow`,
 an arrow is drawn when `|rate| > threshold` (default 0, so any nonzero rate;
 set a threshold for noisy sensors, such as power hovering around zero):
@@ -264,6 +264,30 @@ There's no rate, so there's nothing to read out.
   to: trunk
   flow:
     when: [{entity: climate.main, attribute: hvac_action, in: [heating, cooling, fan]}]
+```
+
+`rate_back` (numeric) makes a line two-way, for links that report each
+direction separately: a network port's download and upload, or a grid feed's
+import and export as two positive sensors. Each rate is then a magnitude in
+its own direction (`rate` from the first point toward the last, `rate_back`
+the other way), with its own harpoon: the forward one on the side of the
+line's first `rate` readout (by default above horizontal lines, right of
+vertical ones), the backward one on the other side. Readouts of `rate_back`
+default to that other side, and a two-way line's labels sit clear of both
+harpoons. The core is solid while either direction flows; the `threshold`
+applies to both, and `reverse` swaps them. A condition can't drive a two-way
+line.
+
+```yaml
+- id: to_core
+  type: line
+  from: lan
+  to: core_switch.left
+  bind: {rate: sensor.core_switch_port_1_rx, rate_back: sensor.core_switch_port_1_tx}
+  flow: {threshold: 1}
+  readouts:
+    - {value: rate, format: data_rate}        # above, over the download harpoon
+    - {value: rate_back, format: data_rate}   # below, under the upload harpoon
 ```
 
 `state` is the link's own state, for a line whose health can be read but

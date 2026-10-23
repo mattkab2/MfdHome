@@ -175,3 +175,84 @@ def test_condition_flow_config(tmp_path: Path) -> None:
     page.write_text(body.replace("reverse: true", "threshold: 5"))
     with pytest.raises(ConfigError, match="flow from a condition has no 'from' or 'threshold'"):
         load_page(page, Defs())
+
+
+class TestTwoWay:
+    """A two-way line (download and upload): one harpoon per direction, one per side."""
+
+    def link(
+        self, rx: str, tx: str, reverse: bool = False, readouts: tuple[Readout, ...] = ()
+    ) -> str:
+        element = LineElement(
+            "uplink",
+            ((0.0, 0.0), (200.0, 0.0)),
+            bind={"rate": EntityRef("sensor.rx"), "rate_back": EntityRef("sensor.tx")},
+            flow=FlowSpec(threshold=1, reverse=reverse, back="rate_back"),
+            readouts=readouts
+            or (Readout("rate", format="data_rate"), Readout("rate_back", format="data_rate")),
+        )
+        state = snapshot_from_ha_states([ha_state("sensor.rx", rx), ha_state("sensor.tx", tx)])
+        return render_element(element, state, LCD)
+
+    def harpoons(self, svg: str) -> list[tuple[str, str]]:
+        """(side, direction) of each harpoon: above/below, and which way its tip points."""
+        out = []
+        for match in re.finditer(r'<polygon points="([^"]+)"', svg):
+            (tx, ty), (bx, _), _ = (tuple(map(float, p.split(","))) for p in match[1].split())
+            out.append(("above" if ty < 0 else "below", "forward" if tx > bx else "back"))
+        return out
+
+    def test_download_above_upload_below(self) -> None:
+        assert self.harpoons(self.link("412", "38")) == [("above", "forward"), ("below", "back")]
+
+    def test_each_direction_on_its_own(self) -> None:
+        assert self.harpoons(self.link("412", "0.5")) == [("above", "forward")]  # under threshold
+        upload = self.link("0", "38")
+        assert self.harpoons(upload) == [("below", "back")]
+        assert f'stroke="{LCD.color(Status.ACTIVE)}"' in upload  # solid core: something flows
+        assert self.harpoons(self.link("0", "0")) == []
+        assert self.harpoons(self.link("-412", "0")) == [("above", "forward")]  # a magnitude
+
+    def test_reverse_swaps_the_directions(self) -> None:
+        assert self.harpoons(self.link("412", "38", reverse=True)) == [
+            ("above", "back"),
+            ("below", "forward"),
+        ]
+
+    def test_readouts_sit_outside_their_harpoons(self) -> None:
+        svg = self.link("412", "38")
+        texts = dict(
+            (text, float(y))
+            for y, text in re.findall(r'<text x="[^"]+" y="([^"]+)"[^>]*>([^<]+)<', svg)
+        )
+        reach = 5 + 10 * (0.4 + 0.8)  # half the pipe, plus the harpoon's gap and barb
+        assert texts["412 Mb/s"] < -reach and texts["38 Mb/s"] > reach
+
+    def test_an_upload_readout_first_still_puts_download_above(self) -> None:
+        readouts = (Readout("rate_back", format="data_rate"), Readout("rate", format="data_rate"))
+        svg = self.link("412", "38", readouts=readouts)
+        assert self.harpoons(svg) == [("above", "forward"), ("below", "back")]
+
+    def test_config(self, tmp_path: Path) -> None:
+        page = tmp_path / "p.yaml"
+        body = textwrap.dedent(
+            """\
+            page: p
+            title: P
+            canvas: {width: 100, height: 100}
+            elements:
+              - id: uplink
+                type: line
+                from: [0, 0]
+                to: [10, 0]
+                bind: {rate: sensor.rx, rate_back: sensor.tx}
+                flow: {threshold: 1}
+            """
+        )
+        page.write_text(body)
+        [uplink] = load_page(page, Defs()).elements
+        assert isinstance(uplink, LineElement) and uplink.flow is not None
+        assert uplink.flow.back == "rate_back"
+        page.write_text(body.replace("{threshold: 1}", "{when: [{entity: sensor.x, eq: on}]}"))
+        with pytest.raises(ConfigError, match=r"a condition can't drive a two-way line"):
+            load_page(page, Defs())

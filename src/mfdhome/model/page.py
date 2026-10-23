@@ -94,15 +94,19 @@ class FlowSpec:
 
     From a rate: when ``|channel| > threshold``, the sign setting direction.
     The default threshold of 0 shows any nonzero rate; noisy sensors (power
-    hovering around zero) should set their own. From a condition: while
-    ``when`` holds (a thermostat's action, a valve's state), for lines with no
-    rate to read. ``reverse`` flips the direction either way.
+    hovering around zero) should set their own. A two-way line also has a
+    ``back`` channel: then each rate is a magnitude in its own direction
+    (``channel`` along the points, ``back`` against them), each with its own
+    arrow. From a condition: while ``when`` holds (a thermostat's action, a
+    valve's state), for lines with no rate to read. ``reverse`` flips the
+    direction either way.
     """
 
     channel: str = "rate"
     threshold: float = 0.0
     when: AnyOf | None = None
     reverse: bool = False
+    back: str | None = None
 
 
 @dataclass(frozen=True)

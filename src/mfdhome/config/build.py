@@ -82,7 +82,7 @@ from mfdhome.model.state import AveragingPolicy, StalePolicy
 from mfdhome.render.panels import PANELS
 from mfdhome.symbols.format import FORMATS, is_valid_format
 from mfdhome.symbols.geometry import element_box, find_port
-from mfdhome.symbols.registry import LINE_CHANNELS, REGISTRY, line_primary
+from mfdhome.symbols.registry import LINE_BACK, LINE_CHANNELS, REGISTRY, line_primary
 from mfdhome.themes.builtin import THEMES
 
 
@@ -445,12 +445,17 @@ class _ElementBuilder:
         if model.flow is not None:
             f = model.flow
             when = None
+            back = LINE_BACK if LINE_BACK in bound else None
             if f.when is not None or f.any_ is not None:
+                if back is not None:
+                    self.issues.add(
+                        (*loc, "flow"), f"a condition can't drive a two-way line ({LINE_BACK})"
+                    )
                 expr = ExprModel.model_construct(any_=f.any_, when=f.when)
                 when = self.exprs.expr(expr, (*loc, "flow"), bound)
             else:
                 self.bound_channel(f.from_, bound, (*loc, "flow", "from"))
-            flow = FlowSpec(f.from_, f.threshold, when, f.reverse)
+            flow = FlowSpec(f.from_, f.threshold, when, f.reverse, back)
         self.pending.append(
             _PendingLine(
                 model.id,

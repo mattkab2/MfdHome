@@ -164,7 +164,10 @@ def box_point(box: Box, anchor: Anchor) -> Point:
     return (x, y)
 
 
-def default_line_anchor(direction: tuple[float, float]) -> Anchor:
-    """Text above mostly-horizontal lines, to the right of mostly-vertical ones."""
+def default_line_anchor(direction: tuple[float, float], back: bool = False) -> Anchor:
+    """Text above mostly-horizontal lines, to the right of mostly-vertical ones;
+    ``back`` (a two-way line's other direction): below, or to the left."""
     dx, dy = direction
-    return Anchor.TOP_CENTER if abs(dx) >= abs(dy) else Anchor.CENTER_RIGHT
+    if abs(dx) >= abs(dy):
+        return Anchor.BOTTOM_CENTER if back else Anchor.TOP_CENTER
+    return Anchor.CENTER_LEFT if back else Anchor.CENTER_RIGHT

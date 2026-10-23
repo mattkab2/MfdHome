@@ -98,13 +98,15 @@ def _arrow(
     color: str,
     at: float | None,
     avoid: Point | None,
+    opposite: bool = False,
 ) -> str:
     """A harpoon beside the line: a shaft parallel to it, set off from its edge,
     with a half-arrowhead at the downstream end flaring away from the line.
 
     It sits on the side away from ``avoid`` (the direction of the line's
     labels; by default above horizontal lines and right of vertical ones),
-    so it never covers the line's core or its labels.
+    so it never covers the line's core or its labels; ``opposite`` puts it on
+    the other side (a two-way line's backward harpoon).
     """
     width = max(2 * half, ARROW_MIN_WIDTH)
     length = width * ARROW_LENGTH
@@ -112,7 +114,7 @@ def _arrow(
     nx, ny = -dy, dx
     default = (0.0, -1.0) if abs(dx) >= abs(dy) else (1.0, 0.0)
     ax, ay = avoid if avoid is not None and abs(nx * avoid[0] + ny * avoid[1]) > 1e-9 else default
-    if nx * ax + ny * ay > 0:
+    if (nx * ax + ny * ay > 0) != opposite:
         nx, ny = -nx, -ny
     if flow is Flow.REVERSE:
         dx, dy = -dx, -dy
@@ -223,6 +225,7 @@ def line(
     line_id: str = "line",
     arrow_at: float | None = None,
     arrow_avoid: Point | None = None,
+    back: Flow | None = None,
 ) -> LineParts:
     """Render a line.
 
@@ -236,7 +239,9 @@ def line(
     room; unavailable is dotted. ``flow`` draws a harpoon beside the line
     pointing along (FORWARD) or against (REVERSE) the point order, at
     fraction ``arrow_at`` of its length (default: the middle of the longest
-    segment) on the side away from ``arrow_avoid`` (see ``_arrow``).
+    segment) on the side away from ``arrow_avoid`` (see ``_arrow``). ``back``
+    (a two-way line's other direction) draws a second harpoon level with it on
+    the other side; the core is solid while either flows.
     ``line_id`` keeps hatch pattern ids unique on the page.
     """
     if len(pts) < 2:
@@ -268,7 +273,7 @@ def line(
                         },
                     )
                 )
-            elif core > 0 and flow is not None:
+            elif core > 0 and (flow is not None or back is not None):
                 # Solid core: something is flowing. A blank pipe means no flow.
                 parts.append(_polyline(pts, {"stroke": color, "stroke-width": core}))
         half = outer / 2
@@ -280,4 +285,12 @@ def line(
         half = width / 2
     if flow is not None:
         parts.append(_arrow(pts, flow, half, color, arrow_at, arrow_avoid))
+    if back is not None:
+        parts.append(_arrow(pts, back, half, color, arrow_at, arrow_avoid, opposite=True))
     return LineParts(shell, "".join(parts), half)
+
+
+def arrow_reach(half: float) -> float:
+    """How far a harpoon beside a line ``2 * half`` wide reaches from its center."""
+    width = max(2 * half, ARROW_MIN_WIDTH)
+    return half + width * (ARROW_GAP + ARROW_DEPTH)
