@@ -1,0 +1,35 @@
+# The shop switch drops off the network and comes back, an internet blip too
+# short to alert on, and the mesh repeater going quiet, on a loop, for
+# 'mfdhome serve CONFIG --scenario THIS_FILE'.
+states: house_normal.json
+loop: 10m
+steps:
+  - at: 20s                         # the shop switch stops checking in
+    set:
+      sensor.shop_switch_state: heartbeat_missed
+      sensor.ap_shop_state: heartbeat_missed
+  - at: 1m                          # ...and is gone, its AP with it
+    set:
+      sensor.shop_switch_state: disconnected
+      sensor.shop_switch_port_9_rx: unavailable
+      sensor.shop_switch_port_9_link_speed: unavailable
+      sensor.ap_shop_state: disconnected
+      sensor.ap_shop_clients: "0"
+  - at: 2m                          # the repeater misses its polls: an advisory
+    set: {binary_sensor.meshcore_4d5e6f7a8b_online_yard: "off"}
+  - at: 3m                          # a 30 second internet blip: under the 2 minute hold
+    set: {binary_sensor.wan_online: "off"}
+  - at: 210s
+    set: {binary_sensor.wan_online: "on"}
+  # 5m20s: SHOP SWITCH OFFLINE (a caution; one alert, not one for the AP too)
+  - at: 7m                          # the switch is back, the AP a moment later
+    set:
+      sensor.shop_switch_state: connected
+      sensor.shop_switch_port_9_rx: {state: "860", attributes: {unit_of_measurement: Mbit/s}}
+      sensor.shop_switch_port_9_link_speed: {state: "10000", attributes: {unit_of_measurement: Mbit/s}}
+  - at: 430s
+    set:
+      sensor.ap_shop_state: connected
+      sensor.ap_shop_clients: "4"
+  - at: 9m                          # the repeater answers again
+    set: {binary_sensor.meshcore_4d5e6f7a8b_online_yard: "on"}
