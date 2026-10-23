@@ -70,10 +70,3 @@ def encode_png(image: Image.Image) -> bytes:
     out = io.BytesIO()
     image.save(out, format="PNG", optimize=True)
     return out.getvalue()
-
-
-def image_colors(image: Image.Image) -> frozenset[str]:
-    """Every distinct color in ``image``, as ``#rrggbb``."""
-    rgb = image.convert("RGB")
-    data = rgb.tobytes()
-    return frozenset(f"#{data[i : i + 3].hex()}" for i in range(0, len(data), 3))

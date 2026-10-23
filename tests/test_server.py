@@ -16,12 +16,11 @@ from PIL import Image
 from mfdhome.config import load_config
 from mfdhome.mfd import Phase
 from mfdhome.model import StateSnapshot, snapshot_from_ha_states
-from mfdhome.render.raster import image_colors
 from mfdhome.server.app import create_app, refresh_loop
 from mfdhome.server.images import stamp_text, window_text
 from mfdhome.server.runtime import Runtime
 from mfdhome.server.store import BoardStore
-from tests.support import CONFIG, FIXTURES
+from tests.support import CONFIG, FIXTURES, image_colors
 
 T0 = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 type ClientFactory = Callable[[web.Application], Awaitable[TestClient[Any, Any]]]

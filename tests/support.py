@@ -5,6 +5,8 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
+
 from mfdhome.config import Config, load_config
 from mfdhome.mfd import (
     EMPTY_BOARD,
@@ -67,3 +69,9 @@ def view(board: Board) -> AlertView:
     """The test config's alerts over ``board``."""
     config = load_test_config()
     return AlertView(config.alerts.alerts, config.alerts.systems, board)
+
+
+def image_colors(image: Image.Image) -> frozenset[str]:
+    """Every distinct color in ``image``, as ``#rrggbb``."""
+    data = image.convert("RGB").tobytes()
+    return frozenset(f"#{data[i : i + 3].hex()}" for i in range(0, len(data), 3))

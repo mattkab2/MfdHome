@@ -10,9 +10,9 @@ from mfdhome.model import Status
 from mfdhome.render import render_page
 from mfdhome.render.controls import Controls
 from mfdhome.render.panels import GRAY16, MONO, PANELS, SPECTRA6, PanelProfile
-from mfdhome.render.raster import image_colors, rasterize
+from mfdhome.render.raster import rasterize
 from mfdhome.themes import EINK_COLOR, EINK_MONO, Target, Theme
-from tests.support import board_from, config_page, fixture_state, view
+from tests.support import board_from, config_page, fixture_state, image_colors, view
 
 #: A common 7.5" panel.
 PANEL_800 = Target("eink", 800, 480)

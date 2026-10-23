@@ -7,8 +7,9 @@ import pytest
 from PIL import Image
 
 from mfdhome.render.panels import GRAY4, MONO, PANELS, SPECTRA6, PanelProfile, hex_rgb
-from mfdhome.render.raster import encode_png, image_colors, quantize
+from mfdhome.render.raster import encode_png, quantize
 from mfdhome.themes.builtin import EINK_COLOR, EINK_MONO, LCD
+from tests.support import image_colors
 
 
 def _noise(size: int = 48, seed: int = 7) -> Image.Image:

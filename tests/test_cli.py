@@ -13,9 +13,8 @@ from PIL import Image
 from mfdhome.cli import fetch_states, load_dotenv, main, scrub
 from mfdhome.config import load_config
 from mfdhome.config.inventory import entity_uses
-from mfdhome.render.raster import image_colors
 from tests.fake_ha import TOKEN, FakeHA
-from tests.support import CONFIG, FIXTURES
+from tests.support import CONFIG, FIXTURES, image_colors
 
 type ServerFactory = Callable[[Any], Awaitable[TestServer]]
 
