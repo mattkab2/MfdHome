@@ -78,3 +78,22 @@ class StalePolicy:
     def limit(self, entity_id: str) -> timedelta | None:
         """The staleness limit for ``entity_id``, or ``None`` for none."""
         return self.entities.get(entity_id, self.default)
+
+
+@dataclass(frozen=True)
+class AveragingPolicy:
+    """Which entities a time-averaging display averages.
+
+    By default, those Home Assistant calls instantaneous measurements
+    (``state_class: measurement``: power, flow, temperature, ...), never totals,
+    text states or attributes. ``entities`` forces an entity on (``True``) or off.
+    """
+
+    entities: Mapping[str, bool] = field(default_factory=dict)
+
+    def averages(self, entity_id: str, entity: EntityState) -> bool:
+        """Whether ``entity_id``'s state is averaged."""
+        forced = self.entities.get(entity_id)
+        if forced is not None:
+            return forced
+        return entity.attributes.get("state_class") == "measurement"
