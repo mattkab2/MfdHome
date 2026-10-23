@@ -12,6 +12,12 @@ sensor in Home Assistant and bound like any other entity.
 
 ## Every entity
 
+- Sensors' `state_class` decides what slow displays average: `measurement`
+  readings (power, flow, temperature, ...) are averaged over the display's
+  window; `total` and `total_increasing` (energy, water used) never are.
+  Template sensors should declare one; otherwise override them under
+  `averaging` in `defs.yaml`.
+
 - `unavailable` and `unknown` mean no data: the element is drawn gray and
   dotted, and status rules or alerts can test for it with `unavailable: true`.
 - Binary sensors are `on`/`off`. Their `device_class` says what `on` means

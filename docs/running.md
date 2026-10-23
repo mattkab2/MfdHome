@@ -116,12 +116,26 @@ fetches on a timer:
 
 Both take `?token=...` when `MFD_DISPLAY_TOKEN` is set.
 
+- **Averaged values:** the image is rendered when the device fetches it, and
+  its measurements (power, flow, temperature, throughput: whatever Home
+  Assistant marks `state_class: measurement`) show their time-weighted
+  average over the display's `refresh`, 5 minutes by default. A kettle or a
+  passing cloud then nudges the numbers instead of being held on the panel
+  until the next refresh. On/off states, text states, totals and attributes
+  (setpoints) always show as they are now, a sensor that is unavailable now
+  shows no data, and alerts always judge live readings. After a restart the
+  window fills over its first period. See "Displays" in
+  `docs/page-schema.md` for `refresh`, `average` and per-entity overrides.
+- **Match the device's interval:** set the device's fetch interval (ESPHome's
+  `update_interval`) to the display's `refresh`. If the fetches the server
+  sees typically stray more than 2x from it, the server logs a warning once.
 - **Cheap polling:** every PNG carries an `ETag`. A request with that tag in
   `If-None-Match` gets `304 Not Modified` while nothing has changed, so the
-  device can poll often without redrawing.
-- **"As of" stamp:** the bottom strip shows when the content last changed
-  (server local time), not when the image was fetched, so an unchanged page
-  keeps the same image. A device that fails to fetch should mark that itself
+  device need not redraw.
+- **"As of" stamp:** the bottom strip shows when the content last changed, as
+  seen at a fetch (server local time), so an unchanged page keeps the same
+  image. On an averaging display `AVG 5M` sits above it, so nobody takes the
+  numbers for live ones. A device that fails to fetch should mark that itself
   (the ESPHome example below draws OFFLINE), because a frozen image looks
   exactly like a quiet house.
 - **Keys:** the key labels are drawn along the bottom strip when the display
@@ -133,7 +147,8 @@ Both take `?token=...` when `MFD_DISPLAY_TOKEN` is set.
   have the device fetch right after a press. Alerts appear at the next
   scheduled fetch. Pick an interval that suits the panel: a minute or two for
   mono panels with fast refresh, longer for six-color panels, which take
-  15–30 s to redraw.
+  15–30 s to redraw. Averaged numbers usually change a little from one
+  refresh to the next, so expect a redraw on most scheduled fetches.
 
 Check a layout without a device:
 
@@ -167,7 +182,7 @@ online_image:
     url: ${mfd}.png${token}
     format: PNG
     type: BINARY
-    update_interval: 2min
+    update_interval: 5min          # the display's refresh in displays.yaml
     on_download_finished:
       - lambda: id(offline) = false;
       - if:

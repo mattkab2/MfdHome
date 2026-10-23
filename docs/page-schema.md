@@ -651,6 +651,9 @@ because of a dead sensor unless it asks about availability.
 ## Defs
 
 ```yaml
+averaging:                   # house-wide; see "Displays"
+  entities: {sensor.battery_soc: false}
+
 stale_after:                 # house-wide; only in defs.yaml, not page-local defs
   default: 15m               # 90, "90s", "15m", "1h"
   entities:
@@ -793,6 +796,27 @@ displays:
     home: status
     pages: [status, electrical]
     panel: mono                # e-paper: served as PNG snapshots
+    refresh: 5m                # how often the device fetches (panels only; default 5m)
+    average: 5m                # averaging window: default 'refresh' on panels, live
+                               # elsewhere; 0 for live values, at most 1h
+```
+
+A display with an averaging window shows each measurement averaged over
+the window ending now, instead of its latest reading: a slow display isn't
+left showing a passing spike or lull until its next refresh. Panels average
+over their `refresh` by default; browser displays are live unless given an
+`average` (a short one, such as `30s`, can calm a jittery reading on the
+mirror). Only Home Assistant measurements are averaged (`state_class:
+measurement`); totals, on/off and text states and attributes show as they
+are now. An entity with no data now shows no data. Status rules judge the
+averaged values, so a color always matches the number shown; alerts always
+judge live readings. Override the choice per entity in `defs.yaml`:
+
+```yaml
+averaging:
+  entities:
+    sensor.battery_soc: false   # show live
+    sensor.template_power: true # a template sensor without a state_class
 ```
 
 A display shows one page at a time and stays on it until a viewer selects

@@ -51,7 +51,8 @@ src/mfdhome/
                # (e-paper panel profiles) and raster.py (SVG ->
                # PNG via resvg, quantized to the panel palette)
   sources/     # State providers: HA websocket client (ha.py), JSON fixtures,
-               # scripted scenarios (scenario.py), staleness marking
+               # scripted scenarios (scenario.py), staleness marking, and
+               # time-averaging for slow displays (averaging.py)
   mfd/         # MFD behavior: alert latching, hold times, house-wide
                # acknowledgement and attention order (pure, caller supplies the
                # clock); history events (history.py); page selection per
@@ -271,8 +272,17 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   (ETag / 304 when unchanged) and presses keys with `POST
   /display/<id>/key/<key>`. The expected device is ESPHome on an ESP32
   (`online_image`), possibly a Pi Zero; both use the same routes. The "as of"
-  stamp in the bottom strip shows when content last changed, not fetch time,
-  so unchanged pages don't redraw; the device marks failed fetches itself.
+  stamp in the bottom strip shows when content last changed (as seen at a
+  fetch), not fetch time, so unchanged pages don't redraw; the device marks
+  failed fetches itself. Panels are rendered only when fetched.
+- **Averaging for slow displays:** a display's `average` window (panels:
+  their `refresh`, default 5m; browser displays live unless set) shows each
+  measurement as its time-weighted mean over the window ending now, from a
+  short in-memory sample buffer, not from extra HA sensors. Only
+  `state_class: measurement` is averaged (overrides under `averaging` in
+  defs.yaml); totals, text states and attributes stay live, as does an
+  entity with no data now. Status rules judge the averaged values; alerts
+  always judge live readings. The stamp reads `AVG 5M` over `AS OF 14:05`.
 - **Soft keys** share the bottom 40-unit strip with the banner (no page
   space lost). **Keys are positions 1-4** (like bezel buttons; soft keys,
   the WebSocket and the e-paper key route all send positions) and
