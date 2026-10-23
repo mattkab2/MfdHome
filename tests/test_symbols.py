@@ -75,7 +75,8 @@ class TestSeverityPatterns:
 
     def test_caution_dashes_an_uncased_line(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.CAUTION, None, LCD, casing=False)
-        assert 'stroke-dasharray="4.5 3"' in parts.body
+        # Long dashes: a dash barely longer than the line is wide reads as dots.
+        assert 'stroke-dasharray="12 6"' in parts.body
 
     def test_warning_hatches_the_hollow_and_forces_casing(self) -> None:
         parts = line(((0, 0), (100, 0)), Status.WARNING, None, LCD, casing=False, line_id="g")

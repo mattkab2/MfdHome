@@ -31,8 +31,11 @@ ARROW_DEPTH = 0.8
 ARROW_SHAFT = 0.2
 #: Inner (hollow) width never drops below this, so a cased line stays visibly hollow.
 MIN_HOLLOW = 1.0
-#: Caution dashes, as multiples of the drawn width: dash, gap.
+#: Caution dashes, as multiples of the drawn width: dash, gap. A plain line's
+#: dashes are longer, since a thin dash barely longer than it is wide reads as
+#: the no-data dots on a 1-bit panel.
 CAUTION_DASH = (1.5, 1.0)
+PLAIN_CAUTION_DASH = (4.0, 2.0)
 #: Hatch stripes cross the line at this angle to its direction.
 HATCH_ANGLE = 45.0
 
@@ -191,7 +194,7 @@ def _pattern(status: Status, theme: Theme, width: float) -> dict[str, svg.AttrVa
         # Dots as wide as the stroke, spaced so they stay distinct.
         return {**dotted(theme), "stroke-dasharray": f"0 {svg.fmt(2 * width)}"}
     if status is Status.CAUTION:
-        dash, gap = (width * k for k in CAUTION_DASH)
+        dash, gap = (width * k for k in PLAIN_CAUTION_DASH)
         return {"stroke-dasharray": f"{svg.fmt(dash)} {svg.fmt(gap)}"}
     return {}
 

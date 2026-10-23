@@ -318,7 +318,7 @@ without color:
 |---|---|
 | normal, no flow | solid walls, blank (hollow) core |
 | normal, flowing | **solid core** in the status color while \|rate\| is above the flow threshold |
-| caution | solid walls, **dashed core**, flowing or not (the arrow shows flow); a dashed stroke if uncased |
+| caution | solid walls, **dashed core**, flowing or not (the arrow shows flow); long dashes if uncased, so they never read as dots |
 | warning | hatched: stripes fill the hollow, rotated to cross each segment; casing is forced on |
 | unavailable | dotted |
 
