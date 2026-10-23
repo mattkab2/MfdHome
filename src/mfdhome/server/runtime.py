@@ -11,6 +11,7 @@ import logging
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, tzinfo
 
+from mfdhome.config.inventory import entity_uses
 from mfdhome.config.load import Config
 from mfdhome.mfd.alerts import (
     Board,
@@ -32,6 +33,7 @@ from mfdhome.render.log import log_rows, page_count
 from mfdhome.render.page import render_page
 from mfdhome.server.history import HistoryStore
 from mfdhome.server.store import BoardStore
+from mfdhome.sources.averaging import Samples, averaged
 from mfdhome.sources.staleness import mark_stale
 from mfdhome.themes.builtin import THEMES
 from mfdhome.themes.target import Target
@@ -71,6 +73,10 @@ class Runtime:
         self.pending: Pending = {}  # alerts waiting out their hold time
         self._logged: dict[str, str] = {}  # last states of logged entities
         self.state: StateSnapshot = {}
+        self.updated_at: datetime | None = None
+        windows = [d.average for d in config.displays.values() if d.average is not None]
+        # Recent values, for displays that show averages (only the entities in use).
+        self.samples = Samples(max(windows), entity_uses(config)) if windows else None
         self.selected = {d.id: d.home for d in config.displays.values()}
         self.locked = dict.fromkeys(config.displays, False)
         self.log_page = dict.fromkeys(config.displays, 0)  # 0: newest; reset on page change
@@ -92,6 +98,9 @@ class Runtime:
         regaining the connection are recorded in the history instead.
         """
         self.state = mark_stale(raw, self.config.defs.stale_after, now)
+        self.updated_at = now
+        if self.samples is not None:
+            self.samples.record(self.state, now)
         # Lost only once it was up; restored only after a loss (not at startup).
         kind = None
         if self.connected and not connected:
@@ -207,8 +216,19 @@ class Runtime:
         self._show(display_id, target)
         return action if target != current else None
 
-    def render(self, display_id: str, as_of: str | None = None) -> str:
-        """The SVG a display should show now, with an optional "as of" stamp."""
+    def view(self, display_id: str, now: datetime | None = None) -> StateSnapshot:
+        """The state a display shows at ``now`` (default: the last update): live, or
+        averaged over the display's window."""
+        display = self.config.displays[display_id]
+        now = now or self.updated_at
+        if display.average is None or self.samples is None or now is None:
+            return self.state
+        policy = self.config.defs.averaging
+        return averaged(self.state, self.samples, display.average, now, policy)
+
+    def render(self, display_id: str, as_of: str | None = None, now: datetime | None = None) -> str:
+        """The SVG a display should show at ``now`` (default: the last update), with an
+        optional "as of" stamp."""
         display = self.config.displays[display_id]
         page = self.config.pages[self.selected[display_id]]
         view = AlertView(
@@ -227,7 +247,8 @@ class Runtime:
             alert_status = None if urgent is None else SEVERITY_STATUS[urgent.severity]
             controls = Controls(alert_status, self.locked[display_id], self.actions(display_id))
         theme = THEMES[display.theme]
-        return render_page(page, self.state, theme, target, view, controls, as_of)
+        state = self.view(display_id, now)
+        return render_page(page, state, theme, target, view, controls, as_of)
 
     def record(self, events: list[AlertEvent]) -> None:
         """Add events to the history (and its file)."""

@@ -1,11 +1,13 @@
 """Time-averaging numeric states for slow-refreshing displays."""
 
+from dataclasses import replace
 from datetime import timedelta
 
 from mfdhome.model import snapshot_from_ha_states
 from mfdhome.model.state import AveragingPolicy, StateSnapshot
+from mfdhome.server.runtime import Runtime
 from mfdhome.sources.averaging import Samples, averaged
-from tests.support import T0, ha_state
+from tests.support import T0, ha_state, load_test_config
 
 MEASURED = {"state_class": "measurement", "unit_of_measurement": "W"}
 FIVE_MIN = timedelta(minutes=5)
@@ -94,3 +96,48 @@ def test_samples_keep_only_changes_within_reach() -> None:
     other = snapshot_from_ha_states([ha_state("sensor.other", "1", **MEASURED)])
     samples.record(other, T0)
     assert "sensor.other" not in samples._series  # not one the config uses
+
+
+# --- in the runtime: e-paper averages, browsers and alerts stay live ---------------------
+
+
+def house(load: str, wind: str = "10") -> StateSnapshot:
+    return snapshot_from_ha_states(
+        [
+            ha_state("sensor.load_power", load, **MEASURED),
+            ha_state("sensor.wind_speed", wind, state_class="measurement"),
+        ]
+    )
+
+
+def test_eink_shows_the_average_and_the_tablet_the_reading() -> None:
+    runtime = Runtime(load_test_config())
+    assert runtime.config.displays["main_floor"].average == FIVE_MIN  # its refresh
+    for display_id in ("workshop", "main_floor"):
+        runtime.select(display_id, "electrical")
+    for seconds, load in ((0, "500"), (120, "3000"), (150, "500")):
+        runtime.update(house(load), T0 + timedelta(seconds=seconds))
+    later = T0 + FIVE_MIN
+    assert ">750 W<" in runtime.render("main_floor", now=later)
+    assert ">500 W<" in runtime.render("workshop", now=later)
+    # Mid-spike, the panel shows a little of it; the tablet all of it.
+    runtime.update(house("3000"), later)
+    assert ">750 W<" in runtime.render("main_floor", now=later)  # the spike only starts now
+    assert ">3.0 kW<" in runtime.render("workshop")
+
+
+def test_alerts_judge_the_live_reading() -> None:
+    runtime = Runtime(load_test_config())
+    runtime.update(house("500"), T0)
+    runtime.update(house("500", wind="75"), T0 + timedelta(seconds=290))  # a 10 s gust
+    runtime.update(house("500"), T0 + FIVE_MIN)
+    assert "high_wind" in runtime.board  # raised (and latched) by the gust
+    shown = runtime.view("main_floor", T0 + FIVE_MIN)
+    assert float(shown["sensor.wind_speed"].state) < 60  # the average stays calm
+
+
+def test_no_averaging_display_records_nothing() -> None:
+    config = load_test_config()
+    live = {d: replace(display, average=None) for d, display in config.displays.items()}
+    runtime = Runtime(replace(config, displays=live))
+    assert runtime.samples is None
