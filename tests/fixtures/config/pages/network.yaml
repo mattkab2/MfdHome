@@ -1,0 +1,186 @@
+# Network page: a UniFi network (gateway, two switches, two access points)
+# and a MeshCore LoRa link. The gateway feeds both switches, the shop switch
+# over fiber. Home Assistant's host hangs off the core switch with its LoRa
+# companion radio on USB; the companion reaches a repeater elsewhere on the
+# property over the mesh, possibly through other repeaters. Generic entity
+# ids only (see docs/entities.md). Keep the bottom 40 units clear for the
+# banner and keys.
+page: network
+title: Network
+canvas: {width: 1000, height: 600}
+
+defs:
+  # Every UniFi device reports the same states. Anything but connected
+  # (upgrading, heartbeat missed, disconnected, ...) is a caution on the
+  # page; alerts decide what latches.
+  maps:
+    unifi_device:
+      states: {connected: normal}
+      default: caution
+
+elements:
+  - {id: title, type: text, at: [80, 40], text: NETWORK}
+
+  # --- internet and gateway ---------------------------------------------------------
+  - id: wan
+    type: line
+    from: [130, 300]
+    to: gateway.left
+    tag: {text: WAN, along: 0.25}
+    name: {text: INTERNET, along: 0, anchor: left}
+    bind: {rate: sensor.gateway_port_5_rx, state: binary_sensor.wan_online}
+    status: {from: state, map: {"on": normal}, default: warning}
+    flow: {threshold: 1}
+    readouts: [{value: rate, format: data_rate, along: 0.6, anchor: bottom}]
+
+  - id: gateway
+    type: router
+    at: [280, 300]
+    name: GATEWAY
+    bind:
+      state: sensor.gateway_state
+      cpu: sensor.gateway_cpu_utilization
+      temperature: sensor.gateway_temperature
+    status: {map: unifi_device}
+    readouts:
+      - {value: cpu, format: "CPU {:.0f}%"}
+      - {value: temperature, format: "{:.0f}°"}
+
+  - {id: to_lan, type: line, from: gateway.right, to: lan,
+     bind: {state: sensor.gateway_state}, status: {map: unifi_device}}
+  - {id: lan, type: node, at: [380, 300]}
+
+  # --- core switch: the house -------------------------------------------------------
+  - id: to_core
+    type: line
+    from: lan
+    to: core_switch.left
+    bind: {rate: sensor.core_switch_port_1_rx, state: sensor.core_switch_state}
+    status:
+      from: state
+      map: unifi_device
+      rules:
+        - level: caution    # a gigabit link that came up slow: usually a bad cable
+          when: [{entity: sensor.core_switch_port_1_link_speed, lt: 1000}]
+    flow: {threshold: 1}
+    readouts: [{value: rate, format: data_rate, along: 0.77}]
+
+  - id: core_switch
+    type: network_switch
+    at: [540, 170]
+    name: CORE SW
+    bind: {state: sensor.core_switch_state}
+    status: {map: unifi_device}
+
+  - id: to_ap_house
+    type: line
+    from: core_switch.right
+    to: ap_house.left
+    bind: {state: sensor.ap_house_state}
+    status: {map: unifi_device}
+
+  - id: ap_house
+    type: access_point
+    at: [750, 170]
+    name: AP HOUSE
+    bind: {state: sensor.ap_house_state, clients: sensor.ap_house_clients}
+    status: {map: unifi_device}
+    readouts: [{value: clients, format: "{:.0f} CLIENTS"}]
+
+  - id: to_host
+    type: line
+    from: core_switch.bottom
+    to: host.left
+    bind: {state: sensor.core_switch_state}
+    status: {map: unifi_device}
+
+  - id: host
+    type: host
+    at: [670, 305]
+    name: HOME ASST
+    bind:
+      cpu: sensor.system_monitor_processor_use
+      temperature: sensor.system_monitor_processor_temperature
+    readouts:
+      - {value: cpu, format: "CPU {:.0f}%"}
+      - {value: temperature, format: "{:.0f}°"}
+
+  # --- LoRa mesh: companion on USB, repeater over the air ----------------------------
+  - id: usb
+    type: line
+    from: host.right
+    to: lora.left
+    casing: false
+    tag: {text: USB, along: 0.5}
+    bind: {state: sensor.meshcore_a1b2c3_node_status}
+    status: {map: {online: normal}, default: caution}
+
+  - id: lora
+    type: radio
+    at: [810, 305]
+    name: LORA
+    bind: {state: sensor.meshcore_a1b2c3_node_status}
+    status: {map: {online: normal}, default: caution}
+
+  # The repeater is reached through the mesh, not a wire: the link is drawn
+  # plain and tagged RF, its state the repeater's reachability (gray until
+  # the first successful poll after Home Assistant starts).
+  - id: mesh
+    type: line
+    from: lora.right
+    to: repeater.left
+    casing: false
+    tag: {text: RF, along: 0.5}
+    bind: {state: binary_sensor.meshcore_4d5e6f7a8b_online_yard}
+    status: {map: {"on": normal, "off": caution}}
+
+  - id: repeater
+    type: radio
+    at: [945, 305]
+    name: REPEATER
+    bind:
+      state: binary_sensor.meshcore_4d5e6f7a8b_online_yard
+      hops: sensor.meshcore_4d5e6f7a8b_out_path_len_yard
+      snr: sensor.meshcore_4d5e6f7a8b_last_snr_yard
+    status: {map: {"on": normal, "off": caution}}
+    readouts:
+      - {value: hops, format: "HOPS {:.0f}"}
+      - {value: snr, format: "SNR {:.1f}"}
+
+  # --- shop switch: over fiber --------------------------------------------------------
+  - id: to_shop
+    type: line
+    from: lan
+    to: shop_switch.left
+    tag: {text: FO, along: 0.25}
+    bind: {rate: sensor.shop_switch_port_9_rx, state: sensor.shop_switch_state}
+    status:
+      from: state
+      map: unifi_device
+      rules:
+        - level: caution
+          when: [{entity: sensor.shop_switch_port_9_link_speed, lt: 10000}]
+    flow: {threshold: 1}
+    readouts: [{value: rate, format: data_rate, along: 0.77}]
+
+  - id: shop_switch
+    type: network_switch
+    at: [540, 440]
+    name: SHOP SW
+    bind: {state: sensor.shop_switch_state}
+    status: {map: unifi_device}
+
+  - id: to_ap_shop
+    type: line
+    from: shop_switch.right
+    to: ap_shop.left
+    bind: {state: sensor.ap_shop_state}
+    status: {map: unifi_device}
+
+  - id: ap_shop
+    type: access_point
+    at: [750, 440]
+    name: AP SHOP
+    bind: {state: sensor.ap_shop_state, clients: sensor.ap_shop_clients}
+    status: {map: unifi_device}
+    readouts: [{value: clients, format: "{:.0f} CLIENTS"}]

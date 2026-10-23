@@ -29,3 +29,9 @@ conditions:
 # Treat data as missing when HA has not heard from an entity for this long.
 stale_after:
   default: 15m
+  # MeshCore repeater entities update only when the repeater is polled (every
+  # 30 minutes here); the Online sensor itself says when it has gone quiet.
+  entities:
+    binary_sensor.meshcore_4d5e6f7a8b_online_yard: 2h
+    sensor.meshcore_4d5e6f7a8b_out_path_len_yard: 2h
+    sensor.meshcore_4d5e6f7a8b_last_snr_yard: 2h

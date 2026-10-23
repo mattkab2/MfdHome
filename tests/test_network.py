@@ -1,18 +1,33 @@
 """Network symbols: router, switch, access point, host and radio."""
 
 import re
+from pathlib import Path
 
 import pytest
+from syrupy.assertion import SnapshotAssertion
 
 from mfdhome.conditions import StateMap
 from mfdhome.conditions.model import ChannelRef
 from mfdhome.layout import Box, Port
-from mfdhome.model import EntityRef, Status, StatusSpec, SymbolElement, snapshot_from_ha_states
-from mfdhome.render import render_element
+from mfdhome.model import (
+    EntityRef,
+    StateSnapshot,
+    Status,
+    StatusSpec,
+    SymbolElement,
+    snapshot_from_ha_states,
+)
+from mfdhome.render import render_element, render_page
+from mfdhome.render.alerts import NO_ALERTS
+from mfdhome.render.panels import MONO
+from mfdhome.render.raster import rasterize
+from mfdhome.render.resolve import Resolver
 from mfdhome.symbols import get_symbol
 from mfdhome.symbols.geometry import element_box, find_port
-from mfdhome.themes import EINK_MONO, LCD, Theme
-from tests.support import ha_state
+from mfdhome.themes import EINK_COLOR, EINK_MONO, LCD, MIRROR, Target, Theme
+from tests.support import FIXTURES, config_page, fixture_state, ha_state
+
+EXAMPLES = Path(__file__).parent.parent / "examples"
 
 TYPES = ["router", "network_switch", "access_point", "host", "radio"]
 MAP = {"connected": Status.NORMAL, "disconnected": Status.WARNING}
@@ -89,3 +104,70 @@ def test_channels() -> None:
     assert radio.channels == ("state", "rssi", "snr", "noise_floor", "hops", "battery")
     assert radio.primary == "state" and "state" not in radio.numeric
     assert not radio.required  # a host or radio can be drawn with nothing bound
+
+
+# --- the page -------------------------------------------------------------------------
+
+TABLET = Target("tablet", 1280, 768)
+PAGE_STATES = ["normal", "degraded", "unreachable", "no_data"]
+
+
+def page_state(name: str) -> StateSnapshot:
+    return {} if name == "no_data" else fixture_state(f"network_{name}")
+
+
+def resolved(name: str) -> dict[str, Status]:
+    resolver = Resolver(page_state(name), NO_ALERTS)
+    out = {}
+    for element in config_page("network").elements:
+        result = resolver.element(element)
+        if result is not None:
+            out[element.id] = result.status
+    return out
+
+
+@pytest.mark.parametrize("theme", [LCD, MIRROR, EINK_MONO, EINK_COLOR], ids=lambda t: t.name)
+@pytest.mark.parametrize("name", PAGE_STATES)
+def test_network_snapshot(name: str, theme: Theme, svg_snapshot: SnapshotAssertion) -> None:
+    svg = render_page(config_page("network"), page_state(name), theme, TABLET)
+    assert svg == svg_snapshot
+    assert set(re.findall(r"#[0-9a-fA-F]{6}", svg)) <= theme.palette()
+
+
+def test_network_png_snapshot(png_snapshot: SnapshotAssertion) -> None:
+    svg = render_page(
+        config_page("network"), page_state("degraded"), EINK_MONO, Target("e", 800, 480)
+    )
+    assert rasterize(svg, MONO, EINK_MONO.background) == png_snapshot
+
+
+def test_test_page_matches_the_example() -> None:
+    page = "pages/network.yaml"
+    assert (FIXTURES / "config" / page).read_text() == (EXAMPLES / "config" / page).read_text()
+
+
+def test_all_quiet() -> None:
+    statuses = resolved("normal")
+    assert set(statuses.values()) == {Status.NORMAL}
+
+
+def test_a_switch_down_takes_its_link_and_ap() -> None:
+    statuses = resolved("degraded")
+    for element_id in ("shop_switch", "to_shop", "to_ap_shop", "ap_shop"):
+        assert statuses[element_id] is Status.CAUTION, element_id
+    assert statuses["to_core"] is Status.CAUTION  # came up at 100 Mbit/s
+    assert statuses["core_switch"] is Status.NORMAL and statuses["ap_house"] is Status.NORMAL
+
+
+def test_the_mesh_link_shows_the_repeater() -> None:
+    assert resolved("degraded")["mesh"] is Status.CAUTION  # quiet past its window
+    assert resolved("degraded")["usb"] is Status.NORMAL  # the companion is fine
+    assert resolved("no_data")["mesh"] is Status.UNAVAILABLE  # not polled yet
+
+
+def test_controller_unreachable_grays_unifi_only() -> None:
+    statuses = resolved("unreachable")
+    for element_id in ("gateway", "to_lan", "core_switch", "shop_switch", "ap_house", "ap_shop"):
+        assert statuses[element_id] is Status.UNAVAILABLE, element_id
+    assert statuses["wan"] is Status.WARNING
+    assert statuses["host"] is Status.NORMAL and statuses["mesh"] is Status.NORMAL

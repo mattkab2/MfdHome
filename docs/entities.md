@@ -68,3 +68,42 @@ sensor in Home Assistant and bound like any other entity.
 | Smoke detectors | `binary_sensor.*` | `device_class: smoke`, `on` = smoke |
 | Glass break, tamper | `binary_sensor.*` | `device_class: sound` / `tamper` |
 | Siren | `switch.*` | displays never switch it |
+
+## Network (UniFi)
+
+From Home Assistant's UniFi Network integration. Entity ids follow the device
+names given in UniFi (`Gateway`, `Core Switch`, ...).
+
+| What | Entity | Notes |
+|---|---|---|
+| Device state | `sensor.<device>_state` | `connected`, `disconnected`, `pending`, `firmware_mismatch`, `upgrading`, `provisioning`, `heartbeat_missed`, `adopting`, `deleting`, `inform_error`, `adoption_failed`, `isolated` |
+| CPU, memory | `sensor.<device>_cpu_utilization`, `sensor.<device>_memory_utilization` | % |
+| Temperature | `sensor.<device>_temperature` | devices with a sensor |
+| Clients | `sensor.<device>_clients` | clients connected through the device |
+| Port throughput | `sensor.<device>_port_<n>_rx`, `_tx` | Mbit/s; disabled by default, enable the ports you draw |
+| Port link speed | `sensor.<device>_port_<n>_link_speed` | Mbit/s; disabled by default |
+| Internet | `binary_sensor.*` | UniFi has no WAN entity: use the Ping integration (`device_class: connectivity`, `on` = reachable, `round_trip_time_avg` in ms) |
+
+On UniFi OS consoles the controller runs on the gateway, so when the gateway
+goes down every UniFi entity becomes unavailable at once. The example alerts
+raise one gateway alert for that, not one per device.
+
+## Network (MeshCore LoRa)
+
+From the meshcore-ha integration (HACS), with the companion radio on USB.
+`<pk6>`/`<pk10>` are the first 6 or 10 hex digits of a node's public key and
+`<name>` its advertised name.
+
+| What | Entity | Notes |
+|---|---|---|
+| Companion link | `sensor.meshcore_<pk6>_node_status` | `online`/`offline`: the radio's link to Home Assistant; its other entities go unavailable when it's disconnected |
+| Repeater reachable | `binary_sensor.meshcore_<pk10>_online_<name>` | `on` if a status request succeeded within 2.5 update intervals, `off` if not, `unknown` until the first success after Home Assistant starts |
+| Repeater path | `sensor.meshcore_<pk10>_out_path_len_<name>` | hops through other repeaters; 0 = heard directly |
+| Repeater signal | `sensor.meshcore_<pk10>_last_rssi_<name>`, `_last_snr_<name>`, `_noise_floor_<name>` | dBm, dB, dBm |
+| Repeater battery | `sensor.meshcore_<pk10>_battery_percentage_<name>` | solar or battery repeaters only |
+
+Repeater entities only update when the integration polls the repeater (its
+update interval, 2 hours by default; 30 minutes is a reasonable setting for
+a repeater you watch). Give them a `stale_after` longer than that interval,
+or the default limit marks them unavailable between polls; the Online sensor
+already says when a repeater has gone quiet.

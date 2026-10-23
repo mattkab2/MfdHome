@@ -1,0 +1,151 @@
+[
+ {
+  "entity_id": "binary_sensor.wan_online",
+  "state": "on",
+  "attributes": {
+   "device_class": "connectivity",
+   "round_trip_time_avg": 14.2
+  }
+ },
+ {
+  "entity_id": "sensor.gateway_state",
+  "state": "connected",
+  "attributes": {
+   "device_class": "enum"
+  }
+ },
+ {
+  "entity_id": "sensor.gateway_cpu_utilization",
+  "state": "18",
+  "attributes": {
+   "unit_of_measurement": "%"
+  }
+ },
+ {
+  "entity_id": "sensor.gateway_temperature",
+  "state": "126",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F",
+   "device_class": "temperature"
+  }
+ },
+ {
+  "entity_id": "sensor.gateway_port_5_rx",
+  "state": "412.6",
+  "attributes": {
+   "unit_of_measurement": "Mbit/s",
+   "device_class": "data_rate"
+  }
+ },
+ {
+  "entity_id": "sensor.core_switch_state",
+  "state": "connected",
+  "attributes": {
+   "device_class": "enum"
+  }
+ },
+ {
+  "entity_id": "sensor.core_switch_port_1_rx",
+  "state": "238.4",
+  "attributes": {
+   "unit_of_measurement": "Mbit/s",
+   "device_class": "data_rate"
+  }
+ },
+ {
+  "entity_id": "sensor.core_switch_port_1_link_speed",
+  "state": "1000",
+  "attributes": {
+   "unit_of_measurement": "Mbit/s",
+   "device_class": "data_rate"
+  }
+ },
+ {
+  "entity_id": "sensor.shop_switch_state",
+  "state": "connected",
+  "attributes": {
+   "device_class": "enum"
+  }
+ },
+ {
+  "entity_id": "sensor.shop_switch_port_9_rx",
+  "state": "1240",
+  "attributes": {
+   "unit_of_measurement": "Mbit/s",
+   "device_class": "data_rate"
+  }
+ },
+ {
+  "entity_id": "sensor.shop_switch_port_9_link_speed",
+  "state": "10000",
+  "attributes": {
+   "unit_of_measurement": "Mbit/s",
+   "device_class": "data_rate"
+  }
+ },
+ {
+  "entity_id": "sensor.ap_house_state",
+  "state": "connected",
+  "attributes": {
+   "device_class": "enum"
+  }
+ },
+ {
+  "entity_id": "sensor.ap_house_clients",
+  "state": "23",
+  "attributes": {}
+ },
+ {
+  "entity_id": "sensor.ap_shop_state",
+  "state": "connected",
+  "attributes": {
+   "device_class": "enum"
+  }
+ },
+ {
+  "entity_id": "sensor.ap_shop_clients",
+  "state": "6",
+  "attributes": {}
+ },
+ {
+  "entity_id": "sensor.system_monitor_processor_use",
+  "state": "7",
+  "attributes": {
+   "unit_of_measurement": "%"
+  }
+ },
+ {
+  "entity_id": "sensor.system_monitor_processor_temperature",
+  "state": "118",
+  "attributes": {
+   "unit_of_measurement": "\u00b0F",
+   "device_class": "temperature"
+  }
+ },
+ {
+  "entity_id": "sensor.meshcore_a1b2c3_node_status",
+  "state": "online",
+  "attributes": {}
+ },
+ {
+  "entity_id": "binary_sensor.meshcore_4d5e6f7a8b_online_yard",
+  "state": "on",
+  "attributes": {
+   "device_class": "connectivity"
+  }
+ },
+ {
+  "entity_id": "sensor.meshcore_4d5e6f7a8b_out_path_len_yard",
+  "state": "2",
+  "attributes": {
+   "unit_of_measurement": "hops"
+  }
+ },
+ {
+  "entity_id": "sensor.meshcore_4d5e6f7a8b_last_snr_yard",
+  "state": "6.25",
+  "attributes": {
+   "unit_of_measurement": "dB"
+  }
+ }
+]

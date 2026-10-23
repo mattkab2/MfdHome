@@ -22,7 +22,7 @@ type ServerFactory = Callable[[Any], Awaitable[TestServer]]
 
 def test_check_ok(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["check", str(CONFIG)]) == 0
-    assert "config ok: 7 pages, 26 alerts" in capsys.readouterr().out
+    assert "config ok: 8 pages, 26 alerts" in capsys.readouterr().out
 
 
 def test_check_reports_unknown_entities(capsys: pytest.CaptureFixture[str]) -> None:
@@ -57,7 +57,7 @@ def test_entity_uses_cover_bindings_rules_alerts_and_groups() -> None:
         "defs:conditions.grid_lost",
     } <= set(grid)
     assert uses["sensor.pv_p3_power"] == ["electrical:array"]  # inside the solar group
-    assert uses["binary_sensor.wan_online"] == ["alert:wan_down"]
+    assert uses["binary_sensor.wan_online"] == ["alert:wan_down", "network:wan"]
 
 
 def test_scrub() -> None:
