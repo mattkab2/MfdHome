@@ -1,0 +1,39 @@
+# Short spikes and lulls, on a loop, for watching averaging:
+#   mfdhome serve CONFIG --scenario THIS_FILE
+# The tablet shows every spike as it happens; the e-ink panel shows each
+# reading averaged over its refresh (5 minutes), so a kettle or a passing
+# cloud moves its numbers a little instead of holding there until the next
+# refresh. No alert is raised.
+states: house_normal.json
+loop: 10m
+steps:
+  - at: 30s                         # a kettle: 3 kW from the grid for 40 s
+    set: {sensor.load_power: "5000", sensor.grid_power: "3300"}
+  - at: 70s
+    set: {sensor.load_power: "2000", sensor.grid_power: "300"}
+  - at: 3m                          # a cloud: solar drops for 45 s, the battery covers it
+    set:
+      sensor.pv_p1_power: "150"
+      sensor.pv_p2_power: "150"
+      sensor.pv_p3_power: "150"
+      sensor.pv_p4_power: "150"
+      sensor.pv_p5_power: "150"
+      sensor.pv_p6_power: "150"
+      sensor.battery_power: "-800"
+  - at: 225s
+    set:
+      sensor.pv_p1_power: "540"
+      sensor.pv_p2_power: "535"
+      sensor.pv_p3_power: "530"
+      sensor.pv_p4_power: "530"
+      sensor.pv_p5_power: "535"
+      sensor.pv_p6_power: "530"
+      sensor.battery_power: "1500"
+  - at: 6m                          # a sink runs for 50 s
+    set: {sensor.water_flow: "2.5"}
+  - at: 410s
+    set: {sensor.water_flow: "0"}
+  - at: 8m                          # a 20 s download burst
+    set: {sensor.gateway_port_5_rx: "940"}
+  - at: 500s
+    set: {sensor.gateway_port_5_rx: "412.6"}

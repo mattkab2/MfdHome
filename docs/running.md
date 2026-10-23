@@ -61,8 +61,10 @@ steps:
 Steps play in real time, so hold times (`for:`), latching, the banner, ACK
 and the log all behave as they would live. `examples/scenarios/` has a quiet
 example house and looping scenarios for the example config: a grid outage,
-a water heater leak closed off by the smart shutoff, a break-in, and a network
-outage (the shop switch drops and the mesh repeater goes quiet):
+a water heater leak closed off by the smart shutoff, a break-in, a network
+outage (the shop switch drops and the mesh repeater goes quiet), and spiky
+loads (a kettle, a passing cloud: watch the tablet and the e-ink panel side
+by side):
 
 ```bash
 mfdhome serve examples/config --scenario examples/scenarios/grid_outage.yaml

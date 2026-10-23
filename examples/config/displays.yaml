@@ -17,3 +17,7 @@ displays:
     home: status
     pages: [status, electrical, water, hvac, security, network, log]
     panel: mono
+    # The device fetches its image every 5 minutes (set its update interval to
+    # match); measurements show averaged over those 5 minutes, so a passing
+    # spike or lull isn't held on the panel until the next refresh.
+    refresh: 5m

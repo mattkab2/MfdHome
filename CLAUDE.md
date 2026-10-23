@@ -75,7 +75,7 @@ examples/
                # hardcode house specifics in src/
   scenarios/   # A quiet example house and looping scenarios for
                # 'serve --scenario' (grid outage, water leak, break-in,
-               # network outage)
+               # network outage, spiky loads)
 ```
 
 ### Core rules
