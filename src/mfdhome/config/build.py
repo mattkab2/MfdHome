@@ -20,7 +20,7 @@ from mfdhome.conditions.model import (
     Rule,
     ValueRef,
 )
-from mfdhome.conditions.sugar import Thresholds, state_map_rules
+from mfdhome.conditions.sugar import StateMap, Thresholds
 from mfdhome.config.errors import Issues, Loc
 from mfdhome.config.schema import (
     AlertModel,
@@ -92,10 +92,11 @@ class Defs:
     thresholds: Mapping[str, Thresholds] = field(default_factory=dict)
     conditions: Mapping[str, AnyOf] = field(default_factory=dict)
     stale_after: StalePolicy = field(default_factory=StalePolicy)
+    maps: Mapping[str, StateMap] = field(default_factory=dict)
 
     def merge(self, other: Defs) -> tuple[Defs, list[str]]:
         """Combine two sets of defs; returns the result and any duplicated names."""
-        kinds = ("thresholds", "conditions")
+        kinds = ("thresholds", "conditions", "maps")
         dupes = sorted(
             f"{kind}.{name}"
             for kind in kinds
@@ -105,6 +106,7 @@ class Defs:
             thresholds={**self.thresholds, **other.thresholds},
             conditions={**self.conditions, **other.conditions},
             stale_after=self.stale_after,
+            maps={**self.maps, **other.maps},
         )
         return merged, dupes
 
@@ -118,6 +120,11 @@ def validate[M: BaseModel](model: type[M], data: Any, loc: Loc, issues: Issues) 
             message = str(err["msg"]).removeprefix("Value error, ")
             issues.add(loc + tuple(err["loc"]), message)
         return None
+
+
+def _state_map(states: Mapping[str, str], default: str | None) -> StateMap:
+    mapping = {k.strip().lower(): Status(v) for k, v in states.items()}
+    return StateMap(mapping, Status(default or "normal"))
 
 
 def _thresholds(model: ThresholdsModel) -> Thresholds:
@@ -259,8 +266,9 @@ def build_defs(
     exprs = _Exprs(model.conditions, base.conditions, issues, prefix)
     conditions = {name: exprs.use(name, (*prefix, "conditions", name)) for name in model.conditions}
     thresholds = {name: _thresholds(t) for name, t in model.thresholds.items()}
+    maps = {name: _state_map(m.states, m.default) for name, m in model.maps.items()}
     stale = model.stale_after or StaleModel()
-    return Defs(thresholds, conditions, StalePolicy(stale.default, stale.entities))
+    return Defs(thresholds, conditions, StalePolicy(stale.default, stale.entities), maps)
 
 
 # --- elements ---------------------------------------------------------------------------------
@@ -356,9 +364,16 @@ class _ElementBuilder:
                     rules.extend(named.rules(ref))
             else:
                 rules.extend(_thresholds(model.thresholds).rules(ref))
-        if model.map is not None:
-            mapping = {k.strip().lower(): Status(v) for k, v in model.map.items()}
-            rules.extend(state_map_rules(ref, mapping, Status(model.default or "normal")))
+        if isinstance(model.map, str):
+            named_map = self.defs.maps.get(model.map)
+            if named_map is None:
+                self.issues.add((*loc, "map"), f"unknown map {model.map!r}")
+            else:
+                if model.default is not None:
+                    named_map = StateMap(named_map.states, Status(model.default))
+                rules.extend(named_map.rules(ref))
+        elif model.map is not None:
+            rules.extend(_state_map(model.map, model.default).rules(ref))
         for i, rule in enumerate(model.rules):
             when = self.exprs.expr(rule, (*loc, "rules", i), bound)
             rules.append(Rule(Status(rule.level), when))

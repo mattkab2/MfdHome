@@ -45,3 +45,15 @@ def state_map_rules(
     if default is not Status.NORMAL:
         rules.append(Rule(default, AnyOf.single(Condition(ref, Op.NOT_IN, tuple(mapping)))))
     return tuple(rules)
+
+
+@dataclass(frozen=True)
+class StateMap:
+    """Levels for listed states (lowercase) and a level for any other available state."""
+
+    states: Mapping[str, Status]
+    default: Status = Status.NORMAL
+
+    def rules(self, ref: ValueRef) -> tuple[Rule, ...]:
+        """Compile to rules on ``ref``."""
+        return state_map_rules(ref, self.states, self.default)

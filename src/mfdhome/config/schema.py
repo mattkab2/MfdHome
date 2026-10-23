@@ -160,12 +160,19 @@ class ThresholdsModel(Strict):
     warning_high: float | None = None
 
 
+class StateMapModel(Strict):
+    """A named state map: levels for listed states, ``default`` for any other."""
+
+    states: dict[str, Level]
+    default: Level | None = None
+
+
 class StatusModel(Strict):
     """Status rules plus ``thresholds``/``map`` shorthands on the ``from`` channel."""
 
     from_: str | None = Field(default=None, alias="from")
     thresholds: str | ThresholdsModel | None = None
-    map: dict[str, Level] | None = None
+    map: str | dict[str, Level] | None = None
     default: Level | None = None
     rules: list[RuleModel] = []
     systems: list[Ident] = []
@@ -419,10 +426,11 @@ class StaleModel(Strict):
 
 
 class DefsModel(Strict):
-    """Shared definitions: thresholds, conditions and staleness limits."""
+    """Shared definitions: thresholds, state maps, conditions and staleness limits."""
 
     stale_after: StaleModel | None = None
     thresholds: dict[Ident, ThresholdsModel] = {}
+    maps: dict[Ident, StateMapModel] = {}
     conditions: dict[Ident, ExprModel] = {}
 
 

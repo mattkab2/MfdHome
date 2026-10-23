@@ -558,7 +558,7 @@ The rules below decide the element's status (normal, caution, warning):
 status:
   from: level                # channel for thresholds/map; default: the primary
   thresholds: battery_soc    # a defs name, or {warning_low, caution_low, caution_high, warning_high}
-  map: {on: normal, off: caution}
+  map: {on: normal, off: caution}   # or a defs name
   default: caution           # level for states not in `map` (only with map; default normal)
   systems: [GRID]            # also take the worst *active* alert of these systems
   alerts: [battery_low]      # ...and of these alerts
@@ -638,6 +638,11 @@ stale_after:                 # house-wide; only in defs.yaml, not page-local def
 thresholds:
   battery_soc: {warning_low: 10, caution_low: 25}
 
+maps:                        # named state maps, for 'map: unifi_device'
+  unifi_device:
+    states: {connected: normal, disconnected: warning}
+    default: caution         # any other state; an element's own 'default' wins
+
 conditions:
   grid_lost:
     when: [{entity: sensor.grid_power, unavailable: true}]
@@ -702,8 +707,7 @@ alerts:
 - Cautions and warnings **latch**: they stay raised until someone acknowledges
   them, even after the condition clears. Advisories clear on their own.
 - One acknowledgement covers the whole house.
-- `system` must be declared under `systems`, and `page`, if given, must be one
-  of the loaded pages.
+- `system` must be declared under `systems`.
 - While any caution or warning is unacknowledged, an annunciator banner naming
   the most urgent one shows along the bottom 40 units of whatever page is
   displayed, so keep that strip clear on every page.
