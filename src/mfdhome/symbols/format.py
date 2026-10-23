@@ -8,7 +8,7 @@ from mfdhome.symbols import svg
 NO_DATA = "---"
 
 #: Named formatters accepted in readouts.
-FORMATS = frozenset({"power", "percent", "number", "raw"})
+FORMATS = frozenset({"power", "data_rate", "percent", "number", "raw"})
 
 
 def is_valid_format(fmt: str) -> bool:
@@ -34,6 +34,39 @@ def format_power(value: float, unit: str | None) -> str:
     return f"{value:.0f} {unit}"
 
 
+#: Home Assistant's data rate units, in bits per second. Case matters: B is bytes.
+DATA_RATE_UNITS = {
+    "bit/s": 1.0,
+    "kbit/s": 1e3,
+    "Mbit/s": 1e6,
+    "Gbit/s": 1e9,
+    "B/s": 8.0,
+    "kB/s": 8e3,
+    "MB/s": 8e6,
+    "GB/s": 8e9,
+    "KiB/s": 8 * 2.0**10,
+    "MiB/s": 8 * 2.0**20,
+    "GiB/s": 8 * 2.0**30,
+}
+_BIT_RATE_SCALES = ((1e9, "Gb/s"), (1e6, "Mb/s"), (1e3, "kb/s"))
+
+
+def format_data_rate(value: float, unit: str | None) -> str:
+    """Format a data rate in bits per second, scaled to b/s, kb/s, Mb/s or Gb/s.
+
+    Any of Home Assistant's data rate units is converted (no unit: Mbit/s);
+    one decimal below 10 (dropped when zero), whole numbers above.
+    """
+    factor = DATA_RATE_UNITS.get(unit or "Mbit/s")
+    if factor is None:
+        return f"{svg.fmt(value)} {unit}"
+    bits = value * factor
+    scale, label = next(((f, u) for f, u in _BIT_RATE_SCALES if abs(bits) >= f), (1.0, "b/s"))
+    scaled = bits / scale
+    text = f"{scaled:.1f}".removesuffix(".0") if abs(scaled) < 10 else f"{scaled:.0f}"
+    return f"{text} {label}"
+
+
 def format_value(value: Value, fmt: str, unit: str | None = None, absolute: bool = False) -> str:
     """Format a bound value for display; missing or non-numeric data shows ``---``.
 
@@ -52,6 +85,8 @@ def format_value(value: Value, fmt: str, unit: str | None = None, absolute: bool
     match fmt:
         case "power":
             return format_power(number, unit)
+        case "data_rate":
+            return format_data_rate(number, unit)
         case "percent":
             return f"{number:.0f}%"
         case "number":

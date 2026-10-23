@@ -510,6 +510,8 @@ readouts:
 - `format` is one of the named formatters, or a Python format string applied
   to the number:
   - `power`: W below 1000 and kW above; kW input is normalized
+  - `data_rate`: bits per second, scaled to b/s, kb/s, Mb/s or Gb/s; any of Home
+    Assistant's data rate units is converted (no unit: Mbit/s)
   - `percent`
   - `number`: up to 2 decimals plus the unit
   - `raw`: the state string as-is

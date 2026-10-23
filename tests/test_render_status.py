@@ -82,6 +82,14 @@ class TestFormat:
             (Value("21.456"), "{:.1f} °C", None, False, "21.5 °C"),
             (Value("abc"), "number", None, False, NO_DATA),
             (Value("heating"), "raw", None, False, "heating"),
+            (Value("412.3", "Mbit/s"), "data_rate", None, False, "412 Mb/s"),
+            (Value("1240", "Mbit/s"), "data_rate", None, False, "1.2 Gb/s"),
+            (Value("8.43"), "data_rate", None, False, "8.4 Mb/s"),  # no unit: Mbit/s
+            (Value("0.6", "Mbit/s"), "data_rate", None, False, "600 kb/s"),
+            (Value("2.5", "MB/s"), "data_rate", None, False, "20 Mb/s"),  # bytes, not bits
+            (Value("0", "kbit/s"), "data_rate", None, False, "0 b/s"),
+            (Value("2000"), "data_rate", None, False, "2 Gb/s"),
+            (Value("12", "pkt/s"), "data_rate", None, False, "12 pkt/s"),
         ],
     )
     def test_format_value(
