@@ -34,8 +34,23 @@ from mfdhome.themes.builtin import THEMES
 
 logger = logging.getLogger(__name__)
 
-#: Attributes kept by ``dump-states --scrub``; everything else may identify the house.
-SCRUB_KEEP_ATTRIBUTES = frozenset({"unit_of_measurement", "device_class", "state_class"})
+#: Attributes kept by ``dump-states --scrub``: what pages read (units and classes,
+#: thermostats' and water heaters' temperatures, setpoints and action, valve and
+#: cover positions). Everything else, names included, may identify the house.
+SCRUB_KEEP_ATTRIBUTES = frozenset(
+    {
+        "unit_of_measurement",
+        "device_class",
+        "state_class",
+        "current_temperature",
+        "temperature",
+        "target_temp_low",
+        "target_temp_high",
+        "hvac_action",
+        "current_humidity",
+        "current_position",
+    }
+)
 #: Domains dropped by ``--scrub``: they carry people and locations.
 SCRUB_DROP_DOMAINS = frozenset({"person", "device_tracker", "zone", "camera", "image"})
 

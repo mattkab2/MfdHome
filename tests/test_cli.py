@@ -66,11 +66,30 @@ def test_scrub() -> None:
             "state": "5",
             "attributes": {"unit_of_measurement": "W", "friendly_name": "Garage panel"},
         },
+        {
+            "entity_id": "climate.main",
+            "state": "heat",
+            "attributes": {
+                "hvac_action": "heating",
+                "current_temperature": 68.5,
+                "temperature": 70,
+                "friendly_name": "Hallway",
+            },
+        },
         {"entity_id": "person.someone", "state": "home", "attributes": {}},
         {"entity_id": "device_tracker.phone", "state": "home", "attributes": {"latitude": 1}},
     ]
     assert scrub(states) == [
-        {"entity_id": "sensor.p", "state": "5", "attributes": {"unit_of_measurement": "W"}}
+        {"entity_id": "sensor.p", "state": "5", "attributes": {"unit_of_measurement": "W"}},
+        {
+            "entity_id": "climate.main",
+            "state": "heat",
+            "attributes": {
+                "hvac_action": "heating",
+                "current_temperature": 68.5,
+                "temperature": 70,
+            },
+        },
     ]
 
 

@@ -29,7 +29,7 @@ argument or `MFD_CONFIG`. `examples/config/` is a complete starting point.
 | `mfdhome check CONFIG` | Validates the config and reports every problem with file and line. |
 | `mfdhome check CONFIG --ha` | Also lists every bound entity that doesn't exist in Home Assistant, with where it's used. |
 | `mfdhome check CONFIG --states FILE` | The same, against a saved states dump instead of a live HA. |
-| `mfdhome dump-states -o states.json --scrub` | Saves HA's current states as a fixture. `--scrub` keeps only what rendering needs and drops people and location domains. |
+| `mfdhome dump-states -o states.json --scrub` | Saves HA's current states as a fixture. `--scrub` keeps only the attributes pages read (units, device and state classes, thermostat and water heater temperatures, setpoints and action, positions), drops names, and drops people and location domains. |
 | `mfdhome render CONFIG DISPLAY` | Renders one display once, to `DISPLAY.png` for e-paper panels or `DISPLAY.svg` otherwise. `--states FILE` renders a saved states dump (alerts included), `--page` picks a page, `-o` names the file. |
 | `mfdhome serve CONFIG` | Runs the live display server (see below). |
 | `mfdhome serve CONFIG --states FILE` | The same, from a fixed states dump instead of Home Assistant. |
