@@ -381,11 +381,10 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
    HVAC and Security pages against it (in the private config repo). The
    roadmap that built these pages on synthetic fixtures (`docs/roadmap.md`)
    is complete.
-2. **Home Assistant add-on (app):** built and released (`v0.1.0`; image,
-   Supervisor mode, add-on wrapper, `mfdhome addon`, docs) and running on
-   the owner's Pi. Next release: `v0.2.0` (taller displays and the
-   annunciator band, server-paced e-paper redraws, `eink_gray`, condenser
-   `power`).
+2. **Home Assistant add-on (app):** built and released (image, Supervisor
+   mode, add-on wrapper, `mfdhome addon`, docs) and running on the owner's
+   Pi. Latest release `v0.2.0` (see `addon/CHANGELOG.md`); the next
+   unreleased minor collects library changes the hardware plans need.
    - Follow-on: reloading the config without a restart.
 
 ## Future work (not yet scheduled)

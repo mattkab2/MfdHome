@@ -4,7 +4,7 @@
 # from git, then the display server.
 ARG BUILD_FROM=ghcr.io/home-assistant/base-python:3.14-alpine3.24
 FROM ${BUILD_FROM}
-ARG BUILD_VERSION=0.1.0
+ARG BUILD_VERSION=0.2.0
 
 RUN apk add --no-cache git openssh-client \
     && git clone --depth 1 --branch "v${BUILD_VERSION}" \
