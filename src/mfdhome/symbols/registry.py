@@ -63,7 +63,7 @@ from mfdhome.symbols.network import (
 from mfdhome.symbols.outlet import inlet_ports, outlet, outlet_box
 from mfdhome.symbols.panel import panel_box, solar_panel
 from mfdhome.symbols.sensor import gauge, gauge_box, sensor, sensor_box
-from mfdhome.symbols.transfer import ats_box, load_panel, transfer_switch
+from mfdhome.symbols.transfer import ats_box, load_panel, panel_breaker_ports, transfer_switch
 from mfdhome.symbols.transfer import panel_box as load_panel_box
 from mfdhome.symbols.valve import Body, ValveState, valve, valve_box
 from mfdhome.symbols.vessels import Connections, pump, pump_box, tank, tank_box, tank_ports
@@ -208,6 +208,15 @@ def _terminal(box: Callable[[Point, Orientation], Box], side: float) -> PortFn:
         return Port((b.left if side < 0 else b.right, at[1]), (side, 0.0))
 
     return port
+
+
+def _panel_ports() -> dict[str, PortFn]:
+    """A load panel's per-breaker ports (``l1``-``l4``, ``r1``-``r4``)."""
+
+    def port(name: str) -> PortFn:
+        return lambda at, _orientation: panel_breaker_ports(*at)[name]
+
+    return {name: port(name) for name in panel_breaker_ports(0.0, 0.0)}
 
 
 def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:
@@ -910,6 +919,7 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         numeric=frozenset({"power"}),
         box=lambda at, _orientation: load_panel_box(*at),
         draw=lambda inp, theme: load_panel(*inp.at, inp.status, theme),
+        ports=_panel_ports(),
     ),
     "solar_panel": SymbolSpec(
         type="solar_panel",

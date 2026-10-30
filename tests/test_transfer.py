@@ -54,3 +54,11 @@ def test_symbols_draw_in_status_colors() -> None:
     assert panel.count("<line") == 1 + 8  # bus + 4 breakers each side
     spec = get_symbol("load_panel")
     assert spec.required == frozenset() and spec.primary == "power"
+
+
+def test_load_panel_has_a_port_at_each_breaker() -> None:
+    panel = SymbolElement("loads", "load_panel", (100, 100))
+    # ticks from 12 inside the top to 12 inside the bottom of the 80-tall box
+    assert find_port(panel, "l1") == Port((70, 72), (-1.0, 0.0))
+    assert find_port(panel, "r4") == Port((130, 128), (1.0, 0.0))
+    assert find_port(panel, "l2").point[1] == pytest.approx(72 + 56 / 3)

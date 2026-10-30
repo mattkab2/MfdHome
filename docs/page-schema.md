@@ -63,7 +63,7 @@ Any registered symbol type, centered at `at`:
 | `breaker` | `state` | `state` | `closed`: states that mean closed, default `[on, closed]` |
 | `solar_panel` | `power` (numeric) | `power` | none |
 | `transfer_switch` | `state` | `state` | `connected`: states that mean grid-connected, default `[on, connected, grid, closed]` |
-| `load_panel` | `power` (numeric) | none | none |
+| `load_panel` | `power` (numeric) | none | none; ports `l1`-`l4` and `r1`-`r4` at its breakers |
 | `electric_meter` | `power` (numeric), `energy` (numeric) | none | `label`: up to 5 characters drawn inside, default `kWh` |
 | `water_meter` | `flow` (numeric), `total` (numeric) | none | `label`, default `GAL` |
 | `smart_breaker` | `state`, `power` (numeric) | `state` | `closed`, as for `breaker` |
@@ -92,6 +92,10 @@ Any registered symbol type, centered at `at`:
 | `access_point` | as for `router`, plus `clients` (numeric) | none | none |
 | `host` | as for `router` | none | none |
 | `radio` | `state`, `rssi`, `snr`, `noise_floor`, `hops`, `battery` (numeric) | none | none |
+
+A `load_panel` has a port at each breaker it draws (`l1` to `l4` down the
+left side, `r1` to `r4` down the right), so a circuit can leave from its own
+breaker.
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
 backup. Its grid contact faces left (top when vertical) and its load contact

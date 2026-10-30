@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from mfdhome.layout.anchors import Box
+from mfdhome.layout.route import Port
 from mfdhome.model.binding import Status
 from mfdhome.model.page import Orientation
 from mfdhome.symbols import svg
@@ -81,19 +82,35 @@ def panel_box(x: float, y: float) -> Box:
     return Box(x - PANEL_WIDTH / 2, y - PANEL_HEIGHT / 2, x + PANEL_WIDTH / 2, y + PANEL_HEIGHT / 2)
 
 
+def _breaker_rows(y: float) -> list[float]:
+    """Heights of the panel's breaker ticks, top to bottom."""
+    top, bottom = y - PANEL_HEIGHT / 2 + 12, y + PANEL_HEIGHT / 2 - 12
+    step = (bottom - top) / (PANEL_BREAKERS - 1)
+    return [top + i * step for i in range(PANEL_BREAKERS)]
+
+
+def panel_breaker_ports(x: float, y: float) -> dict[str, Port]:
+    """A port on the panel's edge level with each breaker tick: ``l1``-``l4`` down
+    the left side and ``r1``-``r4`` down the right, so a circuit can leave from
+    its own breaker."""
+    ports = {}
+    for i, yy in enumerate(_breaker_rows(y), start=1):
+        ports[f"l{i}"] = Port((x - PANEL_WIDTH / 2, yy), (-1.0, 0.0))
+        ports[f"r{i}"] = Port((x + PANEL_WIDTH / 2, yy), (1.0, 0.0))
+    return ports
+
+
 def load_panel(x: float, y: float, status: Status, theme: Theme) -> str:
     """Render a breaker panel: a box with a center bus and breaker ticks either side."""
     box = panel_box(x, y)
     outline = stroke(status, theme, theme.symbol_stroke_width)
     inner = stroke(status, theme, theme.symbol_stroke_width)
-    top, bottom = box.top + 12, box.bottom - 12
+    rows = _breaker_rows(y)
     parts = [
         svg.rect(box.left, box.top, PANEL_WIDTH, PANEL_HEIGHT, {"fill": "none", **outline}),
-        svg.line(x, top, x, bottom, inner),
+        svg.line(x, rows[0], x, rows[-1], inner),
     ]
-    step = (bottom - top) / (PANEL_BREAKERS - 1)
-    for i in range(PANEL_BREAKERS):
-        yy = top + i * step
+    for yy in rows:
         for x1, x2 in ((x - 14, x - 4), (x + 4, x + 14)):
             parts.append(svg.line(x1, yy, x2, yy, inner))
     return "".join(parts)
