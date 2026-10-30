@@ -113,6 +113,27 @@ class TestGatewayPorts:
         assert ">1<" in svg and ">7<" in svg
         assert box("router") == Box(70, 80, 130, 120)  # without ports, as before
 
+    def test_a_numbered_wan_socket_on_the_left(self) -> None:
+        params = get_symbol("router").params({"lan": [1, 2, 3, 4, 6, 7], "wan": 5})
+        gateway = SymbolElement("g", "router", (100, 100), params=params)
+        # a socket column on each side of the routes: 60 + 16 + 16 wide
+        assert element_box(gateway) == Box(54, 42, 146, 158)
+        assert find_port(gateway, "wan") == Port((54, 100), (-1.0, 0.0))
+        assert find_port(gateway, "lan1") == Port((146, 50), (1.0, 0.0))
+        svg = render_element(gateway, {}, LCD)
+        assert '<rect x="54" y="97" width="6" height="6"' in svg  # inside the left edge
+        assert ">5<" in svg
+        assert '<circle cx="100" cy="100" r="13"' in svg  # the routes stay centered
+        wan_only = get_symbol("router").params({"wan": 5})
+        assert element_box(SymbolElement("g", "router", (100, 100), params=wan_only)) == Box(
+            62, 80, 138, 120
+        )
+
+    @pytest.mark.parametrize("wan", [0, 3, True, "5"])
+    def test_wan_is_validated(self, wan: object) -> None:
+        with pytest.raises(ValueError, match="'wan' must be a port number from 1 to 99"):
+            get_symbol("router").params({"lan": [1, 2, 3], "wan": wan})
+
     @pytest.mark.parametrize("lan", [[0], [1, 1], ["1"], [True], list(range(1, 14)), "1,2"])
     def test_lan_is_validated(self, lan: object) -> None:
         with pytest.raises(ValueError, match="'lan' must list up to 12 different port numbers"):

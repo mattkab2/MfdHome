@@ -61,12 +61,12 @@ from mfdhome.symbols.network import (
     ap_box,
     host,
     host_box,
-    lan_ports,
     network_switch,
     radio,
     radio_box,
     router,
     router_box,
+    router_ports,
     switch_box,
 )
 from mfdhome.symbols.outlet import inlet_ports, outlet, outlet_box
@@ -758,7 +758,7 @@ MAX_LAN_PORTS = 12
 
 
 def _router_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"lan"}
+    unknown = set(raw) - {"lan", "wan"}
     if unknown:
         raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
     lan = raw.get("lan", [])
@@ -771,7 +771,12 @@ def _router_params(raw: Mapping[str, object]) -> Mapping[str, object]:
         raise ValueError(
             f"'lan' must list up to {MAX_LAN_PORTS} different port numbers from 1 to 99"
         )
-    return {"lan": tuple(lan)}
+    wan = raw.get("wan")
+    if wan is not None and (
+        isinstance(wan, bool) or not isinstance(wan, int) or not 1 <= wan <= 99 or wan in lan
+    ):
+        raise ValueError("'wan' must be a port number from 1 to 99, not one of the 'lan' ports")
+    return {"lan": tuple(lan), "wan": wan}
 
 
 def _lan(params: Mapping[str, object]) -> tuple[int, ...]:
@@ -780,13 +785,19 @@ def _lan(params: Mapping[str, object]) -> tuple[int, ...]:
     return lan
 
 
+def _wan(params: Mapping[str, object]) -> int | None:
+    wan = params.get("wan")
+    assert wan is None or isinstance(wan, int)
+    return wan
+
+
 def _router_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
-    lan = _lan(params)
+    lan, wan = _lan(params), _wan(params)
 
     def port(name: str) -> PortFn:
-        return lambda at, _orientation: lan_ports(*at, lan)[name]
+        return lambda at, _orientation: router_ports(*at, lan, wan)[name]
 
-    return {name: port(name) for name in lan_ports(0.0, 0.0, lan)}
+    return {name: port(name) for name in router_ports(0.0, 0.0, lan, wan)}
 
 
 def _network_spec(
@@ -993,9 +1004,13 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "router": replace(
         _network_spec("router", router_box, router),
         params=_router_params,
-        box_for=lambda at, _orientation, params: router_box(*at, len(_lan(params))),
+        box_for=lambda at, _orientation, params: router_box(
+            *at, len(_lan(params)), _wan(params) is not None
+        ),
         ports_for=_router_ports,
-        draw=lambda inp, theme: router(*inp.at, inp.status, theme, _lan(inp.params)),
+        draw=lambda inp, theme: router(
+            *inp.at, inp.status, theme, _lan(inp.params), _wan(inp.params)
+        ),
     ),
     "network_switch": _network_spec("network_switch", switch_box, network_switch),
     "access_point": _network_spec(

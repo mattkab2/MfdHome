@@ -7,8 +7,9 @@ status weight; the fine marks inside keep theirs, so they stay legible.
 
 Each is centered on its body; the access point's arcs and the radio's mast
 reach above it, so lines attach level with the body and names clear the marks.
-A router can break out its LAN ports: one numbered port each down its right
-edge, so every device on the gateway gets its own line.
+A router can break out its ports: a numbered socket for the WAN on its left
+edge and one for each LAN port down its right edge, so every device on the
+gateway gets its own line.
 """
 
 from __future__ import annotations
@@ -28,9 +29,9 @@ ROUTE_RADIUS = 13.0  # the circle of crossed routes
 CHEVRON = 4.0  # half-width of the arrowheads on the routes
 LAN_PITCH = 20.0  # between broken-out LAN ports: room for a pipe each
 LAN_MARGIN = 8.0  # from the box's top and bottom to the first and last port
-LAN_WIDTH = 76.0  # a router with ports: room for their numbers beside the routes
-LAN_MARK = 6.0  # a port's square, on the right edge
-LAN_NUMBER_SCALE = 0.6  # port numbers relative to the theme's font size
+SOCKET_COLUMN = 16.0  # added width for a column of numbered sockets
+SOCKET = 6.0  # a socket's square, on the edge
+SOCKET_NUMBER_SCALE = 0.6  # socket numbers relative to the theme's font size
 
 SWITCH_WIDTH, SWITCH_HEIGHT = 84.0, 28.0
 SWITCH_PORTS = 8
@@ -64,55 +65,67 @@ def _centered(x: float, y: float, width: float, height: float, above: float = 0.
     return Box(x - width / 2, y - height / 2 - above, x + width / 2, y + height / 2)
 
 
-def _router_size(lan: int) -> tuple[float, float]:
-    if not lan:
-        return ROUTER_WIDTH, ROUTER_HEIGHT
-    return LAN_WIDTH, max(ROUTER_HEIGHT, (lan - 1) * LAN_PITCH + 2 * LAN_MARGIN)
+def _router_size(lan: int, wan: bool) -> tuple[float, float]:
+    """Width and height: wider by a column for the LAN ports (right) and the WAN
+    socket (left), taller to fit the LAN ports."""
+    width = ROUTER_WIDTH + (SOCKET_COLUMN if lan else 0.0) + (SOCKET_COLUMN if wan else 0.0)
+    height = max(ROUTER_HEIGHT, (lan - 1) * LAN_PITCH + 2 * LAN_MARGIN) if lan else ROUTER_HEIGHT
+    return width, height
 
 
-def router_box(x: float, y: float, lan: int = 0) -> Box:
-    """Bounding box of a router centered at (x, y), taller with ``lan`` ports broken out."""
-    return _centered(x, y, *_router_size(lan))
+def router_box(x: float, y: float, lan: int = 0, wan: bool = False) -> Box:
+    """Bounding box of a router centered at (x, y), with ``lan`` ports broken out and
+    a numbered ``wan`` socket."""
+    return _centered(x, y, *_router_size(lan, wan))
 
 
-def lan_ports(x: float, y: float, lan: Sequence[int]) -> dict[str, Port]:
-    """The broken-out LAN ports (``lan1``, ``lan7``, ...) down the right edge, in the
-    order given, each pointing right."""
-    width, _ = _router_size(len(lan))
+def router_ports(x: float, y: float, lan: Sequence[int], wan: int | None) -> dict[str, Port]:
+    """The numbered sockets' ports: ``wan`` in the middle of the left edge pointing
+    left, and the LAN ports (``lan1``, ``lan7``, ...) down the right edge in the
+    order given, pointing right."""
+    width, _ = _router_size(len(lan), wan is not None)
     top = y - (len(lan) - 1) * LAN_PITCH / 2
-    return {
-        f"lan{n}": Port((x + width / 2, top + i * LAN_PITCH), (1.0, 0.0)) for i, n in enumerate(lan)
-    }
+    ports = {} if wan is None else {"wan": Port((x - width / 2, y), (-1.0, 0.0))}
+    for i, n in enumerate(lan):
+        ports[f"lan{n}"] = Port((x + width / 2, top + i * LAN_PITCH), (1.0, 0.0))
+    return ports
 
 
-def router(x: float, y: float, status: Status, theme: Theme, lan: Sequence[int] = ()) -> str:
+def router(
+    x: float,
+    y: float,
+    status: Status,
+    theme: Theme,
+    lan: Sequence[int] = (),
+    wan: int | None = None,
+) -> str:
     """Render a router (a gateway): a box holding a circle crossed by four routes,
-    each ending in an outward chevron, and any broken-out LAN ports down its
-    right edge, each a square with its number beside it."""
+    each ending in an outward chevron, with any numbered sockets on its edges
+    (the WAN on the left, LAN ports down the right), each a square with its
+    number beside it."""
     marks = detail(status, theme, theme.symbol_stroke_width)
     r, c = ROUTE_RADIUS, CHEVRON
-    width, height = _router_size(len(lan))
-    cx = x - (width - ROUTER_WIDTH) / 2  # the routes keep to the left, clear of the ports
+    width, height = _router_size(len(lan), wan is not None)
     parts = [_body(x, y, width, height, status, theme)]
-    ports = detail(status, theme, theme.symbol_stroke_width * 0.75)
-    for name, port in lan_ports(x, y, lan).items():
+    sockets = detail(status, theme, theme.symbol_stroke_width * 0.75)
+    for name, port in router_ports(x, y, lan, wan).items():
         px, py = port.point
-        parts.append(
-            svg.rect(
-                px - LAN_MARK, py - LAN_MARK / 2, LAN_MARK, LAN_MARK, {"fill": "none", **ports}
-            )
-        )
+        inward = 1.0 if name == "wan" else -1.0  # the WAN is on the left edge
+        square = px if inward > 0 else px - SOCKET
+        parts.append(svg.rect(square, py - SOCKET / 2, SOCKET, SOCKET, {"fill": "none", **sockets}))
+        number = str(wan) if name == "wan" else name.removeprefix("lan")
         parts.append(
             text_at(
-                px - LAN_MARK - 6,
+                px + inward * (SOCKET + 6),
                 py,
-                name.removeprefix("lan"),
+                number,
                 theme,
-                theme.font_size * LAN_NUMBER_SCALE,
+                theme.font_size * SOCKET_NUMBER_SCALE,
                 theme.text_in(status),
             )
         )
-    x = cx
+    # The routes keep to the middle, clear of the socket columns.
+    x += ((SOCKET_COLUMN if wan is not None else 0.0) - (SOCKET_COLUMN if lan else 0.0)) / 2
     parts.append(svg.circle(x, y, r, {"fill": "none", **marks}))
     inner = r - 3.0  # the routes stop short of the circle, chevrons inside it
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
