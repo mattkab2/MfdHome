@@ -280,8 +280,8 @@ def _render_tile(element: TileElement, c: _Ctx) -> str:
     return tile(element.at[0], element.at[1], label, look, theme)
 
 
-def _frame(box: Box, status: Status, theme: Theme) -> str:
-    """A container's frame: dim while normal, in the status color otherwise."""
+def _frame(box: Box, status: Status, theme: Theme, quiet: str) -> str:
+    """A container's frame: in ``quiet`` while normal, in the status color otherwise."""
     calm = status in (Status.NORMAL, Status.ACTIVE)
     return svg.rect(
         box.left,
@@ -290,7 +290,7 @@ def _frame(box: Box, status: Status, theme: Theme) -> str:
         box.bottom - box.top,
         {
             "fill": "none",
-            "stroke": theme.dim if calm else theme.color(status),
+            "stroke": quiet if calm else theme.color(status),
             "stroke-width": theme.symbol_stroke_width * theme.weight(status),
             **(dotted(theme) if status is Status.UNAVAILABLE else {}),
         },
@@ -323,19 +323,20 @@ def _render_group(element: GroupElement, c: _Ctx) -> str:
     assert box is not None
     parts = []
     if element.frame is Frame.OUTLINE:
-        parts.append(_frame(box, resolved.status, c.theme))
+        parts.append(_frame(box, resolved.status, c.theme, c.theme.dim))
     parts.extend(_render_layers(item, c)[1] for item in element.items)
     parts.extend(_container_labels(element, resolved.status, resolved.values, c))
     return "".join(parts)
 
 
 def _render_enclosure(element: EnclosureElement, c: _Ctx) -> str:
-    """Frame (status-colored when not normal) and name; the members draw themselves."""
+    """Frame and name; the members draw themselves. A cabinet is structure, so while
+    normal its frame takes the structure color (which shows on paper, unlike dim)."""
     resolved = c.resolver.element(element)
     assert resolved is not None
     box = element_box(element)
     assert box is not None
-    return _frame(box, resolved.status, c.theme) + "".join(
+    return _frame(box, resolved.status, c.theme, c.theme.structure_color) + "".join(
         _container_labels(element, resolved.status, {}, c)
     )
 

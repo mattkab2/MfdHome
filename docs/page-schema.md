@@ -562,7 +562,9 @@ connections, which cross the frame.
 
 - The frame is sized at load time to its members' boxes plus `padding`.
 - Its status is its members' worst caution or warning, unavailable only when
-  every member is, and the frame is drawn like a group's: dim when normal.
+  every member is. While normal the frame is in the structure color (like
+  floorplan walls, so it shows on paper too); otherwise it's drawn like a
+  group's frame, in the status color.
 - It has no channels or ports: lines connect to the members inside it. Pipes
   are drawn over the frame where they cross it.
 

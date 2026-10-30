@@ -248,8 +248,8 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   to another element's channel (`array.power`), without chains.
 - **Enclosures** frame elements sharing a cabinet (a battery gateway's grid
   relay and smart-circuit relays): members stay top-level elements with their
-  own places and connections; the frame is sized to them at load time and
-  takes their worst status like a group frame. Load panels have a port per
+  own places and connections; the frame is sized to them at load time, is
+  in the structure color while normal, and takes their worst status. Load panels have a port per
   breaker (`l1`-`l4`, `r1`-`r4`); outlets can face left.
 
 - **Server stack: aiohttp** for both the HA websocket client and the display

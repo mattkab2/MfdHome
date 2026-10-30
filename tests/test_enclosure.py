@@ -68,7 +68,7 @@ def test_frame_wraps_the_members_plus_padding(tmp_path: Path) -> None:
 def test_status_is_the_members_worst(tmp_path: Path) -> None:
     loaded = load_page(page(tmp_path, CABINET))
     calm = frame(render(loaded, "on", "on"))
-    assert f'stroke="{LCD.dim}"' in calm and ">AGATE<" in calm
+    assert f'stroke="{LCD.structure_color}"' in calm and ">AGATE<" in calm
     assert f'stroke="{LCD.color(Status.CAUTION)}"' in frame(render(loaded, "on", "off"))
     # unavailable only when every member is
     assert "stroke-dasharray" not in frame(render(loaded, None, "on"))
