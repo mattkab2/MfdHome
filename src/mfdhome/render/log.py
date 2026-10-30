@@ -30,6 +30,9 @@ BATCH_GAP = timedelta(minutes=1)
 ROW_HEIGHT = 24.0
 MARK_SIZE = 12.0
 CHAR_WIDTH = 0.6  # of the font size: DejaVu Sans Mono's advance
+#: Width of the event column (RAISED, ACK <who>, FLAPPING x<n>, a logged state such as
+#: ARMED VACATION), in characters.
+EVENT_CHARS = 14
 
 
 @dataclass(frozen=True)
@@ -120,7 +123,7 @@ def page_count(element: LogElement, rows: int) -> int:
 
 
 def event_text(row: LogRow) -> str:
-    """The right-hand column: what happened."""
+    """The action column: what happened."""
     if row.entity is not None:
         return (row.state or "").upper().replace("_", " ")
     if row.alert is None:
@@ -184,13 +187,15 @@ def alert_log(element: LogElement, view: AlertView, theme: Theme) -> str:
     left, top = element.at
     right = left + element.size[0]
     char = theme.font_size * CHAR_WIDTH
-    # Columns: date, time, mark, system, message ... event (right-aligned).
+    # Columns: date, time, mark, system, event (what happened), then the message,
+    # which takes the rest of the row.
     x_time = left + 6 * char
     x_mark = x_time + 9 * char
     x_system = x_mark + MARK_SIZE + char
-    x_message = x_system + 7 * char
-    event_chars = 16
-    message_chars = int((right - x_message - (event_chars + 1) * char) // char)
+    x_event = x_system + 7 * char
+    event_chars = EVENT_CHARS
+    x_message = x_event + (event_chars + 1) * char
+    message_chars = int((right - x_message) // char)
 
     header_y = top + ROW_HEIGHT / 2
     scope = " · ".join(_system_label(view.systems, s) for s in element.systems) or "ALL SYSTEMS"
@@ -236,7 +241,7 @@ def alert_log(element: LogElement, view: AlertView, theme: Theme) -> str:
                 if lit and row.alert is not None
                 else theme.text_color
             )
-            parts.append(_text(right, y, _clip(event, event_chars), "end", color, theme))
+            parts.append(_text(x_event, y, _clip(event, event_chars), "start", color, theme))
         if i + 1 < len(shown) and row.at - shown[i + 1].at > BATCH_GAP:
             rule_y = top + ROW_HEIGHT * (i + 2)
             parts.append(svg.line(left, rule_y, right, rule_y, {"stroke": rule, "stroke-width": 1}))
