@@ -7,7 +7,7 @@ and the renderer dispatches through it.
 from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from mfdhome.conditions.values import Value
 from mfdhome.layout.anchors import Box
@@ -61,6 +61,7 @@ from mfdhome.symbols.network import (
     ap_box,
     host,
     host_box,
+    lan_ports,
     network_switch,
     radio,
     radio_box,
@@ -752,6 +753,42 @@ DEVICE_CHANNELS = ("state", "cpu", "memory", "temperature")
 RADIO_CHANNELS = ("state", "rssi", "snr", "noise_floor", "hops", "battery")
 
 
+#: The most LAN ports a router breaks out.
+MAX_LAN_PORTS = 12
+
+
+def _router_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    unknown = set(raw) - {"lan"}
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    lan = raw.get("lan", [])
+    if (
+        not isinstance(lan, list | tuple)
+        or len(lan) > MAX_LAN_PORTS
+        or any(isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= 99 for n in lan)
+        or len(set(lan)) != len(lan)
+    ):
+        raise ValueError(
+            f"'lan' must list up to {MAX_LAN_PORTS} different port numbers from 1 to 99"
+        )
+    return {"lan": tuple(lan)}
+
+
+def _lan(params: Mapping[str, object]) -> tuple[int, ...]:
+    lan = params.get("lan", ())
+    assert isinstance(lan, tuple)
+    return lan
+
+
+def _router_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
+    lan = _lan(params)
+
+    def port(name: str) -> PortFn:
+        return lambda at, _orientation: lan_ports(*at, lan)[name]
+
+    return {name: port(name) for name in lan_ports(0.0, 0.0, lan)}
+
+
 def _network_spec(
     type_name: str,
     box: Callable[[float, float], Box],
@@ -953,7 +990,13 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         draw=_draw_thermostat,
         params=_thermostat_params,
     ),
-    "router": _network_spec("router", router_box, router),
+    "router": replace(
+        _network_spec("router", router_box, router),
+        params=_router_params,
+        box_for=lambda at, _orientation, params: router_box(*at, len(_lan(params))),
+        ports_for=_router_ports,
+        draw=lambda inp, theme: router(*inp.at, inp.status, theme, _lan(inp.params)),
+    ),
     "network_switch": _network_spec("network_switch", switch_box, network_switch),
     "access_point": _network_spec(
         "access_point", ap_box, access_point, channels=(*DEVICE_CHANNELS, "clients")

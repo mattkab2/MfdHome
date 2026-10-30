@@ -329,7 +329,8 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   `docs/page-schema.md` ("Choosing a severity").
 - **Network page:** UniFi devices from Home Assistant's UniFi integration
   (`router`, `network_switch`, `access_point`, `host` symbols sharing a
-  named state map, `maps` in defs) and a MeshCore LoRa link from meshcore-ha
+  named state map, `maps` in defs; the gateway breaks out its LAN ports,
+  one line per device) and a MeshCore LoRa link from meshcore-ha
   (`radio` symbols; companion on USB). Links bind a `state` channel (the far
   device's state, a repeater's reachability); a radio link is a plain line
   tagged `RF`. Measured links are two-way (RX download, TX upload), with

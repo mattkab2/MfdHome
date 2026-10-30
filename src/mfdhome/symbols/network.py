@@ -7,21 +7,30 @@ status weight; the fine marks inside keep theirs, so they stay legible.
 
 Each is centered on its body; the access point's arcs and the radio's mast
 reach above it, so lines attach level with the body and names clear the marks.
+A router can break out its LAN ports: one numbered port each down its right
+edge, so every device on the gateway gets its own line.
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 
 from mfdhome.layout.anchors import Box
+from mfdhome.layout.route import Port
 from mfdhome.model.binding import Status
 from mfdhome.symbols import svg
-from mfdhome.symbols.style import detail, stroke
+from mfdhome.symbols.style import detail, stroke, text_at
 from mfdhome.themes.theme import Theme
 
 ROUTER_WIDTH, ROUTER_HEIGHT = 60.0, 40.0
 ROUTE_RADIUS = 13.0  # the circle of crossed routes
 CHEVRON = 4.0  # half-width of the arrowheads on the routes
+LAN_PITCH = 20.0  # between broken-out LAN ports: room for a pipe each
+LAN_MARGIN = 8.0  # from the box's top and bottom to the first and last port
+LAN_WIDTH = 76.0  # a router with ports: room for their numbers beside the routes
+LAN_MARK = 6.0  # a port's square, on the right edge
+LAN_NUMBER_SCALE = 0.6  # port numbers relative to the theme's font size
 
 SWITCH_WIDTH, SWITCH_HEIGHT = 84.0, 28.0
 SWITCH_PORTS = 8
@@ -55,20 +64,56 @@ def _centered(x: float, y: float, width: float, height: float, above: float = 0.
     return Box(x - width / 2, y - height / 2 - above, x + width / 2, y + height / 2)
 
 
-def router_box(x: float, y: float) -> Box:
-    """Bounding box of a router centered at (x, y)."""
-    return _centered(x, y, ROUTER_WIDTH, ROUTER_HEIGHT)
+def _router_size(lan: int) -> tuple[float, float]:
+    if not lan:
+        return ROUTER_WIDTH, ROUTER_HEIGHT
+    return LAN_WIDTH, max(ROUTER_HEIGHT, (lan - 1) * LAN_PITCH + 2 * LAN_MARGIN)
 
 
-def router(x: float, y: float, status: Status, theme: Theme) -> str:
+def router_box(x: float, y: float, lan: int = 0) -> Box:
+    """Bounding box of a router centered at (x, y), taller with ``lan`` ports broken out."""
+    return _centered(x, y, *_router_size(lan))
+
+
+def lan_ports(x: float, y: float, lan: Sequence[int]) -> dict[str, Port]:
+    """The broken-out LAN ports (``lan1``, ``lan7``, ...) down the right edge, in the
+    order given, each pointing right."""
+    width, _ = _router_size(len(lan))
+    top = y - (len(lan) - 1) * LAN_PITCH / 2
+    return {
+        f"lan{n}": Port((x + width / 2, top + i * LAN_PITCH), (1.0, 0.0)) for i, n in enumerate(lan)
+    }
+
+
+def router(x: float, y: float, status: Status, theme: Theme, lan: Sequence[int] = ()) -> str:
     """Render a router (a gateway): a box holding a circle crossed by four routes,
-    each ending in an outward chevron."""
+    each ending in an outward chevron, and any broken-out LAN ports down its
+    right edge, each a square with its number beside it."""
     marks = detail(status, theme, theme.symbol_stroke_width)
     r, c = ROUTE_RADIUS, CHEVRON
-    parts = [
-        _body(x, y, ROUTER_WIDTH, ROUTER_HEIGHT, status, theme),
-        svg.circle(x, y, r, {"fill": "none", **marks}),
-    ]
+    width, height = _router_size(len(lan))
+    cx = x - (width - ROUTER_WIDTH) / 2  # the routes keep to the left, clear of the ports
+    parts = [_body(x, y, width, height, status, theme)]
+    ports = detail(status, theme, theme.symbol_stroke_width * 0.75)
+    for name, port in lan_ports(x, y, lan).items():
+        px, py = port.point
+        parts.append(
+            svg.rect(
+                px - LAN_MARK, py - LAN_MARK / 2, LAN_MARK, LAN_MARK, {"fill": "none", **ports}
+            )
+        )
+        parts.append(
+            text_at(
+                px - LAN_MARK - 6,
+                py,
+                name.removeprefix("lan"),
+                theme,
+                theme.font_size * LAN_NUMBER_SCALE,
+                theme.text_in(status),
+            )
+        )
+    x = cx
+    parts.append(svg.circle(x, y, r, {"fill": "none", **marks}))
     inner = r - 3.0  # the routes stop short of the circle, chevrons inside it
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         tip = (x + dx * inner, y + dy * inner)

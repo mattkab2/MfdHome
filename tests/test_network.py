@@ -91,6 +91,34 @@ def test_boxes_reach_over_arcs_and_masts() -> None:
     assert box("radio") == Box(84, 64, 116, 110)  # mast and antenna above the body
 
 
+class TestGatewayPorts:
+    """A router can break out its LAN ports, one line per device on the gateway."""
+
+    def gateway(self, lan: list[int]) -> SymbolElement:
+        params = get_symbol("router").params({"lan": lan})
+        return SymbolElement("g", "router", (100, 100), params=params)
+
+    def test_ports_down_the_right_edge_in_order(self) -> None:
+        gateway = self.gateway([1, 2, 3, 4, 6, 7])
+        # six ports 20 apart, 8 in from the top and bottom: 116 tall, 76 wide
+        assert element_box(gateway) == Box(62, 42, 138, 158)
+        assert find_port(gateway, "lan1") == Port((138, 50), (1.0, 0.0))
+        assert find_port(gateway, "lan7") == Port((138, 150), (1.0, 0.0))
+        with pytest.raises(ValueError, match="unknown port 'lan5'"):
+            find_port(gateway, "lan5")
+
+    def test_each_port_is_drawn_with_its_number(self) -> None:
+        svg = render_element(self.gateway([1, 7]), {}, LCD)
+        assert svg.count('width="6" height="6"') == 2
+        assert ">1<" in svg and ">7<" in svg
+        assert box("router") == Box(70, 80, 130, 120)  # without ports, as before
+
+    @pytest.mark.parametrize("lan", [[0], [1, 1], ["1"], [True], list(range(1, 14)), "1,2"])
+    def test_lan_is_validated(self, lan: object) -> None:
+        with pytest.raises(ValueError, match="'lan' must list up to 12 different port numbers"):
+            get_symbol("router").params({"lan": lan})
+
+
 @pytest.mark.parametrize("type_name", ["access_point", "radio"])
 def test_side_ports_are_level_with_the_body(type_name: str) -> None:
     element = SymbolElement("d", type_name, (100, 100))

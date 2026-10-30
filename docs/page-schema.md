@@ -88,7 +88,7 @@ Any registered symbol type, centered at `at`:
 | `stairs` | none | none | `length` along the run (default 100); `width` (default 30); `treads` (default one per 10); `up`: `end` (default) or `start` |
 | `alarm_panel` | `state` | `state` | none |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
-| `router` | `state`, `cpu`, `memory`, `temperature` (numeric) | none | none |
+| `router` | `state`, `cpu`, `memory`, `temperature` (numeric) | none | `lan`: LAN port numbers to break out, ports `lan<n>` down its right edge |
 | `network_switch` | as for `router` | none | none |
 | `access_point` | as for `router`, plus `clients` (numeric) | none | none |
 | `host` | as for `router` | none | none |
@@ -97,6 +97,12 @@ Any registered symbol type, centered at `at`:
 A `load_panel` has a port at each breaker it draws (`l1` to `l4` down the
 left side, `r1` to `r4` down the right), so a circuit can leave from its own
 breaker.
+
+A `router` can break out its LAN ports: `params: {lan: [1, 2, 3, 4, 6, 7]}`
+lists them top to bottom down its right edge, each a numbered square with a
+port (`gateway.lan3`), and the router grows taller to fit. Each device on the
+gateway then gets its own line instead of sharing a junction; give unused
+ports a place in the list and simply leave them unconnected.
 
 `transfer_switch` is a grid-isolating ATS, as used in whole-home battery
 backup. Its grid contact faces left (top when vertical) and its load contact
