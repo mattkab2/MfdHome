@@ -81,7 +81,7 @@ Any registered symbol type, centered at `at`:
 | `gauge` | `value` (numeric) | `value` | `format`: a named format or format string, default `number`; `unit`: replaces the entity's unit |
 | `furnace` | `action` | none | `coil`: true adds an AC coil; `heating`: actions that light the burner, default `[heating, on]`; `cooling`: actions that chill the coil, default `[cooling]`; `blowing`: actions that run the blower, default `[heating, cooling, fan, on]` |
 | `air_handler` | `action` | none | as for `furnace` (no burner); `coil` defaults to true |
-| `condenser` | `action` | none | `running`: actions that run the compressor, default `[cooling, on]` |
+| `condenser` | `action`, `power` (numeric) | none | `running`: actions that run the compressor, default `[cooling, on]` |
 | `damper` | `state`, `position` (numeric) | `state` | as for `ball_valve` (`open`, `moving`, `actuated`) |
 | `thermostat` | `temperature` (numeric), `setpoint` (numeric), `action` | `temperature` | `format`: for both temperatures, default `{:.0f}°` |
 | `opening` | `state` | none | `kind`: `door` (default), `window` or `overhead`; `length` (default 36); `swing`: `up`/`left` or `down`/`right`; `hinge`: `start` or `end`; `angle`: degrees, for a diagonal wall; `open`: states that mean open, default `[on, open]` |
@@ -357,6 +357,9 @@ An endpoint `element.port` attaches the line to an element:
   nodes have none.
 - Breakers add `in` and `out`, and transfer switches `grid` and `load`. Both
   follow the symbol's orientation.
+- Other types add the named ports described with them above: `in`/`out`
+  on meters, valves, fittings, tanks and pumps, and ports on combiners, load
+  panels, outlets, water heaters, HVAC cabinets and condensers, and routers.
 - Nodes take no port: `to: bus`.
 - Items inside a group can't be connected to; use the group's ports.
 
@@ -469,7 +472,8 @@ blower runs and the flame while heating. Ports: `supply` (top), `return`
 at the burner), each only where the cabinet has that section. A `condenser`
 is the outdoor AC unit, its fan seen from above, filled while the compressor
 runs; its `refrigerant` port faces the air handler (a plain line tagged
-`REF`). A `damper` is a blade on a
+`REF`). Bind `power` to the condenser's measured draw (a smart circuit, say)
+to show it as a readout. A `damper` is a blade on a
 pivot in a duct: along the flow when open, across it when closed, diagonal
 while moving; `actuated: true` marks a motorized zone damper. A `thermostat`
 shows the room temperature, the setpoint and what it's doing (HEAT, IDLE,
@@ -871,7 +875,7 @@ alert (see the NET alerts in `examples/config/alerts.yaml`).
 ```yaml
 displays:
   workshop:
-    theme: lcd                 # lcd | mirror | eink_mono | eink_color
+    theme: lcd                 # lcd | mirror | eink_mono | eink_gray | eink_color
     size: [1280, 800]          # pixels
     home: status               # shown at startup
     pages: [status, electrical]   # what a viewer can select
@@ -886,10 +890,21 @@ displays:
     home: status
     pages: [status, electrical]
     panel: mono                # e-paper: served as PNG snapshots
-    refresh: 5m                # how often the device fetches (panels only; default 5m)
+    refresh: 5m                # how often the image is redrawn (panels only; default 5m)
     average: 5m                # averaging window: default 'refresh' on panels, live
                                # elsewhere; 0 for live values, at most 1h
+    annunciator: [GRID, BATT]  # a taller display's tile row; default: every system
 ```
+
+**Taller displays.** Pages are usually drawn on a 5:3 canvas. On a display
+proportionally taller (a 4:3 e-paper panel), the canvas grows to the
+display's shape: the page keeps the top, the bottom strip (banner, keys,
+stamp) moves to the display's bottom, and the band between holds a row or
+two of annunciator tiles (up to five per row) for `annunciator`'s systems,
+in order, so every page shows the house's status at a glance. A page with
+tiles of its own (the status page) leaves the band empty. A display that's
+only slightly taller (less than a tile row's worth), or wider, shows the
+page centered with margins, as before.
 
 A display with an averaging window shows each measurement averaged over
 the window ending now, instead of its latest reading: a slow display isn't
@@ -948,15 +963,18 @@ instead of a live page (see `docs/running.md`). The PNG is the display's
 | Panel | Colors | Theme |
 |---|---|---|
 | `mono` | black, white | `eink_mono` |
-| `gray4` | 4 grays | `eink_mono` |
-| `gray16` | 16 grays | `eink_mono` |
+| `gray4` | 4 grays | `eink_mono` or `eink_gray` |
+| `gray16` | 16 grays | `eink_mono` or `eink_gray` |
 | `spectra6` | black, white, red, yellow, blue, green | `eink_mono` or `eink_color` |
 
 The theme must draw only colors the panel can show; `mfdhome check` reports
 anything else. `eink_color` uses the six inks directly: green normal, yellow
-caution, red warning, blue active, black dotted for no data. A page whose
-proportions differ from the panel's is centered, with margins in the
-background color.
+caution, red warning, blue active, black dotted for no data. `eink_gray`
+keeps `eink_mono`'s cues (weight, fill, patterns) but draws walls, rooms,
+stairs and cabinets, and no data, in dark gray and unlit tiles in light gray,
+so they recede. A taller panel grows the canvas (see "Taller displays"
+above); a wider one shows the page centered, with margins in the background
+color.
 
 The soft-key labels are still drawn along the bottom strip when the display
 has more than one page, so hardware buttons mounted beneath them are

@@ -1,7 +1,7 @@
 # Home Assistant add-on manifest. The Supervisor builds addon/Dockerfile on the
 # device; 'version' is also the git tag (v<version>) the image is built from.
 name: MFD Home
-version: "0.1.0"
+version: "0.2.0"
 slug: mfdhome
 description: House status pages drawn as multifunction-display schematics
 url: https://github.com/mattkab2/MfdHome

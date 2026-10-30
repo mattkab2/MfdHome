@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -157,19 +157,22 @@ def load_config(directory: str | Path) -> Config:
     if problems:
         raise ConfigError(problems)
     displays_path = directory / DISPLAYS_FILE
-    displays = load_displays(displays_path, pages.keys()) if displays_path.exists() else {}
+    systems = tuple(alerts.systems)
+    displays = load_displays(displays_path, pages.keys(), systems) if displays_path.exists() else {}
     return Config(defs, pages, alerts, displays)
 
 
-def load_displays(path: str | Path, page_ids: Collection[str]) -> dict[str, Display]:
-    """Load a displays file; every theme and page it names must exist."""
+def load_displays(
+    path: str | Path, page_ids: Collection[str], systems: Sequence[str] = ()
+) -> dict[str, Display]:
+    """Load a displays file; every theme, page and system it names must exist."""
     path = Path(path)
     tree = _read(path)
     issues = Issues(path, tree)
     model = validate(DisplaysModel, _plain(tree) or {}, (), issues)
     issues.raise_if_any()
     assert model is not None
-    displays = build_displays(model, page_ids, issues)
+    displays = build_displays(model, page_ids, issues, systems)
     issues.raise_if_any()
     return displays
 

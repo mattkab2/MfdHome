@@ -1,4 +1,4 @@
-"""Built-in themes, one per display type (two for e-paper: mono and six-color)."""
+"""Built-in themes, one per display type (three for e-paper: mono, gray and six-color)."""
 
 from mfdhome.model.binding import Status
 from mfdhome.themes import gruvbox
@@ -82,6 +82,32 @@ EINK_MONO = Theme(
     status_weight={Status.CAUTION: 2.0, Status.WARNING: 3.0},
 )
 
+_GRAY_DARK = "#555555"
+_GRAY_LIGHT = "#aaaaaa"
+
+#: Grayscale e-paper (4 or 16 levels): eink_mono's severity cues (stroke weight,
+#: fill, line patterns), with structure (walls, rooms, stairs, cabinets) and no
+#: data in dark gray and dim things (unlit tiles, quiet frames) in light gray,
+#: so they recede as on the LCD. Both grays are exact levels of 4- and 16-gray
+#: panels, so nothing depends on quantization.
+EINK_GRAY = Theme(
+    name="eink_gray",
+    background=_WHITE,
+    colors={**dict.fromkeys(Status, _BLACK), Status.UNAVAILABLE: _GRAY_DARK},
+    text_color=_BLACK,
+    dim=_GRAY_LIGHT,
+    structure=_GRAY_DARK,
+    line_width=3.0,
+    symbol_stroke_width=2.0,
+    unavailable_dots="0 6",
+    font_family=_FONT,
+    font_size=16.0,
+    label_font_size=20.0,
+    attention=Attention(AttentionKind.RING),
+    tile_fill={Status.WARNING: TileFill.FILLED},
+    status_weight={Status.CAUTION: 2.0, Status.WARNING: 3.0},
+)
+
 #: Spectra 6 inks, by their nominal colors (what the panel controller expects).
 _INK_RED = "#ff0000"
 _INK_YELLOW = "#ffff00"
@@ -122,4 +148,4 @@ EINK_COLOR = Theme(
     faint=frozenset({Status.CAUTION}),
 )
 
-THEMES = {t.name: t for t in (LCD, MIRROR, EINK_MONO, EINK_COLOR)}
+THEMES = {t.name: t for t in (LCD, MIRROR, EINK_MONO, EINK_GRAY, EINK_COLOR)}

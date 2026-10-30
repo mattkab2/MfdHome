@@ -1,11 +1,14 @@
 """PNG snapshots for e-paper displays.
 
-An e-paper display polls for its image every ``refresh``. Its image is
-rendered when it asks, from values averaged over its window, and carries an
-"as of" stamp showing when its content last changed as seen at a fetch (not
-the time of the request), so an unchanged page yields the same PNG and the
-panel need not redraw. A device that cannot reach the server marks that
-itself (see docs/running.md).
+The server paces an e-paper display's redraws: the device may poll as often as
+it likes (every 30 s, say), and keeps getting the same image (a 304 with its
+ETag) until the display's ``refresh`` has passed or something besides
+measurements changes (an alert, an acknowledgement, a key press, the page; see
+``Runtime.signature``). So new alerts appear within a poll while the panel
+still redraws rarely. An image is rendered from values averaged over the
+display's window and carries an "as of" stamp showing when its content last
+changed as seen at a render, so an unchanged page yields the same PNG. A
+device that cannot reach the server marks that itself (see docs/running.md).
 """
 
 from __future__ import annotations
@@ -28,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 #: Fetch intervals remembered per display, to notice a device polling at the wrong rate.
 FETCH_HISTORY = 5
-#: A device's typical fetch interval may stray this far (as a factor) from ``refresh``.
+#: A device's typical fetch interval may be this many times its ``refresh`` before
+#: the server warns (polling more often is fine: the server paces redraws).
 DRIFT = 2.0
 
 
@@ -64,6 +68,7 @@ class PanelImages:
         self._content: dict[str, str] = {}
         self._changed_at: dict[str, datetime] = {}
         self._image: dict[str, tuple[str, Image]] = {}
+        self._rendered: dict[str, tuple[datetime, tuple[object, ...]]] = {}
         self._fetches: dict[str, deque[datetime]] = {}
         self._drifting: set[str] = set()
 
@@ -79,14 +84,26 @@ class PanelImages:
         return self._changed_at.get(display_id)
 
     async def image(self, display_id: str, now: datetime) -> Image:
-        """The display's current PNG, rasterized only when its SVG changed."""
+        """The display's current PNG: the last one while it's fresh (within the
+        display's ``refresh`` and nothing but measurements changed), otherwise
+        rendered anew, and rasterized only when its SVG changed."""
         self._fetched(display_id, now)
-        self.observe(display_id, now)
         display = self.runtime.config.displays[display_id]
         assert display.panel is not None
+        signature = self.runtime.signature(display_id)
+        cached = self._image.get(display_id)
+        rendered = self._rendered.get(display_id)
+        stale = (
+            rendered is None
+            or rendered[1] != signature
+            or (display.refresh is not None and now - rendered[0] >= display.refresh)
+        )
+        if cached is not None and not stale:
+            return cached[1]
+        self._rendered[display_id] = (now, signature)
+        self.observe(display_id, now)
         stamp = stamp_text(self._changed_at[display_id], display.average)
         svg = self.runtime.render(display_id, stamp, now=now)
-        cached = self._image.get(display_id)
         if cached is not None and cached[0] == svg:
             return cached[1]
         background = THEMES[display.theme].background
@@ -96,9 +113,10 @@ class PanelImages:
         return image
 
     def _fetched(self, display_id: str, now: datetime) -> None:
-        """Warn once when a device's typical fetch interval strays far from its
-        ``refresh``: its averages then cover more or less than what it shows.
-        The median of recent intervals ignores the extra fetch after a key press.
+        """Warn once when a device typically fetches much less often than its
+        ``refresh``: it then shows images older than their averages, and alerts
+        late. (More often is fine.) The median of recent intervals ignores the
+        extra fetch after a key press.
         """
         refresh = self.runtime.config.displays[display_id].refresh
         fetches = self._fetches.setdefault(display_id, deque(maxlen=FETCH_HISTORY + 1))
@@ -107,13 +125,13 @@ class PanelImages:
             return
         typical = statistics.median((b - a).total_seconds() for a, b in pairwise(fetches))
         expected = refresh.total_seconds()
-        if expected / DRIFT <= typical <= expected * DRIFT:
+        if typical <= expected * DRIFT:
             self._drifting.discard(display_id)
         elif display_id not in self._drifting:
             self._drifting.add(display_id)
             logger.warning(
                 "display %s fetches about every %.0fs, but its refresh is %.0fs;"
-                " set the device's update interval to match",
+                " poll at least that often (every 30s is fine: the server paces redraws)",
                 display_id,
                 typical,
                 expected,

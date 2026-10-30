@@ -115,7 +115,7 @@ class TestBanner:
 
     def test_rendered_at_bottom_with_attention(self) -> None:
         v = AlertView(ALERTS, SYSTEMS, {"warn": AlertState(Phase.ACTIVE_UNACKED, T0)})
-        svg = render_page(Page("p", "P", 400, 300), LIVE, LCD, TARGET, v)
+        svg = render_page(Page("p", "P", 400, 300), LIVE, LCD, Target("t", 400, 300), v)
         assert '<g id="banner"><g class="attn"><rect x="0" y="260" width="400" height="40"' in svg
         assert ">WARN<" in svg and "+" not in svg.split('id="banner"')[1]
 

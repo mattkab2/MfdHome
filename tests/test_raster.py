@@ -73,9 +73,10 @@ def test_text_uses_the_bundled_font() -> None:
 
 
 def test_margins_take_the_background_color() -> None:
-    # A 5:3 page on a 4:3 panel is centered, with 60 px bands above and below.
-    image = _image(rasterize(_electrical(Target("eink", 800, 600)), MONO, "#000000"))
-    assert image.size == (800, 600)
+    # A 5:3 page on a 2:1 panel is centered, with 67 px bands either side. (A
+    # taller panel grows the canvas instead: see the annunciator band.)
+    image = _image(rasterize(_electrical(Target("eink", 800, 400)), MONO, "#000000"))
+    assert image.size == (800, 400)
     rgb = image.convert("RGB")
-    assert image_colors(rgb.crop((0, 0, 800, 58))) == {"#000000"}
-    assert image_colors(rgb.crop((0, 62, 40, 100))) == {"#ffffff"}  # the page's own paper
+    assert image_colors(rgb.crop((0, 0, 64, 400))) == {"#000000"}
+    assert image_colors(rgb.crop((70, 0, 100, 40))) == {"#ffffff"}  # the page's own paper

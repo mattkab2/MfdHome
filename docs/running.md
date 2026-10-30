@@ -36,6 +36,7 @@ argument or `MFD_CONFIG`. `examples/config/` is a complete starting point.
 | `mfdhome serve CONFIG` | Runs the live display server (see below). |
 | `mfdhome serve CONFIG --states FILE` | The same, from a fixed states dump instead of Home Assistant. |
 | `mfdhome serve CONFIG --scenario FILE` | The same, replaying a scripted scenario instead of Home Assistant. |
+| `mfdhome addon` | What the container runs: reads the add-on's options (`/data/options.json`), pulls the config repository into `/config`, then serves it with the board and history in `/data` (see [addon/DOCS.md](../addon/DOCS.md)). |
 
 Add `-v` before the command for debug logging.
 
@@ -109,7 +110,7 @@ mfdhome serve CONFIG --port 8099 --board var/board.json
 ## E-paper displays
 
 A display with a `panel` in `displays.yaml` is served as a PNG that the device
-fetches on a timer:
+polls for:
 
 | Route | What it does |
 |---|---|
@@ -128,11 +129,15 @@ Both take `?token=...` when `MFD_DISPLAY_TOKEN` is set.
   shows no data, and alerts always judge live readings. After a restart the
   window fills over its first period. See "Displays" in
   `docs/page-schema.md` for `refresh`, `average` and per-entity overrides.
-- **Match the device's interval:** set the device's fetch interval (ESPHome's
-  `update_interval`) to the display's `refresh`. If the fetches the server
-  sees typically stray more than 2x from it, the server logs a warning once.
+- **The server paces redraws:** poll often (every 30 s suits most panels).
+  The server keeps sending the same image until the display's `refresh` has
+  passed, or something besides the measurements changes (a new, cleared or
+  acknowledged alert, a key press, a lost Home Assistant connection), so new
+  alerts reach the panel within a poll while it still redraws only every few
+  minutes. If the device polls less often than about every 2 × `refresh`,
+  the server logs a warning once.
 - **Cheap polling:** every PNG carries an `ETag`. A request with that tag in
-  `If-None-Match` gets `304 Not Modified` while nothing has changed, so the
+  `If-None-Match` gets `304 Not Modified` while the image is unchanged, so the
   device need not redraw.
 - **"As of" stamp:** the bottom strip shows when the content last changed, as
   seen at a fetch (server local time), so an unchanged page keeps the same
@@ -146,11 +151,10 @@ Both take `?token=...` when `MFD_DISPLAY_TOKEN` is set.
   including ACK on the alerts page, so alerts can be acknowledged without a
   touchscreen.
 - **Refresh:** a page change from a button press shows on the next fetch, so
-  have the device fetch right after a press. Alerts appear at the next
-  scheduled fetch. Pick an interval that suits the panel: a minute or two for
-  mono panels with fast refresh, longer for six-color panels, which take
-  15–30 s to redraw. Averaged numbers usually change a little from one
-  refresh to the next, so expect a redraw on most scheduled fetches.
+  have the device fetch right after a press. Pick a `refresh` that suits the
+  panel: a few minutes for mono and gray panels, longer for six-color panels,
+  which take 15–30 s to redraw. Averaged numbers usually change a little from
+  one refresh to the next, so expect a redraw at most refreshes.
 
 Check a layout without a device:
 
@@ -184,7 +188,7 @@ online_image:
     url: ${mfd}.png${token}
     format: PNG
     type: BINARY
-    update_interval: 5min          # the display's refresh in displays.yaml
+    update_interval: 30s           # poll; the server sends a new image only when due
     on_download_finished:
       - lambda: id(offline) = false;
       - if:

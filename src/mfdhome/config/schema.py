@@ -508,6 +508,7 @@ class DisplayModel(Strict):
     panel: str | None = None  # e-paper panel profile: served as PNG snapshots
     refresh: Duration | None = None  # how often a panel fetches its image (default 5m)
     average: Duration | None = None  # averaging window (panels: refresh; 0: live)
+    annunciator: list[Ident] | None = None  # tall displays' tile row (default: every system)
 
 
 class DisplaysModel(Strict):

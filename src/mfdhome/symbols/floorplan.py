@@ -1,5 +1,5 @@
-"""Floorplan drawing: rooms, walls, stairs, openings (doors and windows) and the alarm
-panel.
+"""Floorplan drawing: rooms, walls, stairs, openings (doors, windows and overhead
+doors) and the alarm panel.
 
 Structure (rooms, walls, stairs) is drawn in the theme's structure color, so it
 recedes; only things that report (openings, sensors, the panel) and rooms
@@ -97,10 +97,7 @@ def stairs(
     tread and an arrow up the middle, pointing up the flight (toward its start,
     the top or left end, when ``up_at_start``). Stairs are structure: always in
     the structure color, whatever happens around them."""
-
-    def at(u: float, v: float) -> Point:
-        return (x + v, y + u) if vertical else (x + u, y + v)
-
+    at = _placer(x, y, vertical, None)
     half, across = length / 2, width / 2
     line: dict[str, svg.AttrValue] = {
         "stroke": theme.structure_color,
@@ -168,11 +165,10 @@ def _placer(
 
 def _across(kind: OpeningKind, length: float, swing: float) -> tuple[float, float]:
     """How far an opening reaches across its wall (``v``), both ways."""
-    if kind is OpeningKind.DOOR:
-        return min(-JAMB, swing * length), max(JAMB, swing * length)
-    if kind is OpeningKind.OVERHEAD:
-        return min(-JAMB, swing * OVERHEAD_DEPTH), max(JAMB, swing * OVERHEAD_DEPTH)
-    return -JAMB, JAMB
+    if kind is OpeningKind.WINDOW:
+        return -JAMB, JAMB
+    reach = swing * (length if kind is OpeningKind.DOOR else OVERHEAD_DEPTH)
+    return min(-JAMB, reach), max(JAMB, reach)
 
 
 def _cut_width(theme: Theme) -> float:

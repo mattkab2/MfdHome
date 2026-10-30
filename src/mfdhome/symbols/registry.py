@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field, replace
+from typing import TypeGuard
 
 from mfdhome.conditions.values import Value
 from mfdhome.layout.anchors import Box
@@ -115,10 +116,31 @@ class SymbolInput:
     params: Mapping[str, object]
 
 
+def _check_known(raw: Mapping[str, object], allowed: Collection[str]) -> None:
+    """Reject params not in ``allowed``."""
+    unknown = set(raw) - set(allowed)
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+
+
+def _number(value: object, low: float, high: float, whole: bool = False) -> TypeGuard[float]:
+    """Whether ``value`` is a number (a whole one if ``whole``) from ``low`` to ``high``."""
+    kind = int if whole else int | float
+    return not isinstance(value, bool) and isinstance(value, kind) and low <= value <= high
+
+
 def _no_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    if raw:
-        raise ValueError(f"unknown parameter {next(iter(raw))!r}")
+    _check_known(raw, ())
     return {}
+
+
+def _named_ports(ports: Callable[[Point], Mapping[str, Port]]) -> dict[str, PortFn]:
+    """Named ports from ``ports(at)``, a symbol's port points at ``at`` by name."""
+
+    def port(name: str) -> PortFn:
+        return lambda at, _orientation: ports(at)[name]
+
+    return {name: port(name) for name in ports((0.0, 0.0))}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -178,9 +200,7 @@ def _state_lists(**defaults: frozenset[str]) -> ParamsValidator:
     """Params whose entries are optional lists of state strings (lowercased)."""
 
     def validate(raw: Mapping[str, object]) -> Mapping[str, object]:
-        unknown = set(raw) - set(defaults)
-        if unknown:
-            raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+        _check_known(raw, defaults)
         out = {}
         for name, default in defaults.items():
             states = raw.get(name, default)
@@ -222,10 +242,7 @@ def _terminal(box: Callable[[Point, Orientation], Box], side: float) -> PortFn:
 def _panel_ports() -> dict[str, PortFn]:
     """A load panel's per-breaker ports (``l1``-``l4``, ``r1``-``r4``)."""
 
-    def port(name: str) -> PortFn:
-        return lambda at, _orientation: panel_breaker_ports(*at)[name]
-
-    return {name: port(name) for name in panel_breaker_ports(0.0, 0.0)}
+    return _named_ports(lambda at: panel_breaker_ports(*at))
 
 
 def _draw_breaker(inp: SymbolInput, theme: Theme) -> str:
@@ -251,9 +268,7 @@ def _label_params(default: str) -> ParamsValidator:
     """Params with one optional entry: ``label``, a short text drawn inside the symbol."""
 
     def validate(raw: Mapping[str, object]) -> Mapping[str, object]:
-        unknown = set(raw) - {"label"}
-        if unknown:
-            raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+        _check_known(raw, {"label"})
         label = raw.get("label", default)
         if not isinstance(label, str) or not 0 < len(label) <= MAX_METER_LABEL:
             raise ValueError(f"'label' must be text of 1 to {MAX_METER_LABEL} characters")
@@ -276,11 +291,9 @@ _METER_PORTS = {"in": _terminal(_meter_box, -1.0), "out": _terminal(_meter_box, 
 
 
 def _combiner_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"inputs"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"inputs"})
     inputs = raw.get("inputs", 2)
-    if isinstance(inputs, bool) or not isinstance(inputs, int) or not 1 <= inputs <= MAX_INPUTS:
+    if not _number(inputs, 1, MAX_INPUTS, whole=True):
         raise ValueError(f"'inputs' must be a whole number from 1 to {MAX_INPUTS}")
     return {"inputs": inputs}
 
@@ -373,9 +386,7 @@ def _draw_water_heater(inp: SymbolInput, theme: Theme) -> str:
 
 
 def _outlet_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"label", "outdoor", "inlets", "facing"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"label", "outdoor", "inlets", "facing"})
     label = _label_params("OUT")({"label": raw["label"]} if "label" in raw else {})["label"]
     outdoor = raw.get("outdoor", False)
     if not isinstance(outdoor, bool):
@@ -393,11 +404,7 @@ def _outlet_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
     inlets = params.get("inlets", 1)
     assert isinstance(inlets, int)
     left = params.get("facing") == "left"
-
-    def port(name: str) -> PortFn:
-        return lambda at, _orientation: inlet_ports(*at, inlets, left)[name]
-
-    return {name: port(name) for name in inlet_ports(0.0, 0.0, inlets)}
+    return _named_ports(lambda at: inlet_ports(*at, inlets, left))
 
 
 def _draw_outlet(inp: SymbolInput, theme: Theme) -> str:
@@ -412,9 +419,7 @@ DEFAULT_ACTIVE_STATES = frozenset({"on"})
 
 
 def _sensor_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"code", "active"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"code", "active"})
     code = raw.get("code", "")
     if not isinstance(code, str) or len(code) > MAX_SENSOR_CODE:
         raise ValueError(f"'code' must be text of up to {MAX_SENSOR_CODE} characters")
@@ -432,9 +437,7 @@ def _draw_sensor(inp: SymbolInput, theme: Theme) -> str:
 
 
 def _gauge_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"format", "unit"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"format", "unit"})
     fmt, unit = raw.get("format", "number"), raw.get("unit")
     if not isinstance(fmt, str) or not is_valid_format(fmt):
         raise ValueError(f"unknown format {fmt!r}; use a named format or a format string")
@@ -486,9 +489,7 @@ MAX_TANK_TAG = 4
 
 
 def _tank_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"tag", "connections"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"tag", "connections"})
     tag = raw.get("tag", "")
     if not isinstance(tag, str) or len(tag) > MAX_TANK_TAG:
         raise ValueError(f"'tag' must be text of up to {MAX_TANK_TAG} characters")
@@ -501,11 +502,7 @@ def _tank_params(raw: Mapping[str, object]) -> Mapping[str, object]:
 def _tank_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
     connections = params.get("connections", Connections.TOP)
     assert isinstance(connections, Connections)
-
-    def port(name: str) -> PortFn:
-        return lambda at, _orientation: tank_ports(*at, connections)[name]
-
-    return {name: port(name) for name in tank_ports(0.0, 0.0, connections)}
+    return _named_ports(lambda at: tank_ports(*at, connections))
 
 
 def _draw_tank(inp: SymbolInput, theme: Theme) -> str:
@@ -531,19 +528,15 @@ DEFAULT_OPEN_CONTACT = frozenset({"on", "open"})
 
 
 def _opening_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"kind", "length", "swing", "hinge", "open", "angle"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"kind", "length", "swing", "hinge", "open", "angle"})
     kind = raw.get("kind", OpeningKind.DOOR.value)
     if kind not in {k.value for k in OpeningKind}:
         raise ValueError("'kind' must be door, window or overhead")
     angle = raw.get("angle")
-    if angle is not None and (
-        isinstance(angle, bool) or not isinstance(angle, int | float) or not -180 <= angle <= 180
-    ):
+    if angle is not None and not _number(angle, -180, 180):
         raise ValueError("'angle' must be a number of degrees from -180 to 180")
     length = raw.get("length", 36)
-    if isinstance(length, bool) or not isinstance(length, int | float) or not 8 <= length <= 400:
+    if not _number(length, 8, 400):
         raise ValueError("'length' must be a number from 8 to 400")
     swing = raw.get("swing", "up")
     if swing not in SWINGS:
@@ -587,16 +580,14 @@ def _draw_opening(inp: SymbolInput, theme: Theme) -> str:
 
 
 def _stairs_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"length", "width", "treads", "up"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"length", "width", "treads", "up"})
     length, width = raw.get("length", 100), raw.get("width", 30)
     for name, value in (("length", length), ("width", width)):
-        if isinstance(value, bool) or not isinstance(value, int | float) or not 8 <= value <= 400:
+        if not _number(value, 8, 400):
             raise ValueError(f"'{name}' must be a number from 8 to 400")
     assert isinstance(length, int | float) and isinstance(width, int | float)
     treads = raw.get("treads", max(2, round(length / TREAD)))
-    if isinstance(treads, bool) or not isinstance(treads, int) or not 2 <= treads <= 40:
+    if not _number(treads, 2, 40, whole=True):
         raise ValueError("'treads' must be a whole number from 2 to 40")
     up = raw.get("up", "end")
     if up not in ("start", "end"):
@@ -673,11 +664,7 @@ def _draw_cabinet(inp: SymbolInput, theme: Theme) -> str:
 
 def _cabinet_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
     cabinet = _cabinet(params)
-
-    def port(name: str) -> PortFn:
-        return lambda at, _orientation: cabinet.ports(*at)[name]
-
-    return {name: port(name) for name in cabinet.ports(0.0, 0.0)}
+    return _named_ports(lambda at: cabinet.ports(*at))
 
 
 def _cabinet_spec(type_name: str, burner: bool, coil: bool) -> SymbolSpec:
@@ -724,9 +711,7 @@ def _damper_bounds(at: Point, orientation: Orientation, params: Mapping[str, obj
 
 
 def _thermostat_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"format"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"format"})
     fmt = raw.get("format", "{:.0f}°")
     if not isinstance(fmt, str) or not is_valid_format(fmt):
         raise ValueError(f"unknown format {fmt!r}; use a named format or a format string")
@@ -758,23 +743,19 @@ MAX_LAN_PORTS = 12
 
 
 def _router_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"lan", "wan"}
-    if unknown:
-        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    _check_known(raw, {"lan", "wan"})
     lan = raw.get("lan", [])
     if (
         not isinstance(lan, list | tuple)
         or len(lan) > MAX_LAN_PORTS
-        or any(isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= 99 for n in lan)
+        or not all(_number(n, 1, 99, whole=True) for n in lan)
         or len(set(lan)) != len(lan)
     ):
         raise ValueError(
             f"'lan' must list up to {MAX_LAN_PORTS} different port numbers from 1 to 99"
         )
     wan = raw.get("wan")
-    if wan is not None and (
-        isinstance(wan, bool) or not isinstance(wan, int) or not 1 <= wan <= 99 or wan in lan
-    ):
+    if wan is not None and (not _number(wan, 1, 99, whole=True) or wan in lan):
         raise ValueError("'wan' must be a port number from 1 to 99, not one of the 'lan' ports")
     return {"lan": tuple(lan), "wan": wan}
 
@@ -793,11 +774,7 @@ def _wan(params: Mapping[str, object]) -> int | None:
 
 def _router_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
     lan, wan = _lan(params), _wan(params)
-
-    def port(name: str) -> PortFn:
-        return lambda at, _orientation: router_ports(*at, lan, wan)[name]
-
-    return {name: port(name) for name in router_ports(0.0, 0.0, lan, wan)}
+    return _named_ports(lambda at: router_ports(*at, lan, wan))
 
 
 def _network_spec(
@@ -972,8 +949,9 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "air_handler": _cabinet_spec("air_handler", burner=False, coil=True),
     "condenser": SymbolSpec(
         type="condenser",
-        channels=("action",),
+        channels=("action", "power"),
         primary="action",
+        numeric=frozenset({"power"}),
         box=lambda at, _orientation: condenser_box(*at),
         draw=_draw_condenser,
         params=_state_list_params("running", DEFAULT_COMPRESSOR_ACTIONS),

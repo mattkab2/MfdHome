@@ -30,8 +30,16 @@ def states(name: str, minutes_ago: float | None = None) -> StateSnapshot:
 class TestDisplays:
     def test_load(self) -> None:
         displays = load_config(CONFIG).displays
+        every = ("GRID", "BATT", "WATER", "LEAK", "HVAC", "NET", "SEC", "FIRE", "WX")
         assert displays["workshop"] == Display(
-            "workshop", "lcd", 1280, 800, "status", ("status", "electrical", "log"), "status"
+            "workshop",
+            "lcd",
+            1280,
+            800,
+            "status",
+            ("status", "electrical", "log"),
+            "status",
+            annunciator=every,  # the default: every system, in alerts.yaml order
         )
         hallway = displays["hallway"]
         assert hallway.pages == ("electrical",) and not hallway.controls  # fixed, no keys
@@ -55,8 +63,8 @@ class TestDisplays:
             load_displays(path, {"status"})
         msgs = [f"{i.loc}: {i.message}" for i in info.value.issues]
         assert (
-            "displays.a.theme: unknown theme 'plasma'; expected: lcd, mirror, eink_mono, eink_color"
-            in msgs
+            "displays.a.theme: unknown theme 'plasma'; "
+            "expected: lcd, mirror, eink_mono, eink_gray, eink_color" in msgs
         )
         assert "displays.a.home: unknown page 'nowhere'" in msgs
         assert "displays.a.pages[1]: unknown page 'gone'" in msgs

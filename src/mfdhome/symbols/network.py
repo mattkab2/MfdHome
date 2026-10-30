@@ -125,14 +125,14 @@ def router(
             )
         )
     # The routes keep to the middle, clear of the socket columns.
-    x += ((SOCKET_COLUMN if wan is not None else 0.0) - (SOCKET_COLUMN if lan else 0.0)) / 2
-    parts.append(svg.circle(x, y, r, {"fill": "none", **marks}))
+    cx = x + ((SOCKET_COLUMN if wan is not None else 0.0) - (SOCKET_COLUMN if lan else 0.0)) / 2
+    parts.append(svg.circle(cx, y, r, {"fill": "none", **marks}))
     inner = r - 3.0  # the routes stop short of the circle, chevrons inside it
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        tip = (x + dx * inner, y + dy * inner)
+        tip = (cx + dx * inner, y + dy * inner)
         back = (tip[0] - dx * c, tip[1] - dy * c)
         wings = [(back[0] + dy * c, back[1] + dx * c), tip, (back[0] - dy * c, back[1] - dx * c)]
-        parts.append(svg.line(x, y, tip[0], tip[1], marks))
+        parts.append(svg.line(cx, y, tip[0], tip[1], marks))
         parts.append(svg.polyline(wings, {"fill": "none", "stroke-linejoin": "round", **marks}))
     return "".join(parts)
 

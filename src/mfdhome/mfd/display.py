@@ -18,6 +18,8 @@ class Display:
     (an e-paper panel profile name) is served as PNG snapshots quantized to
     that panel, which the device fetches every ``refresh``. A display with an
     ``average`` window shows measurements averaged over it (``None``: live).
+    ``annunciator`` lists the systems whose tiles fill the band below the page
+    on a display taller than its pages (such as a 4:3 panel).
     """
 
     id: str
@@ -30,6 +32,7 @@ class Display:
     panel: str | None = None
     refresh: timedelta | None = None
     average: timedelta | None = None
+    annunciator: tuple[str, ...] = ()
 
     @property
     def controls(self) -> bool:
