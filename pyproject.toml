@@ -1,7 +1,9 @@
 [project]
 name = "mfdhome"
 version = "0.1.0"
-description = ""
+description = "Multifunction-display style house status pages for Home Assistant"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Matt Kabelitz",email = "mattkab2@gmail.com"}
 ]
