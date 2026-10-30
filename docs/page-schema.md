@@ -545,6 +545,27 @@ their own: they connect through the group, which has ports like a symbol.
 - **Frame:** dim when the group is normal, in the status color otherwise, and
   dotted when unavailable.
 
+### Enclosures
+
+An enclosure frames elements that share a cabinet, such as a battery gateway's
+grid relay and smart-circuit relays. Unlike a group's items, its members stay
+ordinary elements: each is placed with its own `at` and keeps its own
+connections, which cross the frame.
+
+```yaml
+- id: agate
+  type: enclosure
+  contains: [grid_relay, ac_main, ac_aux]   # top-level symbols, groups, tiles or nodes
+  padding: 12                               # frame to the members' boxes (default 12)
+  name: AGATE                               # above the frame by default
+```
+
+- The frame is sized at load time to its members' boxes plus `padding`.
+- Its status is its members' worst caution or warning, unavailable only when
+  every member is, and the frame is drawn like a group's: dim when normal.
+- It has no channels or ports: lines connect to the members inside it. Pipes
+  are drawn over the frame where they cross it.
+
 ## Names and readouts
 
 ```yaml

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from mfdhome.conditions.evaluate import SEVERITY_ORDER, EvalContext
@@ -14,6 +14,7 @@ from mfdhome.model.page import (
     Aggregate,
     DerivedChannel,
     Element,
+    EnclosureElement,
     GroupElement,
     LineElement,
     RoomElement,
@@ -40,7 +41,8 @@ class Resolver:
     """Resolves elements against one state snapshot and alert view.
 
     ``elements`` holds other elements' channel values, for bindings that refer
-    to another element (``array.power``). Results are cached by element id.
+    to another element (``array.power``); ``by_id`` the page's top-level
+    elements, for enclosures' members. Results are cached by element id.
     """
 
     def __init__(
@@ -48,10 +50,12 @@ class Resolver:
         state: StateSnapshot,
         alerts: AlertView,
         elements: Mapping[str, Mapping[str, Value]] = {},
+        by_id: Mapping[str, Element] = {},
     ) -> None:
         self.state = state
         self.alerts = alerts
         self.elements = elements
+        self.by_id = by_id
         self._cache: dict[str, Resolved] = {}
 
     def context(
@@ -61,7 +65,8 @@ class Resolver:
         return EvalContext(self.state, bind, derived, self.elements)
 
     def element(self, element: Element) -> Resolved | None:
-        """Resolve a symbol, line, tile or group; ``None`` for kinds without a status."""
+        """Resolve a symbol, line, tile, group or enclosure; ``None`` for kinds without a
+        status."""
         if element.id in self._cache:
             return self._cache[element.id]
         match element:
@@ -77,6 +82,9 @@ class Resolver:
                 result = self._tile(element)
             case GroupElement():
                 result = self._group(element)
+            case EnclosureElement():
+                members = (self.element(self.by_id[m]) for m in element.members if m in self.by_id)
+                result = Resolved(_combined([r for r in members if r is not None]))
             case RoomElement():
                 alert_status = self.alerts.active_status(
                     element.status.systems, element.status.alerts
@@ -122,20 +130,18 @@ class Resolver:
             primary="",
             alert_status=self.alerts.active_status(element.status.systems, element.status.alerts),
         )
-        worst = _worst_item(items)
-        candidates = [s for s in (own, worst) if s in SEVERITY_ORDER[1:]]
-        if candidates:
-            status = max(candidates, key=SEVERITY_ORDER.index)
-        elif items and all(r.status is Status.UNAVAILABLE for r in items):
-            status = Status.UNAVAILABLE
-        else:
-            status = Status.NORMAL
-        return Resolved(status, derived)
+        return Resolved(_combined(items, own), derived)
 
 
-def _worst_item(items: Iterable[Resolved]) -> Status | None:
-    severe = [r.status for r in items if r.status in SEVERITY_ORDER[1:]]
-    return max(severe, key=SEVERITY_ORDER.index) if severe else None
+def _combined(items: Sequence[Resolved], own: Status = Status.NORMAL) -> Status:
+    """A container's status: the worst caution/warning of its own and its items',
+    unavailable only when every item is, otherwise normal."""
+    severe = [s for s in (own, *(r.status for r in items)) if s in SEVERITY_ORDER[1:]]
+    if severe:
+        return max(severe, key=SEVERITY_ORDER.index)
+    if items and all(r.status is Status.UNAVAILABLE for r in items):
+        return Status.UNAVAILABLE
+    return Status.NORMAL
 
 
 def derive(spec: DerivedChannel, items: Iterable[Resolved]) -> Value:

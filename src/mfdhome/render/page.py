@@ -21,6 +21,7 @@ from mfdhome.layout.path import Point, point_along
 from mfdhome.model.binding import Status
 from mfdhome.model.page import (
     Element,
+    EnclosureElement,
     Frame,
     GroupElement,
     LineElement,
@@ -279,43 +280,64 @@ def _render_tile(element: TileElement, c: _Ctx) -> str:
     return tile(element.at[0], element.at[1], label, look, theme)
 
 
+def _frame(box: Box, status: Status, theme: Theme) -> str:
+    """A container's frame: dim while normal, in the status color otherwise."""
+    calm = status in (Status.NORMAL, Status.ACTIVE)
+    return svg.rect(
+        box.left,
+        box.top,
+        box.right - box.left,
+        box.bottom - box.top,
+        {
+            "fill": "none",
+            "stroke": theme.dim if calm else theme.color(status),
+            "stroke-width": theme.symbol_stroke_width * theme.weight(status),
+            **(dotted(theme) if status is Status.UNAVAILABLE else {}),
+        },
+    )
+
+
+def _container_labels(
+    element: GroupElement | EnclosureElement, status: Status, values: Mapping[str, Value], c: _Ctx
+) -> list[str]:
+    box = element_box(element)
+    assert box is not None
+    readouts = element.readouts if isinstance(element, GroupElement) else ()
+    labels = _collect_labels(
+        element.name,
+        readouts,
+        values,
+        status,
+        c.theme,
+        default_name=lambda _: Anchor.TOP_CENTER,
+        default_readout=lambda _: Anchor.BOTTOM_CENTER,
+    )
+    return _draw_labels(labels, lambda _: box, SYMBOL_GAP, c.theme)
+
+
 def _render_group(element: GroupElement, c: _Ctx) -> str:
     """Frame (status-colored when not normal), items, then name and readouts."""
-    theme = c.theme
     resolved = c.resolver.element(element)
     assert resolved is not None
-    status = resolved.status
     box = element_box(element)
     assert box is not None
     parts = []
     if element.frame is Frame.OUTLINE:
-        calm = status in (Status.NORMAL, Status.ACTIVE)
-        parts.append(
-            svg.rect(
-                box.left,
-                box.top,
-                box.right - box.left,
-                box.bottom - box.top,
-                {
-                    "fill": "none",
-                    "stroke": theme.dim if calm else theme.color(status),
-                    "stroke-width": theme.symbol_stroke_width * theme.weight(status),
-                    **(dotted(theme) if status is Status.UNAVAILABLE else {}),
-                },
-            )
-        )
+        parts.append(_frame(box, resolved.status, c.theme))
     parts.extend(_render_layers(item, c)[1] for item in element.items)
-    labels = _collect_labels(
-        element.name,
-        element.readouts,
-        resolved.values,
-        status,
-        theme,
-        default_name=lambda _: Anchor.TOP_CENTER,
-        default_readout=lambda _: Anchor.BOTTOM_CENTER,
-    )
-    parts.extend(_draw_labels(labels, lambda _: box, SYMBOL_GAP, theme))
+    parts.extend(_container_labels(element, resolved.status, resolved.values, c))
     return "".join(parts)
+
+
+def _render_enclosure(element: EnclosureElement, c: _Ctx) -> str:
+    """Frame (status-colored when not normal) and name; the members draw themselves."""
+    resolved = c.resolver.element(element)
+    assert resolved is not None
+    box = element_box(element)
+    assert box is not None
+    return _frame(box, resolved.status, c.theme) + "".join(
+        _container_labels(element, resolved.status, {}, c)
+    )
 
 
 def render_element(
@@ -339,6 +361,8 @@ def _render_layers(element: Element, c: _Ctx) -> tuple[str, str]:
                 underlay = svg.element("g", {"data-for": element.id}, [casing])
         case GroupElement():
             body = _render_group(element, c)
+        case EnclosureElement():
+            body = _render_enclosure(element, c)
         case TextElement():
             body = _text(
                 Placement(element.at[0], element.at[1], element.align, None),
@@ -384,13 +408,14 @@ def _resolver(page: Page, state: StateSnapshot, alerts: AlertView) -> Resolver:
     binding to a channel that is itself such a binding), so one pre-pass over
     top-level elements is enough.
     """
-    first = Resolver(state, alerts)
+    by_id = {element.id: element for element in page.elements}
+    first = Resolver(state, alerts, by_id=by_id)
     values = {}
     for element in page.elements:
         resolved = first.element(element)
         if resolved is not None:
             values[element.id] = resolved.values
-    return Resolver(state, alerts, values)
+    return Resolver(state, alerts, values, by_id)
 
 
 def attention_css(theme: Theme) -> str:
@@ -433,15 +458,24 @@ def render_page(
     """
     logger.debug("rendering page %s for target %s", page.id, target.name)
     c = _Ctx(state, theme, alerts, _resolver(page, state, alerts))
-    # Nodes last, so junction dots sit on top of the lines that meet there.
-    ordered = sorted(page.elements, key=lambda e: isinstance(e, NodeElement))
+    # Enclosure frames first, beneath the pipes that cross them; nodes last, so
+    # junction dots sit on top of the lines that meet there.
+    ordered = sorted(
+        page.elements,
+        key=lambda e: (
+            0 if isinstance(e, EnclosureElement) else 2 if isinstance(e, NodeElement) else 1
+        ),
+    )
     layers = [_render_layers(element, c) for element in ordered]
     underlays = [underlay for underlay, _ in layers if underlay]
+    frames = sum(isinstance(e, EnclosureElement) for e in page.elements)
+    groups = [group for _, group in layers]
     children = [
         svg.rect(0, 0, page.width, page.height, {"fill": theme.background}),
+        *groups[:frames],
         # Every line's casing beneath every line's body, so hollow pipes merge at joints.
         *([svg.element("g", {"id": "casings"}, underlays)] if underlays else []),
-        *(group for _, group in layers),
+        *groups[frames:],
     ]
     strip = banner_strip(page.width, page.height)
     box = strip if controls is None else banner_box(strip)

@@ -29,6 +29,7 @@ from mfdhome.config.schema import (
     DerivedModel,
     DisplayModel,
     DisplaysModel,
+    EnclosureModel,
     ExprModel,
     GroupModel,
     LineModel,
@@ -59,6 +60,7 @@ from mfdhome.model.page import (
     Aggregate,
     DerivedChannel,
     Element,
+    EnclosureElement,
     FlowSpec,
     Frame,
     GridLayout,
@@ -307,6 +309,7 @@ class _PendingLine:
 class _ElementBuilder:
     def __init__(self, defs: Defs, alerts: Alerts, issues: Issues) -> None:
         self.pending: list[_PendingLine] = []
+        self.paddings: dict[str, float] = {}  # enclosure id -> padding, until members resolve
         self.defs = defs
         self.alerts = alerts
         self.alert_ids = {a.id for a in alerts.alerts}
@@ -577,6 +580,17 @@ class _ElementBuilder:
             case "group":
                 g = validate(GroupModel, raw, loc, self.issues)
                 built = None if g is None else self.group(g, loc)
+            case "enclosure":
+                enc = validate(EnclosureModel, raw, loc, self.issues)
+                if enc is not None:
+                    self.paddings[enc.id] = enc.padding
+                built = (
+                    None
+                    if enc is None
+                    else EnclosureElement(
+                        enc.id, tuple(enc.contains), name=self.name(enc.name, (*loc, "name"))
+                    )
+                )
             case "alert_log":
                 log = validate(LogModel, raw, loc, self.issues)
                 if log is not None:
@@ -642,7 +656,52 @@ def build_page(
             locs[element.id] = ("elements", i)
             elements.append(element)
     elements = _connect(elements, builder.pending, issues, locs)
+    elements = _enclose(elements, builder.paddings, issues, locs)
     return Page(model.page, model.title, model.canvas.width, model.canvas.height, tuple(elements))
+
+
+def _enclose(
+    elements: Sequence[Element],
+    paddings: Mapping[str, float],
+    issues: Issues,
+    locs: Mapping[str, Loc],
+) -> list[Element]:
+    """Size each enclosure's frame to its members' boxes plus its padding.
+
+    Members must be top-level elements with a box (symbols, groups, tiles,
+    nodes), not lines, text, logs, floorplan shapes or other enclosures.
+    """
+    by_id = {e.id: e for e in elements}
+    out: list[Element] = []
+    for e in elements:
+        if isinstance(e, EnclosureElement):
+            loc = (*locs.get(e.id, ()), "contains")
+            boxes = []
+            for i, member_id in enumerate(e.members):
+                member = by_id.get(member_id)
+                box = (
+                    None
+                    if member is None or isinstance(member, EnclosureElement)
+                    else element_box(member)
+                )
+                if member is None:
+                    issues.add((*loc, i), f"unknown element {member_id!r}")
+                elif box is None:
+                    issues.add(
+                        (*loc, i),
+                        f"{member_id!r} can't be enclosed: enclose symbols, groups, tiles or nodes",
+                    )
+                else:
+                    boxes.append(box)
+            if boxes:
+                pad = paddings.get(e.id, 0.0)
+                left = min(b.left for b in boxes) - pad
+                top = min(b.top for b in boxes) - pad
+                right = max(b.right for b in boxes) + pad
+                bottom = max(b.bottom for b in boxes) + pad
+                e = replace(e, at=(left, top), size=(right - left, bottom - top))
+        out.append(e)
+    return out
 
 
 def _channels_of(element: Element) -> set[str]:

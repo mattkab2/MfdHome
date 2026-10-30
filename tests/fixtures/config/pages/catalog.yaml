@@ -40,6 +40,14 @@ elements:
 
   - {id: to_load, type: line, from: ev_circuit.out, to: [680, 150]}
 
+  # The meter and the smart circuit share a cabinet.
+  - {id: cabinet, type: enclosure, contains: [net_meter, ev_circuit], padding: 30, name: GW}
+
+  # A panel breaker feeding a left-pointing outdoor flag.
+  - {id: panel, type: load_panel, at: [880, 250], bind: {power: sensor.smart_circuit_1_power}}
+  - {id: to_condenser, type: line, from: panel.l1, to: condenser.in}
+  - {id: condenser, type: outlet, at: [770, 222], params: {label: AC, outdoor: true, facing: left}}
+
   # --- water: meter -> main valve -> branch -> irrigation / heater / taps --
   - {id: service, type: line, from: [40, 380], to: water_meter.in, tag: CW}
 

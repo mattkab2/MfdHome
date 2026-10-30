@@ -246,6 +246,11 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   items' worst caution/warning, unavailable only when every item is.
   `tile_grid` is shorthand for a frameless group of tiles. Elements can bind
   to another element's channel (`array.power`), without chains.
+- **Enclosures** frame elements sharing a cabinet (a battery gateway's grid
+  relay and smart-circuit relays): members stay top-level elements with their
+  own places and connections; the frame is sized to them at load time and
+  takes their worst status like a group frame. Load panels have a port per
+  breaker (`l1`-`l4`, `r1`-`r4`); outlets can face left.
 
 - **Server stack: aiohttp** for both the HA websocket client and the display
   server (one runtime dependency). **Displays get live updates over a

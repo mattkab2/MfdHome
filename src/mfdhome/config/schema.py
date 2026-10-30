@@ -408,6 +408,16 @@ class GroupModel(Strict):
     items: Annotated[list[dict[str, Any]], Field(min_length=1)]
 
 
+class EnclosureModel(Strict):
+    """A frame around elements that share a cabinet; they keep their own places and lines."""
+
+    id: Ident
+    type: Literal["enclosure"]
+    contains: Annotated[list[Ident], Field(min_length=1)]
+    padding: Annotated[float, Field(ge=0)] = 12.0
+    name: Name = None
+
+
 def _duration(value: Any) -> Any:
     """``90``, ``"90s"``, ``"15m"`` or ``"1h"`` -> seconds; other forms pass through."""
     if isinstance(value, str) and value[:-1].replace(".", "", 1).isdigit():

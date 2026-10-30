@@ -1,7 +1,8 @@
 # Electrical page: whole-home backup. The grid feeds the house through the
-# main breaker and a grid-isolating transfer switch (ATS). Solar, battery and
-# the load panel share the backup bus on the house side of the ATS, so they
-# keep running when the ATS opens (islanded). Generic entity ids only.
+# main breaker and a grid-isolating transfer switch (ATS), which share the
+# backup gateway's cabinet. Solar, battery and the load panel share the
+# backup bus on the house side of the ATS, so they keep running when the ATS
+# opens (islanded). Generic entity ids only.
 page: electrical
 title: Electrical
 canvas: {width: 1000, height: 600}
@@ -19,11 +20,11 @@ elements:
     flow: {threshold: 10}             # W: ignore sensor noise near zero
     status: {systems: [GRID]}       # hatched red while the grid is lost
     name: {text: GRID, along: 0, anchor: left}
-    readouts: [{value: rate, format: power, abs: true}]
+    readouts: [{value: rate, format: power, abs: true, along: 0.4}]
 
   - id: main_breaker
     type: breaker
-    at: [160, 260]
+    at: [200, 260]
     name: MAIN
     bind: {state: switch.main_breaker}
     status:
@@ -46,6 +47,14 @@ elements:
     status:
       map: {on: normal}             # connected to the grid
       default: caution              # open: islanded, running on backup
+
+  # The main breaker and the ATS share one cabinet (a backup gateway). The
+  # frame takes their worst status; lines still connect to each of them.
+  - id: gateway
+    type: enclosure
+    contains: [main_breaker, ats]
+    padding: 28                       # room for MAIN and ATS inside the frame
+    name: GATEWAY
 
   # --- backup (house) side -------------------------------------------------
   - id: backup_feed

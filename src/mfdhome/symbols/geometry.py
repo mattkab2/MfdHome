@@ -5,7 +5,14 @@ from __future__ import annotations
 from mfdhome.layout.anchors import Anchor, Box, box_point, parse_anchor
 from mfdhome.layout.path import Point
 from mfdhome.layout.route import Port
-from mfdhome.model.page import Element, GroupElement, NodeElement, SymbolElement, TileElement
+from mfdhome.model.page import (
+    Element,
+    EnclosureElement,
+    GroupElement,
+    NodeElement,
+    SymbolElement,
+    TileElement,
+)
 from mfdhome.symbols.registry import get_symbol
 from mfdhome.symbols.tile import tile_box
 
@@ -19,7 +26,7 @@ def element_box(element: Element) -> Box | None:
             return tile_box(*element.at)
         case NodeElement():
             return Box.point(*element.at)
-        case GroupElement():
+        case GroupElement() | EnclosureElement():
             (x, y), (w, h) = element.at, element.size
             return Box(x, y, x + w, y + h)
         case _:
@@ -28,7 +35,7 @@ def element_box(element: Element) -> Box | None:
 
 def port_names(element: Element) -> list[str]:
     """Port names valid on ``element`` (empty for nodes, which connect at their point)."""
-    if isinstance(element, NodeElement) or element_box(element) is None:
+    if isinstance(element, (NodeElement, EnclosureElement)) or element_box(element) is None:
         return []
     extra = (
         list(get_symbol(element.type).named_ports(element.params))
@@ -50,6 +57,10 @@ def find_port(element: Element, port: str | None) -> Port:
         if port is not None:
             raise ValueError(f"node {element.id!r} has no ports; connect to {element.id!r}")
         return Port(element.at)
+    if isinstance(element, EnclosureElement):
+        raise ValueError(
+            f"enclosure {element.id!r} has no ports; connect to the elements inside it"
+        )
     box = element_box(element)
     if box is None:
         raise ValueError(f"{element.id!r} cannot be connected to")
@@ -88,7 +99,7 @@ def element_center(element: Element) -> Point:
     match element:
         case SymbolElement() | TileElement() | NodeElement():
             return element.at
-        case GroupElement():
+        case GroupElement() | EnclosureElement():
             (x, y), (w, h) = element.at, element.size
             return (x + w / 2, y + h / 2)
         case _:

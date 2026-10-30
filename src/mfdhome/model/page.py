@@ -291,6 +291,24 @@ class GroupElement:
     readouts: tuple[Readout, ...] = ()
 
 
+@dataclass(frozen=True)
+class EnclosureElement:
+    """A frame around elements that share a cabinet (a battery gateway's relays, a
+    panel's main breaker). Unlike a group's items, its ``members`` stay ordinary
+    top-level elements, placed and connected on their own.
+
+    ``at`` (top-left) and ``size`` are resolved at load time from the members'
+    boxes. Its status is the members' worst caution/warning, unavailable only
+    when every member is; the frame is drawn like a group's.
+    """
+
+    id: str
+    members: tuple[str, ...]
+    at: Point = (0.0, 0.0)
+    size: Point = (0.0, 0.0)
+    name: Name | None = None
+
+
 type Element = (
     SymbolElement
     | LineElement
@@ -298,6 +316,7 @@ type Element = (
     | TileElement
     | NodeElement
     | GroupElement
+    | EnclosureElement
     | LogElement
     | RoomElement
     | WallElement
