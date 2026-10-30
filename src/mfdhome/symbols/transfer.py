@@ -1,4 +1,4 @@
-"""Transfer switch and load panel symbols."""
+"""Transfer switch and load panel symbols (the panel with a port at each breaker)."""
 
 from __future__ import annotations
 

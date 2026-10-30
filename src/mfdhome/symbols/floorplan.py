@@ -1,5 +1,5 @@
-"""Floorplan drawing: rooms, walls, stairs, openings (doors and windows) and the alarm
-panel.
+"""Floorplan drawing: rooms, walls, stairs, openings (doors, windows and overhead
+doors) and the alarm panel.
 
 Structure (rooms, walls, stairs) is drawn in the theme's structure color, so it
 recedes; only things that report (openings, sensors, the panel) and rooms

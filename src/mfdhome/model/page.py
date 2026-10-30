@@ -1,6 +1,6 @@
 """Page and element definitions, positioned on a logical canvas.
 
-There are nine element kinds:
+There are ten element kinds:
 
 - ``SymbolElement``: a registered symbol type (battery, breaker, ...) at a point;
 - ``LineElement``: a connection along a polyline, carrying a ``rate`` (a
@@ -9,6 +9,8 @@ There are nine element kinds:
 - ``TileElement``: an annunciator tile showing one system's alerts;
 - ``NodeElement``: a connection point lines can attach to;
 - ``GroupElement``: a container laying out items that connect only through it;
+- ``EnclosureElement``: a frame around top-level elements (a cabinet holding
+  its relays), sized to them at load time;
 - ``LogElement``: the alert log (history), paged by the display's keys;
 - ``RoomElement`` and ``WallElement``: floorplan structure (doors, windows
   and sensors on a floorplan are symbols).

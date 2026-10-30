@@ -36,6 +36,7 @@ argument or `MFD_CONFIG`. `examples/config/` is a complete starting point.
 | `mfdhome serve CONFIG` | Runs the live display server (see below). |
 | `mfdhome serve CONFIG --states FILE` | The same, from a fixed states dump instead of Home Assistant. |
 | `mfdhome serve CONFIG --scenario FILE` | The same, replaying a scripted scenario instead of Home Assistant. |
+| `mfdhome addon` | What the container runs: reads the add-on's options (`/data/options.json`), pulls the config repository into `/config`, then serves it with the board and history in `/data` (see [addon/DOCS.md](../addon/DOCS.md)). |
 
 Add `-v` before the command for debug logging.
 

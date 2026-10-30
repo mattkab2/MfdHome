@@ -1,4 +1,5 @@
-"""The ``mfdhome`` command line: check configs, dump HA states, render and serve displays.
+"""The ``mfdhome`` command line: check configs, dump HA states, render and serve displays,
+and run as a Home Assistant add-on.
 
 Set ``MFD_DISPLAY_TOKEN`` to require ``?token=...`` on display URLs.
 """

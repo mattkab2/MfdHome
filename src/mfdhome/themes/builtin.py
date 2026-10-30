@@ -1,4 +1,4 @@
-"""Built-in themes, one per display type (two for e-paper: mono and six-color)."""
+"""Built-in themes, one per display type (three for e-paper: mono, gray and six-color)."""
 
 from mfdhome.model.binding import Status
 from mfdhome.themes import gruvbox

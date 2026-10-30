@@ -18,7 +18,7 @@ rendered to several display targets with different themes and constraints:
 |---|---|---|---|---|
 | `tablet` | `lcd` | Rugged Android tablet (workshop), kiosk browser | Live SVG/HTML, interactive | Touch targets ≥ 48px, glove-friendly |
 | `mirror` | `mirror` | Two-way mirror over a monitor, kiosk browser | Live SVG/HTML | **Pure black background**, thin bright lines, no large light areas |
-| `eink` | `eink_mono` / `eink_color` | 10–13" e-paper panel (main floor), likely ESPHome on an ESP32 | Server-side snapshot → PNG fetched by the device | No animation, limited palette (1-bit / grays / 6-color), refresh every 1–5 min, bezel buttons for page select |
+| `eink` | `eink_mono` / `eink_gray` / `eink_color` | e-paper panel (main floor): a Seeed reTerminal E1003 (10.3", 1872×1404, 16 grays) on ESPHome | Server-side snapshot → PNG fetched by the device | No animation, limited palette (1-bit / grays / 6-color), redrawn every few minutes, bezel buttons for page select |
 
 House content (which sensors exist, where systems physically are) changes often,
 so **page definitions are data, separate from library code**.
@@ -36,14 +36,15 @@ src/mfdhome/
                # (air handler/furnace, condenser, damper, thermostat), network
                # (router, switch, access point, host, radio), sensor
                # (sensor, gauge),
-               # floorplan (rooms, walls, openings, alarm panel), line, tile.
+               # floorplan (rooms, walls, stairs, openings, alarm panel), line,
+               # tile.
                # registry.py declares each type's channels, box, ports and
                # params; geometry.py gives element boxes and port points;
                # format.py formats readings.
   layout/      # Positioning helpers: anchors, polyline geometry, grids
                # (adaptive group layouts later)
   themes/      # Gruvbox palette and built-in themes (lcd, mirror, eink_mono,
-               # eink_color):
+               # eink_gray, eink_color):
                # palette, stroke weights, tile fill, attention style, fonts
   render/      # Pure render functions: (page, state, theme, target) -> SVG string;
                # resolve.py resolves status/derived channels bottom-up through
@@ -380,13 +381,12 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
    HVAC and Security pages against it (in the private config repo). The
    roadmap that built these pages on synthetic fixtures (`docs/roadmap.md`)
    is complete.
-2. **Home Assistant add-on (app):** built (image, Supervisor mode, add-on
-   wrapper, `mfdhome addon`, docs); the standalone image is checked against
-   the live HA. Left: publish the GitHub repo (`mattkab2/MfdHome`, private
-   until the owner makes it public; HA can only add a public repository),
-   push the `v0.1.0` tag the add-on builds from, and install on the Pi.
-   - Follow-ons: reloading the config without a restart, and an example
-     ESPHome device YAML for the e-paper display (PNG fetch + key route).
+2. **Home Assistant add-on (app):** built and released (`v0.1.0`; image,
+   Supervisor mode, add-on wrapper, `mfdhome addon`, docs) and running on
+   the owner's Pi. Next release: `v0.2.0` (taller displays and the
+   annunciator band, server-paced e-paper redraws, `eink_gray`, condenser
+   `power`).
+   - Follow-on: reloading the config without a restart.
 
 ## Future work (not yet scheduled)
 

@@ -357,6 +357,9 @@ An endpoint `element.port` attaches the line to an element:
   nodes have none.
 - Breakers add `in` and `out`, and transfer switches `grid` and `load`. Both
   follow the symbol's orientation.
+- Other types add the named ports described with them above: `in`/`out`
+  on meters, valves, fittings, tanks and pumps, and ports on combiners, load
+  panels, outlets, water heaters, HVAC cabinets and condensers, and routers.
 - Nodes take no port: `to: bus`.
 - Items inside a group can't be connected to; use the group's ports.
 

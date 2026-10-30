@@ -11,7 +11,7 @@ You define a page once in YAML. It then renders to several kinds of display:
 |---|---|---|
 | A tablet in a kiosk browser | `lcd` | Live, with touch soft keys |
 | A two-way mirror over a monitor | `mirror` | Pure black, thin bright lines |
-| An e-paper panel (ESPHome or a Pi) | `eink_mono`, `eink_color` | PNG snapshots in the panel's own colors, with readings averaged over its refresh interval |
+| An e-paper panel (ESPHome or a Pi) | `eink_mono`, `eink_gray`, `eink_color` | PNG snapshots in the panel's own colors, with readings averaged over its refresh interval |
 
 Status reads the same way on every display, using the Gruvbox palette: aqua is
 normal, yellow is caution, red is warning, blue means flowing, and gray dotted
