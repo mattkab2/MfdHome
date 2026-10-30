@@ -86,7 +86,8 @@ names given in UniFi (`Gateway`, `Core Switch`, ...).
 | CPU, memory | `sensor.<device>_cpu_utilization`, `sensor.<device>_memory_utilization` | % |
 | Temperature | `sensor.<device>_temperature` | devices with a sensor |
 | Clients | `sensor.<device>_clients` | clients connected through the device |
-| Port throughput | `sensor.<device>_port_<n>_rx`, `_tx` | Mbit/s; disabled by default, enable the ports you draw |
+| Port throughput | `sensor.<device>_port_<n>_rx`, `_tx` | Mbit/s; `rx` is what the port receives from the far end (a WAN or uplink port's download, an AP port's upload); disabled by default, enable the ports you draw |
+| Client throughput | `sensor.<client>_rx`, `_tx` | MB/s; counted from the switch or AP's side, so a client's `tx` is its download |
 | Port link speed | `sensor.<device>_port_<n>_link_speed` | Mbit/s; disabled by default |
 | Internet | `binary_sensor.*` | UniFi has no WAN entity: use the Ping integration (`device_class: connectivity`, `on` = reachable, `round_trip_time_avg` in ms) |
 
