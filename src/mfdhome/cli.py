@@ -24,6 +24,7 @@ from mfdhome.config.load import load_scenario
 from mfdhome.model.state import StateSnapshot, snapshot_from_ha_states
 from mfdhome.render.panels import PANELS
 from mfdhome.render.raster import rasterize
+from mfdhome.server.addon import read_options, serve_args, sync_config
 from mfdhome.server.app import serve
 from mfdhome.server.images import stamp_text
 from mfdhome.server.runtime import HISTORY_DAYS, Runtime
@@ -217,6 +218,17 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_addon(args: argparse.Namespace) -> int:
+    """``mfdhome addon``: run as a Home Assistant add-on: read its options, sync the
+    house config from git, then serve with the board and history in its data."""
+    options = read_options(Path(args.options))
+    data = Path(args.data)
+    config = sync_config(options, Path(args.config_dir), data)
+    if options.display_token:
+        os.environ["MFD_DISPLAY_TOKEN"] = options.display_token
+    return cmd_serve(parser().parse_args(serve_args(config, data)))
+
+
 def parser() -> argparse.ArgumentParser:
     """The ``mfdhome`` argument parser."""
     p = argparse.ArgumentParser(prog="mfdhome", description=__doc__)
@@ -265,6 +277,12 @@ def parser() -> argparse.ArgumentParser:
         help=f"days of alert history to keep (default {HISTORY_DAYS})",
     )
     serve.set_defaults(run=cmd_serve)
+
+    addon = sub.add_parser("addon", help="run as a Home Assistant add-on (in its container)")
+    addon.add_argument("--options", default="/data/options.json", help="the add-on's options")
+    addon.add_argument("--config-dir", default="/config", help="the add-on's config folder")
+    addon.add_argument("--data", default="/data", help="the add-on's private data folder")
+    addon.set_defaults(run=cmd_addon)
     return p
 
 
