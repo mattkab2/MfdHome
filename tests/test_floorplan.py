@@ -137,13 +137,15 @@ class TestOpenings:
         assert box.left == pytest.approx(61.82, abs=0.01)
         assert box.right == pytest.approx(112.73 + 5 * 0.7071, abs=0.01)  # the jamb
 
-    def test_overhead_door_panel_across_closed_and_lifted_inside_open(self) -> None:
+    def test_overhead_door_panel_across_closed_and_lifted_overhead_open(self) -> None:
         params = {"kind": "overhead", "swing": "down"}
         closed = draw(opening("off", params), "off")
-        assert '<line x1="82" y1="100" x2="118" y2="100"' in closed and "<path" not in closed
+        assert '<line x1="82" y1="100" x2="118" y2="100"' in closed and "<polygon" not in closed
         opened = draw(opening("on", params), "on")
-        assert '<line x1="82" y1="108" x2="118" y2="108"' in opened  # clear of the gap
-        assert element_box(opening(None, params)).bottom == 108
+        # the gap is clear; the lifted panel is a box reaching into the room
+        assert '<polygon points="82,105 118,105 118,120 82,120"' in opened
+        assert opened.count("<line") == 3  # the wall cut and two jambs: no panel in the gap
+        assert element_box(opening(None, params)).bottom == 120
 
     def test_no_data_is_dotted_and_unbound_is_closed(self) -> None:
         assert "stroke-dasharray" in draw(opening("unavailable"), "unavailable")

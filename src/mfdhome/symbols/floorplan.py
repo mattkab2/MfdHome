@@ -132,7 +132,7 @@ def stairs(
 
 class OpeningKind(StrEnum):
     """A door (a leaf that swings), a window (a double line) or an overhead door (a
-    panel that lifts clear of the opening, such as a garage door)."""
+    panel that lifts into the room, such as a garage door)."""
 
     DOOR = "door"
     WINDOW = "window"
@@ -145,8 +145,8 @@ JAMB = 5.0
 WINDOW_GAP = 2.5
 #: An opening's leaf, relative to the theme's symbol stroke width.
 LEAF_WEIGHT = 1.5
-#: How far inside an open overhead door's panel is drawn, parallel to the opening.
-OVERHEAD_SET = 8.0
+#: How far an open overhead door's lifted panel reaches into the room, seen from above.
+OVERHEAD_DEPTH = 20.0
 
 
 def _placer(
@@ -169,7 +169,7 @@ def _across(kind: OpeningKind, length: float, swing: float) -> tuple[float, floa
     if kind is OpeningKind.DOOR:
         return min(-JAMB, swing * length), max(JAMB, swing * length)
     if kind is OpeningKind.OVERHEAD:
-        return min(-JAMB, swing * OVERHEAD_SET), max(JAMB, swing * OVERHEAD_SET)
+        return min(-JAMB, swing * OVERHEAD_DEPTH), max(JAMB, swing * OVERHEAD_DEPTH)
     return -JAMB, JAMB
 
 
@@ -225,7 +225,8 @@ def opening(
     swings 90 degrees toward ``swing`` around its hinge, with the swing arc.
     A closed window is a double line; an open one shows the gap with one
     sash slid aside. A closed overhead door is a panel across the gap; an open
-    one shows its panel lifted clear, just inside on the ``swing`` side.
+    one leaves the gap clear and shows its panel lifted overhead on the
+    ``swing`` side, seen from above as a box reaching into the room.
     """
     at = _placer(x, y, vertical, angle)
 
@@ -255,8 +256,17 @@ def opening(
             parts += [seg(at(-half, WINDOW_GAP), at(half, WINDOW_GAP), leaf)]
         return "".join(parts)
     if kind is OpeningKind.OVERHEAD:
-        v = swing * OVERHEAD_SET if is_open else 0.0
-        return "".join([*parts, seg(at(-half, v), at(half, v), leaf)])
+        if not is_open:
+            return "".join([*parts, seg(at(-half, 0), at(half, 0), leaf)])
+        depth = swing * OVERHEAD_DEPTH
+        lifted = [
+            at(-half, JAMB * swing),
+            at(half, JAMB * swing),
+            at(half, depth),
+            at(-half, depth),
+        ]
+        panel = {**stroke(status, theme, 1.0), "fill": "none"}
+        return "".join([*parts, svg.polygon(lifted, panel)])
     hinge_u, free_u = (-half, half) if hinge_at_start else (half, -half)
     hinge = at(hinge_u, 0)
     if not is_open:

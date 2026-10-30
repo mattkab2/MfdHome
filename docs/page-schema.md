@@ -501,7 +501,8 @@ structure color so it recedes; only things that report take status colors.
   the gap; an open one swings 90 degrees toward `swing` around its `hinge`
   end, with the swing arc. A closed window is a double line; an open one
   shows one sash slid aside. An `overhead` door (a garage door) is a panel
-  across the gap, lifted just inside on the `swing` side when open. On a
+  across the gap; open, the gap is clear and the panel shows lifted overhead
+  on the `swing` side, a box reaching into the room. On a
   diagonal wall, `angle` turns the opening (degrees, clockwise from pointing
   right; `orientation` is then ignored), and its sides turn with it: at 45
   the wall runs down-right and `down` is down-left of it. Its box includes
