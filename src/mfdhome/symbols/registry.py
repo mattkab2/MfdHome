@@ -355,7 +355,7 @@ def _draw_water_heater(inp: SymbolInput, theme: Theme) -> str:
 
 
 def _outlet_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"label", "outdoor", "inlets"}
+    unknown = set(raw) - {"label", "outdoor", "inlets", "facing"}
     if unknown:
         raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
     label = _label_params("OUT")({"label": raw["label"]} if "label" in raw else {})["label"]
@@ -365,15 +365,19 @@ def _outlet_params(raw: Mapping[str, object]) -> Mapping[str, object]:
     inlets = raw.get("inlets", 1)
     if isinstance(inlets, bool) or inlets not in (1, 2):
         raise ValueError("'inlets' must be 1 or 2 (hot and cold)")
-    return {"label": label, "outdoor": outdoor, "inlets": inlets}
+    facing = raw.get("facing", "right")
+    if facing not in ("right", "left"):
+        raise ValueError("'facing' must be right (fed from the left) or left")
+    return {"label": label, "outdoor": outdoor, "inlets": inlets, "facing": facing}
 
 
 def _outlet_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
     inlets = params.get("inlets", 1)
     assert isinstance(inlets, int)
+    left = params.get("facing") == "left"
 
     def port(name: str) -> PortFn:
-        return lambda at, _orientation: inlet_ports(*at, inlets)[name]
+        return lambda at, _orientation: inlet_ports(*at, inlets, left)[name]
 
     return {name: port(name) for name in inlet_ports(0.0, 0.0, inlets)}
 
@@ -381,7 +385,7 @@ def _outlet_ports(params: Mapping[str, object]) -> Mapping[str, PortFn]:
 def _draw_outlet(inp: SymbolInput, theme: Theme) -> str:
     label, outdoor = inp.params["label"], inp.params["outdoor"]
     assert isinstance(label, str) and isinstance(outdoor, bool)
-    return outlet(*inp.at, label, outdoor, inp.status, theme)
+    return outlet(*inp.at, label, outdoor, inp.status, theme, inp.params.get("facing") == "left")
 
 
 #: Longest sensor code that fits inside the diamond.

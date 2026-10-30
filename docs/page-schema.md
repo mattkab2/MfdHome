@@ -76,7 +76,7 @@ Any registered symbol type, centered at `at`:
 | `tank` | `state` | none | `tag`: up to 4 characters (`SOFT`, `FILT`, `EXP`); `connections`: `top` (default), `sides` or `bottom` |
 | `pump` | `state`, `power` (numeric) | none | `running`: states that mean running, default `[on, running]` |
 | `water_heater` | `temperature` (numeric), `heating` | none | `heating`: states that mean the burner is lit, default `[on, heating]` |
-| `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold |
+| `outlet` | `state` | none | `label`: up to 5 characters, default `OUT`; `outdoor`: true doubles the back edge; `inlets`: 1 (default) or 2 for hot and cold; `facing`: `right` (default) or `left` |
 | `sensor` | `state` | none | `code`: up to 3 characters drawn inside (`W`, `S`, `CO`, ...); `active`: states that mean tripped, default `[on]` |
 | `gauge` | `value` (numeric) | `value` | `format`: a named format or format string, default `number`; `unit`: replaces the entity's unit |
 | `furnace` | `action` | none | `coil`: true adds an AC coil; `heating`: actions that light the burner, default `[heating, on]`; `cooling`: actions that chill the coil, default `[cooling]`; `blowing`: actions that run the blower, default `[heating, cooling, fan, on]` |
@@ -146,7 +146,9 @@ back flush with the pipe that feeds it through `in`. `outdoor: true` doubles
 that back edge, the wall the pipe passes through. `inlets: 2` (a sink) swaps
 `in` for `cold` (upper) and `hot` (lower) on the back, so a water heater's
 cold inlet and hot outlet reach it without the pipes crossing. Outlets are
-always horizontal, fed from the left with the flag pointing right. No
+always horizontal, fed from the left with the flag pointing right;
+`facing: left` mirrors one, fed from the right. Outlets also end lines that
+leave the page's subject, such as a circuit to an outdoor condenser. No
 binding is needed; `state` is there for status rules (the line feeding the
 outlet shows whether water flows).
 

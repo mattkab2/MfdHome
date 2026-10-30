@@ -1,6 +1,7 @@
 """Outlet symbol: a terminal flag with a tag, its flat back flush with the pipe.
 
-Outdoors the back edge is doubled (the wall); a sink takes two inlets.
+Outdoors the back edge is doubled (the wall); a sink takes two inlets; a flag
+can point left, fed from the right.
 """
 
 import pytest
@@ -67,6 +68,15 @@ def test_unbound_is_normal_and_no_data_is_dotted() -> None:
     assert LCD.color(Status.UNAVAILABLE) in missing and "stroke-dasharray" in missing
 
 
+def test_facing_left_mirrors_the_flag_and_its_inlets() -> None:
+    svg = outlet({"label": "AC", "outdoor": True, "facing": "left"})
+    assert '<polygon points="128,86 84,86 72,100 84,114 128,114"' in svg  # points left
+    assert '<line x1="124.5" y1="86" x2="124.5" y2="114"' in svg  # the wall, on the right
+    assert find_port(element({"facing": "left"}), "in") == Port((128, 100), (1.0, 0.0))
+    sink = element({"label": "SINK", "inlets": 2, "facing": "left"})
+    assert find_port(sink, "cold") == Port((128, 93), (1.0, 0.0))
+
+
 @pytest.mark.parametrize(
     ("params", "error"),
     [
@@ -75,6 +85,7 @@ def test_unbound_is_normal_and_no_data_is_dotted() -> None:
         ({"inlets": 3}, "'inlets' must be 1 or 2"),
         ({"inlets": True}, "'inlets' must be 1 or 2"),
         ({"indoor": True}, "unknown parameter 'indoor'"),
+        ({"facing": "up"}, "'facing' must be right"),
     ],
 )
 def test_params_are_validated(params: dict[str, object], error: str) -> None:
