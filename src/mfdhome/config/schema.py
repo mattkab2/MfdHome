@@ -207,6 +207,7 @@ class ReadoutModel(Strict):
     anchor: str | None = None
     along: Fraction = 0.5
     offset: Coord = (0.0, 0.0)
+    with_flow: bool = False  # lines: only while that direction's arrow is drawn
 
 
 class TagModel(Strict):

@@ -242,8 +242,15 @@ def _render_line(element: LineElement, c: _Ctx) -> tuple[str, str]:
     def box_at(along: float) -> Box:
         return Box.point(*point_along(element.points, along)[0])
 
+    # Readouts that go with the arrows show only while their direction flows (the
+    # arrow keeps its place by the first readout either way).
+    shown = [
+        r
+        for r in element.readouts
+        if not r.with_flow or (back if two_way and r.channel == LINE_BACK else flow) is not None
+    ]
     labels = _collect_labels(
-        element.name, element.readouts, values, status, theme, default_anchor, readout_anchor
+        element.name, shown, values, status, theme, default_anchor, readout_anchor
     )
     # A two-way line's labels clear the harpoons on both sides.
     edge = arrow_reach(parts.half_width) if two_way else parts.half_width

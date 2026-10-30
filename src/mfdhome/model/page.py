@@ -63,7 +63,10 @@ class Readout:
     or a Python format string applied to the numeric value. ``unit`` overrides
     the entity's ``unit_of_measurement``. ``absolute`` shows the magnitude only
     (useful when direction is shown by a flow arrow). ``anchor=None`` uses the
-    default: bottom for symbols, beside the line for lines.
+    default: bottom for symbols, beside the line for lines. ``with_flow`` (on
+    a line) shows it only while its direction's flow arrow is drawn: a
+    ``rate_back`` readout with the backward arrow, any other with the forward
+    one.
     """
 
     channel: str
@@ -73,6 +76,7 @@ class Readout:
     anchor: Anchor | None = None
     along: float = 0.5
     offset: Point = (0.0, 0.0)
+    with_flow: bool = False
 
 
 @dataclass(frozen=True)

@@ -623,6 +623,9 @@ readouts:
   - `raw`: the state string as-is
 - `unit` overrides the entity's `unit_of_measurement`.
 - `abs: true` shows the magnitude, for use when a flow arrow shows direction.
+- `with_flow: true` (line readouts) shows the value only while its direction's
+  flow arrow is drawn: a `rate_back` readout with the backward arrow, any other
+  with the forward one. Busy pages (the network) then label only what moves.
 - Missing or non-numeric data shows `---`.
 
 Names use the theme's label font and text color. Readouts use the element's

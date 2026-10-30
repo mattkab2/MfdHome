@@ -297,6 +297,49 @@ class TestTwoWay:
         svg = self.link("412", "38", readouts=readouts)
         assert self.harpoons(svg) == [("above", "forward"), ("below", "back")]
 
+    def test_readouts_with_flow_show_only_with_their_arrow(self) -> None:
+        readouts = (
+            Readout("rate", format="data_rate", with_flow=True),
+            Readout("rate_back", format="data_rate", with_flow=True),
+        )
+        both = self.link("412", "38", readouts=readouts)
+        assert ">412 Mb/s<" in both and ">38 Mb/s<" in both
+        download = self.link("412", "0.5", readouts=readouts)  # upload under the threshold
+        assert ">412 Mb/s<" in download and "kb/s<" not in download
+        assert "<text" not in self.link("0.5", "0.5", readouts=readouts)
+        # the arrows keep their sides, shown or not
+        assert self.harpoons(self.link("0", "38", readouts=readouts)) == [("below", "back")]
+
+    def test_with_flow_config(self, tmp_path: Path) -> None:
+        page = tmp_path / "p.yaml"
+        body = textwrap.dedent(
+            """\
+            page: p
+            title: P
+            canvas: {width: 100, height: 100}
+            elements:
+              - id: link
+                type: line
+                from: [0, 0]
+                to: [10, 0]
+                bind: {rate: sensor.rx}
+                flow: {threshold: 1}
+                readouts: [{value: rate, with_flow: true}]
+              - id: meter
+                type: electric_meter
+                at: [50, 50]
+                bind: {power: sensor.p}
+                readouts: [{value: power, with_flow: true}]
+            """
+        )
+        page.write_text(body)
+        with pytest.raises(ConfigError) as info:
+            load_page(page, Defs())
+        assert [i.message for i in info.value.issues] == ["'with_flow' applies to line readouts"]
+        page.write_text(body.replace("    flow: {threshold: 1}\n", ""))
+        with pytest.raises(ConfigError, match="'with_flow' needs a line with 'flow'"):
+            load_page(page, Defs())
+
     def test_config(self, tmp_path: Path) -> None:
         page = tmp_path / "p.yaml"
         body = textwrap.dedent(

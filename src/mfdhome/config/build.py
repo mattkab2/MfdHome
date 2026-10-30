@@ -398,12 +398,25 @@ class _ElementBuilder:
         return Name(model.text, anchor, model.along, model.offset)
 
     def readouts(
-        self, models: list[ReadoutModel], bound: Mapping[str, object], loc: Loc
+        self,
+        models: list[ReadoutModel],
+        bound: Mapping[str, object],
+        loc: Loc,
+        flow: bool | None = None,
     ) -> tuple[Readout, ...]:
+        """Build readouts; ``flow`` is whether the line has a flow rule (``None``: not
+        a line, so ``with_flow`` can't apply)."""
         out = []
         for i, r in enumerate(models):
             item = (*loc, i)
             self.bound_channel(r.value, bound, (*item, "value"))
+            if r.with_flow and not flow:
+                self.issues.add(
+                    (*item, "with_flow"),
+                    "'with_flow' needs a line with 'flow'"
+                    if flow is False
+                    else "'with_flow' applies to line readouts",
+                )
             if not is_valid_format(r.format):
                 self.issues.add(
                     (*item, "format"),
@@ -411,7 +424,9 @@ class _ElementBuilder:
                     "or a format string like '{:.1f} V'",
                 )
             anchor = _anchor(r.anchor, (*item, "anchor"), self.issues)
-            out.append(Readout(r.value, r.format, r.unit, r.abs, anchor, r.along, r.offset))
+            out.append(
+                Readout(r.value, r.format, r.unit, r.abs, anchor, r.along, r.offset, r.with_flow)
+            )
         return tuple(out)
 
     def symbol(self, model: SymbolModel, loc: Loc) -> SymbolElement | None:
@@ -480,7 +495,9 @@ class _ElementBuilder:
             bind=bound,
             name=self.name(model.name, (*loc, "name")),
             status=self.status(model.status, line_primary(bound), bound, (*loc, "status")),
-            readouts=self.readouts(model.readouts, bound, (*loc, "readouts")),
+            readouts=self.readouts(
+                model.readouts, bound, (*loc, "readouts"), flow=model.flow is not None
+            ),
             flow=flow,
             casing=model.casing,
             tag=None if model.tag is None else LineTag(model.tag.text, model.tag.along),
