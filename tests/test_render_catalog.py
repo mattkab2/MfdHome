@@ -25,6 +25,7 @@ SYMBOLS = [
     "outlet",
     "sensor",
     "gauge",
+    "stairs",
 ]
 
 

@@ -124,3 +124,7 @@ elements:
     name: {text: LEAK, anchor: right}
     bind: {state: binary_sensor.leak_basement}
     status: {map: {"on": warning}}
+
+  # --- floorplan structure -------------------------------------------------
+  - {id: stairs, type: stairs, at: [920, 470], orientation: vertical,
+     params: {length: 120, width: 34, up: start}}

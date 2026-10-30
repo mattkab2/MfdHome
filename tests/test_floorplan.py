@@ -1,4 +1,5 @@
-"""Floorplans: rooms, walls, doors and windows, the alarm panel, and the security page."""
+"""Floorplans: rooms, walls, stairs, doors and windows, the alarm panel, and the security
+page."""
 
 import re
 import textwrap
@@ -126,6 +127,24 @@ class TestOpenings:
         assert element_box(opening(None, {"swing": "down"})).bottom == 136
         assert element_box(opening(None, {"kind": "window"})).top == 95
 
+    def test_door_on_a_diagonal_wall(self) -> None:
+        # turned 45 degrees: the wall runs down-right, 'down' is down-left of it
+        closed = draw(opening("off", {"angle": 45}), "off")
+        assert '<line x1="87.27" y1="87.27" x2="112.73" y2="112.73"' in closed
+        swung = draw(opening("on", {"angle": 45, "swing": "down"}), "on")
+        assert '<line x1="87.27" y1="87.27" x2="61.82" y2="112.73"' in swung
+        box = element_box(opening(None, {"angle": 45, "swing": "down"}))
+        assert box.left == pytest.approx(61.82, abs=0.01)
+        assert box.right == pytest.approx(112.73 + 5 * 0.7071, abs=0.01)  # the jamb
+
+    def test_overhead_door_panel_across_closed_and_lifted_inside_open(self) -> None:
+        params = {"kind": "overhead", "swing": "down"}
+        closed = draw(opening("off", params), "off")
+        assert '<line x1="82" y1="100" x2="118" y2="100"' in closed and "<path" not in closed
+        opened = draw(opening("on", params), "on")
+        assert '<line x1="82" y1="108" x2="118" y2="108"' in opened  # clear of the gap
+        assert element_box(opening(None, params)).bottom == 108
+
     def test_no_data_is_dotted_and_unbound_is_closed(self) -> None:
         assert "stroke-dasharray" in draw(opening("unavailable"), "unavailable")
         assert "<path" not in draw(opening(None), None)
@@ -133,15 +152,57 @@ class TestOpenings:
     @pytest.mark.parametrize(
         ("params", "error"),
         [
-            ({"kind": "hatch"}, "'kind' must be door or window"),
+            ({"kind": "hatch"}, "'kind' must be door, window or overhead"),
             ({"length": 4}, "'length' must be a number from 8 to 400"),
             ({"swing": "inward"}, "'swing' must be one of: up, left, down, right"),
             ({"hinge": "middle"}, "'hinge' must be start or end"),
+            ({"angle": 270}, "'angle' must be a number of degrees from -180 to 180"),
         ],
     )
     def test_params(self, params: dict[str, object], error: str) -> None:
         with pytest.raises(ValueError, match=error):
             get_symbol("opening").params(params)
+
+
+class TestStairs:
+    def element(self, params: dict[str, object], vertical: bool = True) -> SymbolElement:
+        return SymbolElement(
+            "s",
+            "stairs",
+            (100, 100),
+            params=get_symbol("stairs").params(params),
+            orientation=Orientation.VERTICAL if vertical else Orientation.HORIZONTAL,
+        )
+
+    def test_outline_treads_and_an_arrow_up_the_flight(self) -> None:
+        svg = render_element(self.element({"length": 100, "width": 30, "treads": 5}), {}, LCD)
+        assert '<rect x="85" y="50" width="30" height="100"' in svg
+        assert svg.count("<line") == 4 + 1  # a line between each pair of treads, the arrow
+        assert '<line x1="100" y1="60" x2="100" y2="140"' in svg  # tail to tip, up the end
+        assert '<polyline points="96,132 100,140 104,132"' in svg
+        assert LCD.color(Status.NORMAL) not in svg  # structure, never status
+
+    def test_up_at_start_points_the_other_way_and_box_follows_the_run(self) -> None:
+        stairs = self.element({"length": 100, "up": "start"}, vertical=False)
+        svg = render_element(stairs, {}, LCD)  # 10 treads by default, 10 deep
+        assert '<line x1="145" y1="100" x2="55" y2="100"' in svg
+        assert '<polyline points="63,96 55,100 63,104"' in svg
+        box = element_box(stairs)
+        assert (box.left, box.top, box.right, box.bottom) == (50, 85, 150, 115)
+        assert get_symbol("stairs").params({"length": 188})["treads"] == 19
+
+    @pytest.mark.parametrize(
+        ("params", "error"),
+        [
+            ({"width": 4}, "'width' must be a number from 8 to 400"),
+            ({"treads": 1}, "'treads' must be a whole number from 2 to 40"),
+            ({"up": "north"}, "'up' must be start"),
+            ({"steps": 3}, "unknown parameter 'steps'"),
+        ],
+    )
+    def test_params(self, params: dict[str, object], error: str) -> None:
+        with pytest.raises(ValueError, match=error):
+            get_symbol("stairs").params(params)
 
 
 class TestAlarmPanel:

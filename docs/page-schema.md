@@ -84,7 +84,8 @@ Any registered symbol type, centered at `at`:
 | `condenser` | `action` | none | `running`: actions that run the compressor, default `[cooling, on]` |
 | `damper` | `state`, `position` (numeric) | `state` | as for `ball_valve` (`open`, `moving`, `actuated`) |
 | `thermostat` | `temperature` (numeric), `setpoint` (numeric), `action` | `temperature` | `format`: for both temperatures, default `{:.0f}°` |
-| `opening` | `state` | none | `kind`: `door` (default) or `window`; `length` (default 36); `swing`: `up`/`left` or `down`/`right`; `hinge`: `start` or `end`; `open`: states that mean open, default `[on, open]` |
+| `opening` | `state` | none | `kind`: `door` (default), `window` or `overhead`; `length` (default 36); `swing`: `up`/`left` or `down`/`right`; `hinge`: `start` or `end`; `angle`: degrees, for a diagonal wall; `open`: states that mean open, default `[on, open]` |
+| `stairs` | none | none | `length` along the run (default 100); `width` (default 30); `treads` (default one per 10); `up`: `end` (default) or `start` |
 | `alarm_panel` | `state` | `state` | none |
 | `combiner` | `power` (numeric) | none | `inputs`: number of branch circuits, 1 to 4, default 2 |
 | `router` | `state`, `cpu`, `memory`, `temperature` (numeric) | none | none |
@@ -499,7 +500,16 @@ structure color so it recedes; only things that report take status colors.
   wall is cut under it and its ends marked. A closed door is a leaf across
   the gap; an open one swings 90 degrees toward `swing` around its `hinge`
   end, with the swing arc. A closed window is a double line; an open one
-  shows one sash slid aside. Its box includes the door's swing.
+  shows one sash slid aside. An `overhead` door (a garage door) is a panel
+  across the gap, lifted just inside on the `swing` side when open. On a
+  diagonal wall, `angle` turns the opening (degrees, clockwise from pointing
+  right; `orientation` is then ignored), and its sides turn with it: at 45
+  the wall runs down-right and `down` is down-left of it. Its box includes
+  the door's swing.
+- **`stairs`**: a flight drawn as structure (never a status color): its
+  outline, a line at each tread and an arrow pointing up the flight. It runs
+  along its `orientation`; `up: start` points the arrow to the top (or left)
+  end.
 - **`alarm_panel`**: the panel's state in words (DISARMED, ARMED AWAY, ENTRY
   DELAY, TRIGGERED, ...), drawn in the active color while armed; status rules
   make it a caution or warning.

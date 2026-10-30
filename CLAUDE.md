@@ -315,9 +315,10 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   `SA`, `RA`); color and pattern stay reserved for status. Numeric
   comparisons may compare against another value plus an offset (a room
   against its setpoint).
-- **Floorplans** are rooms and walls (polygons/polylines in page YAML, in
-  the theme's structure color) plus `opening` symbols for doors and windows
-  on contact sensors and an `alarm_panel` badge. Displays never arm,
+- **Floorplans** are rooms, walls and `stairs` (polygons/polylines in page
+  YAML, in the theme's structure color) plus `opening` symbols for doors,
+  windows and overhead (garage) doors on contact sensors, turned by `angle`
+  on diagonal walls, and an `alarm_panel` badge. Displays never arm,
   disarm or silence anything.
 - **Life-safety alerts** (`life_safety: true`) are named first within their
   severity; on the annunciator their systems (FIRE, GAS, SEC, LEAK) come

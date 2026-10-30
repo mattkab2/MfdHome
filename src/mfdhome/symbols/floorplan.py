@@ -1,13 +1,15 @@
-"""Floorplan drawing: rooms, walls, openings (doors and windows) and the alarm panel.
+"""Floorplan drawing: rooms, walls, stairs, openings (doors and windows) and the alarm
+panel.
 
-Structure (rooms, walls) is drawn in the theme's structure color, so it
+Structure (rooms, walls, stairs) is drawn in the theme's structure color, so it
 recedes; only things that report (openings, sensors, the panel) and rooms
 with a status worth showing take status colors.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import math
+from collections.abc import Callable, Sequence
 from enum import StrEnum
 
 from mfdhome.layout.anchors import Box
@@ -67,11 +69,74 @@ def wall(points: Sequence[Point], exterior: bool, theme: Theme) -> str:
     )
 
 
+#: Depth of one stair tread, for a flight's default tread count.
+TREAD = 10.0
+#: An arrowhead on a flight of stairs: half its width and its length.
+STAIR_ARROW = 4.0
+
+
+def stairs_box(x: float, y: float, vertical: bool, length: float, width: float) -> Box:
+    """Bounding box of a flight ``length`` long (along its run) centered at (x, y)."""
+    along, across = length / 2, width / 2
+    if vertical:
+        return Box(x - across, y - along, x + across, y + along)
+    return Box(x - along, y - across, x + along, y + across)
+
+
+def stairs(
+    x: float,
+    y: float,
+    vertical: bool,
+    length: float,
+    width: float,
+    treads: int,
+    up_at_start: bool,
+    theme: Theme,
+) -> str:
+    """Render a flight of stairs centered at (x, y): its outline, a line across at each
+    tread and an arrow up the middle, pointing up the flight (toward its start,
+    the top or left end, when ``up_at_start``). Stairs are structure: always in
+    the structure color, whatever happens around them."""
+
+    def at(u: float, v: float) -> Point:
+        return (x + v, y + u) if vertical else (x + u, y + v)
+
+    half, across = length / 2, width / 2
+    line: dict[str, svg.AttrValue] = {
+        "stroke": theme.structure_color,
+        "stroke-width": theme.symbol_stroke_width,
+    }
+    fine = {**line, "stroke-width": theme.symbol_stroke_width * 0.5}
+    box = stairs_box(x, y, vertical, length, width)
+    parts = [
+        svg.rect(
+            box.left, box.top, box.right - box.left, box.bottom - box.top, {"fill": "none", **line}
+        )
+    ]
+    step = length / treads
+    for i in range(1, treads):
+        u = -half + i * step
+        parts.append(svg.line(*at(u, -across), *at(u, across), fine))
+    sign = -1.0 if up_at_start else 1.0
+    tip, tail = sign * (half - step / 2), -sign * (half - step / 2)
+    back = tip - sign * STAIR_ARROW * 2
+    parts.append(svg.line(*at(tail, 0), *at(tip, 0), line))
+    parts.append(
+        svg.polyline(
+            [at(back, -STAIR_ARROW), at(tip, 0), at(back, STAIR_ARROW)],
+            {"fill": "none", "stroke-linejoin": "miter", **line},
+        )
+    )
+    return "".join(parts)
+
+
 class OpeningKind(StrEnum):
-    """A door (a leaf that swings) or a window (a double line)."""
+    """A door (a leaf that swings), a window (a double line) or an overhead door (a
+    panel that lifts clear of the opening, such as a garage door)."""
 
     DOOR = "door"
     WINDOW = "window"
+    OVERHEAD = "overhead"
 
 
 #: Half the length of the jamb marks at each end of an opening.
@@ -80,6 +145,32 @@ JAMB = 5.0
 WINDOW_GAP = 2.5
 #: An opening's leaf, relative to the theme's symbol stroke width.
 LEAF_WEIGHT = 1.5
+#: How far inside an open overhead door's panel is drawn, parallel to the opening.
+OVERHEAD_SET = 8.0
+
+
+def _placer(
+    x: float, y: float, vertical: bool, angle: float | None
+) -> Callable[[float, float], Point]:
+    """Local (``u`` along the wall, ``v`` across it) to canvas coordinates.
+
+    Horizontal openings run right with ``v`` down; vertical ones run down with
+    ``v`` right. ``angle`` (degrees, clockwise from pointing right) turns the
+    wall for a diagonal one, ``v`` turning with it (down at 0).
+    """
+    if angle is None:
+        return (lambda u, v: (x + v, y + u)) if vertical else (lambda u, v: (x + u, y + v))
+    c, s = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+    return lambda u, v: (x + u * c - v * s, y + u * s + v * c)
+
+
+def _across(kind: OpeningKind, length: float, swing: float) -> tuple[float, float]:
+    """How far an opening reaches across its wall (``v``), both ways."""
+    if kind is OpeningKind.DOOR:
+        return min(-JAMB, swing * length), max(JAMB, swing * length)
+    if kind is OpeningKind.OVERHEAD:
+        return min(-JAMB, swing * OVERHEAD_SET), max(JAMB, swing * OVERHEAD_SET)
+    return -JAMB, JAMB
 
 
 def _cut_width(theme: Theme) -> float:
@@ -94,19 +185,23 @@ def opening_box(
     kind: OpeningKind,
     length: float,
     swing: float,
+    angle: float | None = None,
 ) -> Box:
     """Bounding box of an opening centered at (x, y), including a door's swing.
 
-    ``swing`` is -1 (up, or left when vertical) or +1 (down, or right).
+    ``swing`` is -1 (up, or left when vertical) or +1 (down, or right); on a
+    wall turned by ``angle``, the sides turn with it.
     """
     half = length / 2
-    if kind is OpeningKind.DOOR:
-        low, high = min(-JAMB, swing * length), max(JAMB, swing * length)
-    else:
-        low, high = -JAMB, JAMB
-    if vertical:
+    low, high = _across(kind, length, swing)
+    if angle is None and vertical:
         return Box(x + low, y - half, x + high, y + half)
-    return Box(x - half, y + low, x + half, y + high)
+    if angle is None:
+        return Box(x - half, y + low, x + half, y + high)
+    at = _placer(x, y, vertical, angle)
+    corners = [at(u, v) for u in (-half, half) for v in (low, high)]
+    xs, ys = [p[0] for p in corners], [p[1] for p in corners]
+    return Box(min(xs), min(ys), max(xs), max(ys))
 
 
 def opening(
@@ -120,18 +215,19 @@ def opening(
     is_open: bool,
     status: Status,
     theme: Theme,
+    angle: float | None = None,
 ) -> str:
-    """Render a door or window centered at (x, y) in a wall.
+    """Render a door or window centered at (x, y) in a wall (a diagonal one when
+    ``angle`` is given).
 
     The wall is erased under the opening and its ends marked with jambs (in
     the structure color). A closed door is a leaf across the gap; an open one
     swings 90 degrees toward ``swing`` around its hinge, with the swing arc.
     A closed window is a double line; an open one shows the gap with one
-    sash slid aside.
+    sash slid aside. A closed overhead door is a panel across the gap; an open
+    one shows its panel lifted clear, just inside on the ``swing`` side.
     """
-
-    def at(u: float, v: float) -> Point:
-        return (x + v, y + u) if vertical else (x + u, y + v)
+    at = _placer(x, y, vertical, angle)
 
     def seg(a: Point, b: Point, attrs: dict[str, svg.AttrValue]) -> str:
         return svg.line(*a, *b, attrs)
@@ -158,6 +254,9 @@ def opening(
             parts += [seg(at(-half, -WINDOW_GAP), at(half, -WINDOW_GAP), leaf)]
             parts += [seg(at(-half, WINDOW_GAP), at(half, WINDOW_GAP), leaf)]
         return "".join(parts)
+    if kind is OpeningKind.OVERHEAD:
+        v = swing * OVERHEAD_SET if is_open else 0.0
+        return "".join([*parts, seg(at(-half, v), at(half, v), leaf)])
     hinge_u, free_u = (-half, half) if hinge_at_start else (half, -half)
     hinge = at(hinge_u, 0)
     if not is_open:

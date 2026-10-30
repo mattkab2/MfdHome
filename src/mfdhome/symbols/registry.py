@@ -32,7 +32,15 @@ from mfdhome.symbols.fittings import (
     prv,
     prv_box,
 )
-from mfdhome.symbols.floorplan import OpeningKind, alarm_panel, opening, opening_box
+from mfdhome.symbols.floorplan import (
+    TREAD,
+    OpeningKind,
+    alarm_panel,
+    opening,
+    opening_box,
+    stairs,
+    stairs_box,
+)
 from mfdhome.symbols.floorplan import panel_box as alarm_panel_box
 from mfdhome.symbols.format import format_value, is_valid_format
 from mfdhome.symbols.hvac import (
@@ -522,12 +530,17 @@ DEFAULT_OPEN_CONTACT = frozenset({"on", "open"})
 
 
 def _opening_params(raw: Mapping[str, object]) -> Mapping[str, object]:
-    unknown = set(raw) - {"kind", "length", "swing", "hinge", "open"}
+    unknown = set(raw) - {"kind", "length", "swing", "hinge", "open", "angle"}
     if unknown:
         raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
     kind = raw.get("kind", OpeningKind.DOOR.value)
     if kind not in {k.value for k in OpeningKind}:
-        raise ValueError("'kind' must be door or window")
+        raise ValueError("'kind' must be door, window or overhead")
+    angle = raw.get("angle")
+    if angle is not None and (
+        isinstance(angle, bool) or not isinstance(angle, int | float) or not -180 <= angle <= 180
+    ):
+        raise ValueError("'angle' must be a number of degrees from -180 to 180")
     length = raw.get("length", 36)
     if isinstance(length, bool) or not isinstance(length, int | float) or not 8 <= length <= 400:
         raise ValueError("'length' must be a number from 8 to 400")
@@ -545,6 +558,7 @@ def _opening_params(raw: Mapping[str, object]) -> Mapping[str, object]:
         "length": float(length),
         "swing": SWINGS[str(swing)],
         "hinge_at_start": hinge == "start",
+        "angle": None if angle is None else float(angle),
         **states,
     }
 
@@ -553,9 +567,10 @@ _OPENING_DEFAULTS = _opening_params({})
 
 
 def _opening_bounds(at: Point, orientation: Orientation, params: Mapping[str, object]) -> Box:
-    kind, length, swing = params["kind"], params["length"], params["swing"]
+    kind, length, swing, angle = params["kind"], params["length"], params["swing"], params["angle"]
     assert isinstance(kind, OpeningKind) and isinstance(length, float) and isinstance(swing, float)
-    return opening_box(*at, orientation is Orientation.VERTICAL, kind, length, swing)
+    assert angle is None or isinstance(angle, float)
+    return opening_box(*at, orientation is Orientation.VERTICAL, kind, length, swing, angle)
 
 
 def _draw_opening(inp: SymbolInput, theme: Theme) -> str:
@@ -563,9 +578,43 @@ def _draw_opening(inp: SymbolInput, theme: Theme) -> str:
     kind, length, swing, hinge = p["kind"], p["length"], p["swing"], p["hinge_at_start"]
     assert isinstance(kind, OpeningKind) and isinstance(length, float)
     assert isinstance(swing, float) and isinstance(hinge, bool)
+    angle = p["angle"]
+    assert angle is None or isinstance(angle, float)
     is_open = _in_states(inp, "open", DEFAULT_OPEN_CONTACT) is True
     vertical = inp.orientation is Orientation.VERTICAL
-    return opening(*inp.at, vertical, kind, length, swing, hinge, is_open, inp.status, theme)
+    return opening(*inp.at, vertical, kind, length, swing, hinge, is_open, inp.status, theme, angle)
+
+
+def _stairs_params(raw: Mapping[str, object]) -> Mapping[str, object]:
+    unknown = set(raw) - {"length", "width", "treads", "up"}
+    if unknown:
+        raise ValueError(f"unknown parameter {sorted(unknown)[0]!r}")
+    length, width = raw.get("length", 100), raw.get("width", 30)
+    for name, value in (("length", length), ("width", width)):
+        if isinstance(value, bool) or not isinstance(value, int | float) or not 8 <= value <= 400:
+            raise ValueError(f"'{name}' must be a number from 8 to 400")
+    assert isinstance(length, int | float) and isinstance(width, int | float)
+    treads = raw.get("treads", max(2, round(length / TREAD)))
+    if isinstance(treads, bool) or not isinstance(treads, int) or not 2 <= treads <= 40:
+        raise ValueError("'treads' must be a whole number from 2 to 40")
+    up = raw.get("up", "end")
+    if up not in ("start", "end"):
+        raise ValueError("'up' must be start (top or left) or end")
+    return {"length": float(length), "width": float(width), "treads": treads, "up": up}
+
+
+def _stairs_bounds(at: Point, orientation: Orientation, params: Mapping[str, object]) -> Box:
+    length, width = params["length"], params["width"]
+    assert isinstance(length, float) and isinstance(width, float)
+    return stairs_box(*at, orientation is Orientation.VERTICAL, length, width)
+
+
+def _draw_stairs(inp: SymbolInput, theme: Theme) -> str:
+    p = inp.params
+    length, width, treads = p["length"], p["width"], p["treads"]
+    assert isinstance(length, float) and isinstance(width, float) and isinstance(treads, int)
+    vertical = inp.orientation is Orientation.VERTICAL
+    return stairs(*inp.at, vertical, length, width, treads, p["up"] == "start", theme)
 
 
 def _draw_alarm_panel(inp: SymbolInput, theme: Theme) -> str:
@@ -853,6 +902,15 @@ REGISTRY: Mapping[str, SymbolSpec] = {
         draw=_draw_opening,
         params=_opening_params,
         box_for=_opening_bounds,
+    ),
+    "stairs": SymbolSpec(
+        type="stairs",
+        channels=(),
+        primary="",
+        box=lambda at, orientation: _stairs_bounds(at, orientation, _stairs_params({})),
+        draw=_draw_stairs,
+        params=_stairs_params,
+        box_for=_stairs_bounds,
     ),
     "alarm_panel": SymbolSpec(
         type="alarm_panel",
