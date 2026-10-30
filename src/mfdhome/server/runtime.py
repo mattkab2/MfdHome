@@ -250,7 +250,19 @@ class Runtime:
             controls = Controls(alert_status, self.locked[display_id], self.actions(display_id))
         theme = THEMES[display.theme]
         state = self.view(display_id, now)
-        return render_page(page, state, theme, target, view, controls, as_of)
+        return render_page(page, state, theme, target, view, controls, as_of, display.annunciator)
+
+    def signature(self, display_id: str) -> tuple[object, ...]:
+        """What a display's image depends on besides measurements: the page, its lock
+        and log page, the alert board and the history (alerts, acknowledgements,
+        connection events). E-paper images are redrawn as soon as it changes."""
+        return (
+            self.selected[display_id],
+            self.locked[display_id],
+            self.log_page[display_id],
+            tuple(sorted(self.board.items(), key=lambda item: item[0])),
+            len(self.history),
+        )
 
     def record(self, events: list[AlertEvent]) -> None:
         """Add events to the history (and its file)."""

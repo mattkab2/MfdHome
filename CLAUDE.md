@@ -284,13 +284,23 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   `eink_color` draws the Gruvbox roles in the Spectra 6 inks (no gray ink:
   unavailable is black dotted; yellow never carries text). All displays
   are landscape.
-- **E-paper delivery:** the device pulls `GET /display/<id>.png` on a timer
+- **E-paper delivery:** the device polls `GET /display/<id>.png` often
   (ETag / 304 when unchanged) and presses keys with `POST
-  /display/<id>/key/<key>`. The expected device is ESPHome on an ESP32
-  (`online_image`), possibly a Pi Zero; both use the same routes. The "as of"
-  stamp in the bottom strip shows when content last changed (as seen at a
-  fetch), not fetch time, so unchanged pages don't redraw; the device marks
-  failed fetches itself. Panels are rendered only when fetched.
+  /display/<id>/key/<key>`. **The server paces redraws:** it keeps serving
+  the same image until the display's `refresh` passes or something besides
+  measurements changes (alerts, acknowledgements, keys, connection:
+  `Runtime.signature`), so alerts reach the panel within a poll while it
+  redraws rarely. The device is a Seeed reTerminal E1003 (ESPHome,
+  `online_image`); the routes suit a Pi Zero too. The "as of" stamp in the
+  bottom strip shows when content last changed (as seen at a render), so
+  unchanged pages don't redraw; the device marks failed fetches itself.
+  Panels are rendered only when fetched.
+- **Taller displays** (a 4:3 panel for 5:3 pages) grow the canvas: the page
+  keeps the top, the bottom strip moves to the display's bottom, and an
+  annunciator band of tiles (`annunciator` in displays.yaml, default every
+  system; none on a page with its own tiles) fills the space between.
+  `eink_gray` is `eink_mono` with structure and no data in dark gray and dim
+  in light gray, for 4- and 16-gray panels.
 - **Averaging for slow displays:** a display's `average` window (panels:
   their `refresh`, default 5m; browser displays live unless set) shows each
   measurement as its time-weighted mean over the window ending now, from a
@@ -390,15 +400,12 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
 - Hardware buttons for the mirror (e-ink buttons use the key route).
 - An alert timeline page (rows per system across a time window) as a
   graphical companion to the log, if the log proves hard to scan.
-- Immediate e-ink refresh on new alerts (a wake signal to the device, e.g.
-  through Home Assistant's ESPHome integration); today alerts appear at the
-  next scheduled fetch.
 - A Pi Zero client for the PNG and key routes.
-- Tuning against a real panel's pixels: `hatch_spacing`, dot spacing, and
-  `core_inset` (at 800×480 the gap between a flowing pipe's walls and its
-  core falls below a pixel on 1-bit panels).
+- Tuning against the E1003's pixels once it arrives: `hatch_spacing`, dot
+  spacing and `core_inset` at 1872×1404 in 16 grays.
 
 ## Open decisions (ask before settling)
 
-- The exact e-ink panel (mono expected; six-color if one can be had) and its
-  resolution, which fix the profile and the tuning above.
+- None at the moment: the e-ink panel is settled (Seeed reTerminal E1003:
+  10.3", 1872×1404, 16 grays, `gray16` + `eink_gray`, touch on the soft-key
+  strip plus its three top buttons).

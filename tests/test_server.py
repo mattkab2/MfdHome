@@ -244,20 +244,60 @@ async def test_panel_renders_averages_when_fetched(aiohttp_client: ClientFactory
     assert images.changed_at("main_floor") == T0 + timedelta(minutes=5)  # not rendered on push
     clock.now = T0 + timedelta(minutes=5, seconds=40)
     assert ">750 W<" in runtime.render("main_floor", now=clock.now)  # 30 s of 3 kW in 5 min
+    clock.now = T0 + timedelta(minutes=10)  # its next redraw: the refresh has passed
     second = await client.get("/display/main_floor.png", headers={"If-None-Match": etag})
     assert second.status == 200 and images.changed_at("main_floor") == clock.now
 
 
-async def test_panel_warns_when_the_device_polls_off_its_refresh(
+async def test_panel_redraws_are_paced_but_alerts_come_at_once(
+    aiohttp_client: ClientFactory,
+) -> None:
+    runtime = islanded()
+    runtime.select("main_floor", "electrical")
+    clock = Clock(T0)
+    client = await aiohttp_client(create_app(runtime, clock=clock))
+    etag = (await client.get("/display/main_floor.png")).headers["ETag"]
+    items = json.loads((FIXTURES / "electrical_islanded.json").read_text())
+
+    # A measurement changes: the device, polling every 30 s, keeps its image.
+    for item in items:
+        if item["entity_id"] == "sensor.load_power":
+            item["state"] = str(float(item["state"]) + 900)
+    clock.now = T0 + timedelta(seconds=30)
+    runtime.update(snapshot_from_ha_states(items), clock.now)
+    polled = await client.get("/display/main_floor.png", headers={"If-None-Match": etag})
+    assert polled.status == 304
+
+    # An acknowledgement (like a new or cleared alert) is drawn at the next poll.
+    clock.now = T0 + timedelta(seconds=60)
+    assert runtime.acknowledge("tester", clock.now)
+    acked = await client.get("/display/main_floor.png", headers={"If-None-Match": etag})
+    assert acked.status == 200 and acked.headers["ETag"] != etag
+    etag = acked.headers["ETag"]
+
+    # Otherwise the next redraw waits for the refresh (5 minutes after the last).
+    clock.now = T0 + timedelta(minutes=5)
+    early = await client.get("/display/main_floor.png", headers={"If-None-Match": etag})
+    assert early.status == 304
+    clock.now = T0 + timedelta(minutes=6)
+    due = await client.get("/display/main_floor.png", headers={"If-None-Match": etag})
+    assert due.status == 200
+
+
+async def test_panel_warns_only_when_the_device_polls_too_slowly(
     aiohttp_client: ClientFactory, caplog: pytest.LogCaptureFixture
 ) -> None:
     clock = Clock(T0)
     client = await aiohttp_client(create_app(islanded(), clock=clock))
-    for minute in range(8):  # every minute, but the display's refresh is 5 minutes
+    for minute in range(8):  # every minute: fine, the server paces redraws
         clock.now = T0 + timedelta(minutes=minute)
+        await client.get("/display/main_floor.png")
+    assert not [r for r in caplog.records if r.levelname == "WARNING"]
+    for step in range(1, 8):  # every 11 minutes, but the display's refresh is 5 minutes
+        clock.now = T0 + timedelta(minutes=7 + 11 * step)
         await client.get("/display/main_floor.png")
     warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
     assert warnings == [
-        "display main_floor fetches about every 60s, but its refresh is 300s;"
-        " set the device's update interval to match"
+        "display main_floor fetches about every 660s, but its refresh is 300s;"
+        " poll at least that often (every 30s is fine: the server paces redraws)"
     ]

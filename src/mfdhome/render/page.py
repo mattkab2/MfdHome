@@ -50,7 +50,11 @@ from mfdhome.symbols.registry import LINE_BACK, SymbolInput, get_symbol
 from mfdhome.symbols.style import dotted, font
 from mfdhome.symbols.tile import (
     ATTENTION_CLASS,
+    BANNER_HEIGHT,
+    RING_OUTSET,
     STAMP_WIDTH,
+    TILE_HEIGHT,
+    TILE_WIDTH,
     TileLook,
     banner,
     banner_strip,
@@ -412,6 +416,52 @@ def _render_node(element: NodeElement, theme: Theme) -> str:
     )
 
 
+#: Extra height a display must have over its page before the annunciator band
+#: appears; anything less is letterboxed as before.
+BAND_MIN = TILE_HEIGHT + 16.0
+#: The band's tiles: at most this many to a row, this far apart.
+BAND_COLUMNS = 5
+BAND_GAP = (24.0, 8.0)
+
+
+def canvas_height(page: Page, target: Target) -> float:
+    """The canvas height to draw ``page`` on for ``target``: the page's own, or, on a
+    display proportionally taller (a 4:3 panel for a 5:3 page) by at least
+    ``BAND_MIN``, the page's width at the display's proportions."""
+    wanted = page.width * target.height_px / target.width_px
+    return wanted if wanted - page.height >= BAND_MIN else page.height
+
+
+def band_tiles(page: Page, height: float, systems: Sequence[str]) -> list[TileElement]:
+    """The annunciator band's tiles below a page drawn on a taller canvas.
+
+    The band runs from the page's own reserved strip to the canvas's bottom
+    strip. Tiles go in rows of ``BAND_COLUMNS``, as many rows as fit, centered;
+    systems that don't fit are left out. A page with tiles of its own (the
+    status page) gets none, so they aren't shown twice.
+    """
+    if height <= page.height or any(isinstance(e, TileElement) for e in page.elements):
+        return []
+    # Keep an unacknowledged tile's ring clear of the page and the strip.
+    top = page.height - BANNER_HEIGHT + RING_OUTSET
+    bottom = height - BANNER_HEIGHT - RING_OUTSET
+    gap_x, gap_y = BAND_GAP
+    rows = max(0, int((bottom - top + gap_y) // (TILE_HEIGHT + gap_y)))
+    shown = list(systems)[: rows * BAND_COLUMNS]
+    if not shown:
+        return []
+    used_rows = -(-len(shown) // BAND_COLUMNS)
+    first_y = (top + bottom) / 2 - (used_rows - 1) * (TILE_HEIGHT + gap_y) / 2
+    tiles = []
+    for row in range(used_rows):
+        names = shown[row * BAND_COLUMNS : (row + 1) * BAND_COLUMNS]
+        first_x = page.width / 2 - (len(names) - 1) * (TILE_WIDTH + gap_x) / 2
+        for col, system in enumerate(names):
+            at = (first_x + col * (TILE_WIDTH + gap_x), first_y + row * (TILE_HEIGHT + gap_y))
+            tiles.append(TileElement(f"band-{system}", at, system))
+    return tiles
+
+
 def _resolver(page: Page, state: StateSnapshot, alerts: AlertView) -> Resolver:
     """A resolver that knows top-level elements' channel values.
 
@@ -453,6 +503,7 @@ def render_page(
     alerts: AlertView = NO_ALERTS,
     controls: Controls | None = None,
     as_of: str | None = None,
+    annunciator: Sequence[str] = (),
 ) -> str:
     """Render ``page`` with ``state`` for ``target`` as a standalone SVG document.
 
@@ -463,6 +514,11 @@ def render_page(
     banner between them. ``as_of`` (a short text such as "AS OF 14:05", or
     two lines split by a newline, supplied by the caller) is drawn at the
     right end of the banner's space, which the banner then leaves free.
+
+    On a display proportionally taller than the page (see ``canvas_height``),
+    the canvas grows to fill it: the page keeps the top, the bottom strip moves
+    to the display's bottom, and the band between holds the ``annunciator``
+    systems' tiles.
 
     Output is deterministic: no clock, randomness or I/O, and fixed element and
     attribute order.
@@ -482,13 +538,19 @@ def render_page(
     frames = sum(isinstance(e, EnclosureElement) for e in page.elements)
     groups = [group for _, group in layers]
     children = [
-        svg.rect(0, 0, page.width, page.height, {"fill": theme.background}),
+        svg.rect(0, 0, page.width, canvas_height(page, target), {"fill": theme.background}),
         *groups[:frames],
         # Every line's casing beneath every line's body, so hollow pipes merge at joints.
         *([svg.element("g", {"id": "casings"}, underlays)] if underlays else []),
         *groups[frames:],
     ]
-    strip = banner_strip(page.width, page.height)
+    height = canvas_height(page, target)
+    tiles = band_tiles(page, height, annunciator)
+    if tiles:
+        children.append(
+            svg.element("g", {"id": "annunciator"}, [_render_tile(t, c) for t in tiles])
+        )
+    strip = banner_strip(page.width, height)
     box = strip if controls is None else banner_box(strip)
     if as_of is not None:
         note = Box(box.right - STAMP_WIDTH, box.top, box.right, box.bottom)
@@ -514,7 +576,7 @@ def render_page(
             "svg",
             {
                 "xmlns": SVG_NS,
-                "viewBox": f"0 0 {svg.fmt(page.width)} {svg.fmt(page.height)}",
+                "viewBox": f"0 0 {svg.fmt(page.width)} {svg.fmt(canvas_height(page, target))}",
                 "width": target.width_px,
                 "height": target.height_px,
                 "data-page": page.id,

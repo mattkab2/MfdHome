@@ -920,9 +920,14 @@ def _connect(
 
 
 def build_displays(
-    model: DisplaysModel, page_ids: Collection[str], issues: Issues
+    model: DisplaysModel,
+    page_ids: Collection[str],
+    issues: Issues,
+    systems: Sequence[str] = (),
 ) -> dict[str, Display]:
-    """Build displays; themes and pages must exist. ``home`` is always selectable."""
+    """Build displays; themes, pages and annunciator systems (from ``systems``, in
+    alerts.yaml order, which is also the default annunciator) must exist.
+    ``home`` is always selectable."""
     out = {}
     for display_id, d in model.displays.items():
         loc: Loc = ("displays", display_id)
@@ -938,6 +943,10 @@ def build_displays(
         if d.panel is not None:
             _check_panel(loc, d.theme, d.panel, issues)
         refresh, average = _timing(d, loc, issues)
+        for i, system in enumerate(d.annunciator or ()):
+            if system not in systems:
+                issues.add((*loc, "annunciator", i), f"unknown system {system!r}")
+        annunciator = tuple(systems) if d.annunciator is None else tuple(d.annunciator)
         alerts_page = d.alerts_page or d.home
         pages = (d.home, *(p for p in d.pages if p != d.home))
         if alerts_page not in pages:
@@ -953,6 +962,7 @@ def build_displays(
             d.panel,
             refresh,
             average,
+            annunciator,
         )
     return out
 

@@ -871,7 +871,7 @@ alert (see the NET alerts in `examples/config/alerts.yaml`).
 ```yaml
 displays:
   workshop:
-    theme: lcd                 # lcd | mirror | eink_mono | eink_color
+    theme: lcd                 # lcd | mirror | eink_mono | eink_gray | eink_color
     size: [1280, 800]          # pixels
     home: status               # shown at startup
     pages: [status, electrical]   # what a viewer can select
@@ -886,10 +886,21 @@ displays:
     home: status
     pages: [status, electrical]
     panel: mono                # e-paper: served as PNG snapshots
-    refresh: 5m                # how often the device fetches (panels only; default 5m)
+    refresh: 5m                # how often the image is redrawn (panels only; default 5m)
     average: 5m                # averaging window: default 'refresh' on panels, live
                                # elsewhere; 0 for live values, at most 1h
+    annunciator: [GRID, BATT]  # a taller display's tile row; default: every system
 ```
+
+**Taller displays.** Pages are usually drawn on a 5:3 canvas. On a display
+proportionally taller (a 4:3 e-paper panel), the canvas grows to the
+display's shape: the page keeps the top, the bottom strip (banner, keys,
+stamp) moves to the display's bottom, and the band between holds a row or
+two of annunciator tiles (up to five per row) for `annunciator`'s systems,
+in order, so every page shows the house's status at a glance. A page with
+tiles of its own (the status page) leaves the band empty. A display that's
+only slightly taller (less than a tile row's worth), or wider, shows the
+page centered with margins, as before.
 
 A display with an averaging window shows each measurement averaged over
 the window ending now, instead of its latest reading: a slow display isn't
@@ -948,15 +959,18 @@ instead of a live page (see `docs/running.md`). The PNG is the display's
 | Panel | Colors | Theme |
 |---|---|---|
 | `mono` | black, white | `eink_mono` |
-| `gray4` | 4 grays | `eink_mono` |
-| `gray16` | 16 grays | `eink_mono` |
+| `gray4` | 4 grays | `eink_mono` or `eink_gray` |
+| `gray16` | 16 grays | `eink_mono` or `eink_gray` |
 | `spectra6` | black, white, red, yellow, blue, green | `eink_mono` or `eink_color` |
 
 The theme must draw only colors the panel can show; `mfdhome check` reports
 anything else. `eink_color` uses the six inks directly: green normal, yellow
-caution, red warning, blue active, black dotted for no data. A page whose
-proportions differ from the panel's is centered, with margins in the
-background color.
+caution, red warning, blue active, black dotted for no data. `eink_gray`
+keeps `eink_mono`'s cues (weight, fill, patterns) but draws walls, rooms,
+stairs and cabinets, and no data, in dark gray and unlit tiles in light gray,
+so they recede. A taller panel grows the canvas (see "Taller displays"
+above); a wider one shows the page centered, with margins in the background
+color.
 
 The soft-key labels are still drawn along the bottom strip when the display
 has more than one page, so hardware buttons mounted beneath them are
