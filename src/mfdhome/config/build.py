@@ -280,6 +280,13 @@ def build_defs(
 # --- elements ---------------------------------------------------------------------------------
 
 
+def _check_system(system: str, systems: Collection[str], loc: Loc, issues: Issues) -> None:
+    """``system`` must be one of ``systems`` (from alerts.yaml)."""
+    if system not in systems:
+        known = ", ".join(systems) or "none defined in alerts.yaml"
+        issues.add(loc, f"unknown system {system!r}; expected: {known}")
+
+
 def _anchor(name: str | None, loc: Loc, issues: Issues) -> Anchor | None:
     if name is None:
         return None
@@ -317,9 +324,7 @@ class _ElementBuilder:
         self.exprs = _Exprs({}, defs.conditions, issues)
 
     def system(self, system: str, loc: Loc) -> None:
-        if system not in self.alerts.systems:
-            known = ", ".join(self.alerts.systems) or "none defined in alerts.yaml"
-            self.issues.add(loc, f"unknown system {system!r}; expected: {known}")
+        _check_system(system, self.alerts.systems, loc, self.issues)
 
     def bind(
         self,
@@ -433,8 +438,8 @@ class _ElementBuilder:
         spec = REGISTRY.get(model.type)
         if spec is None:
             builtin = [
-                *("line", "text", "tile", "tile_grid", "node", "group", "alert_log"),
-                *("room", "wall"),
+                *("line", "text", "tile", "tile_grid", "node", "group", "enclosure"),
+                *("alert_log", "room", "wall"),
             ]
             known = ", ".join([*builtin, *sorted(REGISTRY)])
             self.issues.add((*loc, "type"), f"unknown type {model.type!r}; expected: {known}")
@@ -581,74 +586,49 @@ class _ElementBuilder:
         if not isinstance(kind, str):
             self.issues.add((*loc, "type"), "every element needs a 'type'")
             return []
-        built: Element | None
+        built: Element | None = None
         match kind:
             case "text":
-                text = validate(TextModel, raw, loc, self.issues)
-                built = (
-                    None if text is None else TextElement(text.id, text.at, text.text, text.align)
-                )
+                if (text := validate(TextModel, raw, loc, self.issues)) is not None:
+                    built = TextElement(text.id, text.at, text.text, text.align)
             case "line":
-                line = validate(LineModel, raw, loc, self.issues)
-                built = None if line is None else self.line(line, loc)
+                if (line := validate(LineModel, raw, loc, self.issues)) is not None:
+                    built = self.line(line, loc)
             case "tile":
-                t = validate(TileModel, raw, loc, self.issues)
-                if t is not None:
+                if (t := validate(TileModel, raw, loc, self.issues)) is not None:
                     self.system(t.system, (*loc, "system"))
-                built = None if t is None else TileElement(t.id, t.at, t.system, t.label)
+                    built = TileElement(t.id, t.at, t.system, t.label)
             case "node":
-                node = validate(NodeModel, raw, loc, self.issues)
-                built = None if node is None else NodeElement(node.id, node.at)
+                if (node := validate(NodeModel, raw, loc, self.issues)) is not None:
+                    built = NodeElement(node.id, node.at)
             case "group":
-                g = validate(GroupModel, raw, loc, self.issues)
-                built = None if g is None else self.group(g, loc)
+                if (g := validate(GroupModel, raw, loc, self.issues)) is not None:
+                    built = self.group(g, loc)
             case "enclosure":
-                enc = validate(EnclosureModel, raw, loc, self.issues)
-                if enc is not None:
+                if (enc := validate(EnclosureModel, raw, loc, self.issues)) is not None:
                     self.paddings[enc.id] = enc.padding
-                built = (
-                    None
-                    if enc is None
-                    else EnclosureElement(
-                        enc.id, tuple(enc.contains), name=self.name(enc.name, (*loc, "name"))
-                    )
-                )
+                    name = self.name(enc.name, (*loc, "name"))
+                    built = EnclosureElement(enc.id, tuple(enc.contains), name=name)
             case "alert_log":
-                log = validate(LogModel, raw, loc, self.issues)
-                if log is not None:
+                if (log := validate(LogModel, raw, loc, self.issues)) is not None:
                     for i, system in enumerate(log.systems):
                         self.system(system, (*loc, "systems", i))
-                built = (
-                    None
-                    if log is None
-                    else LogElement(log.id, log.at, log.size, tuple(log.systems))
-                )
+                    built = LogElement(log.id, log.at, log.size, tuple(log.systems))
             case "room":
-                room = validate(RoomModel, raw, loc, self.issues)
-                built = (
-                    None
-                    if room is None
-                    else RoomElement(
-                        room.id,
-                        tuple(room.points),
-                        room.name,
-                        room.label_at,
-                        self.status(room.status, "", {}, (*loc, "status")),
+                if (room := validate(RoomModel, raw, loc, self.issues)) is not None:
+                    status = self.status(room.status, "", {}, (*loc, "status"))
+                    built = RoomElement(
+                        room.id, tuple(room.points), room.name, room.label_at, status
                     )
-                )
             case "wall":
-                wall = validate(WallModel, raw, loc, self.issues)
-                built = (
-                    None
-                    if wall is None
-                    else WallElement(wall.id, tuple(wall.points), wall.exterior)
-                )
+                if (wall := validate(WallModel, raw, loc, self.issues)) is not None:
+                    built = WallElement(wall.id, tuple(wall.points), wall.exterior)
             case "tile_grid":
                 grid = validate(TileGridModel, raw, loc, self.issues)
                 return [] if grid is None else self.tile_grid(grid, loc)
             case _:
-                symbol = validate(SymbolModel, raw, loc, self.issues)
-                built = None if symbol is None else self.symbol(symbol, loc)
+                if (symbol := validate(SymbolModel, raw, loc, self.issues)) is not None:
+                    built = self.symbol(symbol, loc)
         return [] if built is None else [built]
 
 
@@ -944,8 +924,7 @@ def build_displays(
             _check_panel(loc, d.theme, d.panel, issues)
         refresh, average = _timing(d, loc, issues)
         for i, system in enumerate(d.annunciator or ()):
-            if system not in systems:
-                issues.add((*loc, "annunciator", i), f"unknown system {system!r}")
+            _check_system(system, systems, (*loc, "annunciator", i), issues)
         annunciator = tuple(systems) if d.annunciator is None else tuple(d.annunciator)
         alerts_page = d.alerts_page or d.home
         pages = (d.home, *(p for p in d.pages if p != d.home))
@@ -1041,9 +1020,7 @@ def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
         if a.id in seen:
             issues.add((*loc, "id"), f"duplicate alert id {a.id!r}")
         seen.add(a.id)
-        if a.system not in systems:
-            known = ", ".join(systems) or "none defined"
-            issues.add((*loc, "system"), f"unknown system {a.system!r}; expected: {known}")
+        _check_system(a.system, systems, (*loc, "system"), issues)
         condition = exprs.expr(a, loc, NO_CHANNELS)
         hold = a.hold or timedelta(0)
         alerts.append(
@@ -1053,8 +1030,6 @@ def build_alerts(model: AlertsModel, defs: Defs, issues: Issues) -> Alerts:
         )
     logged = []
     for i, entry in enumerate(model.log):
-        if entry.system not in systems:
-            known = ", ".join(systems) or "none defined"
-            issues.add(("log", i, "system"), f"unknown system {entry.system!r}; expected: {known}")
+        _check_system(entry.system, systems, ("log", i, "system"), issues)
         logged.append(LoggedEntity(entry.entity, entry.label, entry.system))
     return Alerts(systems, tuple(alerts), tuple(logged))

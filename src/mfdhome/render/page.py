@@ -537,14 +537,14 @@ def render_page(
     underlays = [underlay for underlay, _ in layers if underlay]
     frames = sum(isinstance(e, EnclosureElement) for e in page.elements)
     groups = [group for _, group in layers]
+    height = canvas_height(page, target)
     children = [
-        svg.rect(0, 0, page.width, canvas_height(page, target), {"fill": theme.background}),
+        svg.rect(0, 0, page.width, height, {"fill": theme.background}),
         *groups[:frames],
         # Every line's casing beneath every line's body, so hollow pipes merge at joints.
         *([svg.element("g", {"id": "casings"}, underlays)] if underlays else []),
         *groups[frames:],
     ]
-    height = canvas_height(page, target)
     tiles = band_tiles(page, height, annunciator)
     if tiles:
         children.append(
@@ -576,7 +576,7 @@ def render_page(
             "svg",
             {
                 "xmlns": SVG_NS,
-                "viewBox": f"0 0 {svg.fmt(page.width)} {svg.fmt(canvas_height(page, target))}",
+                "viewBox": f"0 0 {svg.fmt(page.width)} {svg.fmt(height)}",
                 "width": target.width_px,
                 "height": target.height_px,
                 "data-page": page.id,
