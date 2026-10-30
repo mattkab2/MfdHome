@@ -972,8 +972,9 @@ REGISTRY: Mapping[str, SymbolSpec] = {
     "air_handler": _cabinet_spec("air_handler", burner=False, coil=True),
     "condenser": SymbolSpec(
         type="condenser",
-        channels=("action",),
+        channels=("action", "power"),
         primary="action",
+        numeric=frozenset({"power"}),
         box=lambda at, _orientation: condenser_box(*at),
         draw=_draw_condenser,
         params=_state_list_params("running", DEFAULT_COMPRESSOR_ACTIONS),

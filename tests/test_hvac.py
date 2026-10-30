@@ -7,7 +7,14 @@ import pytest
 from syrupy.assertion import SnapshotAssertion
 
 from mfdhome.layout import Port
-from mfdhome.model import EntityRef, Orientation, Status, SymbolElement, snapshot_from_ha_states
+from mfdhome.model import (
+    EntityRef,
+    Orientation,
+    Readout,
+    Status,
+    SymbolElement,
+    snapshot_from_ha_states,
+)
 from mfdhome.render import render_element, render_page
 from mfdhome.symbols import get_symbol
 from mfdhome.symbols.geometry import element_box, find_port, port_names
@@ -84,6 +91,30 @@ class TestCabinets:
         assert not filled(cabinet("condenser", "heating"), "circle")
         element = SymbolElement("c", "condenser", (100, 100))
         assert find_port(element, "refrigerant") == Port((68, 100), (-1.0, 0.0))
+
+    def test_condenser_power_readout(self) -> None:
+        element = SymbolElement(
+            "c",
+            "condenser",
+            (100, 100),
+            bind={
+                "action": EntityRef("climate.main", "hvac_action"),
+                "power": EntityRef("sensor.ac_power"),
+            },
+            params=get_symbol("condenser").params({}),
+            readouts=(Readout("power", format="power"),),
+        )
+        states = [
+            ha_state("climate.main", "cool", hvac_action="cooling"),
+            ha_state("sensor.ac_power", "2850", unit_of_measurement="W"),
+        ]
+        svg = render_element(element, snapshot_from_ha_states(states), LCD)
+        assert ">2.9 kW<" in svg and filled(svg, "circle")
+        bad = [
+            ha_state("climate.main", "cool", hvac_action="cooling"),
+            ha_state("sensor.ac_power", "x"),
+        ]
+        assert ">---<" in render_element(element, snapshot_from_ha_states(bad), LCD)
 
     def test_params(self) -> None:
         with pytest.raises(ValueError, match="'coil' must be true or false"):
