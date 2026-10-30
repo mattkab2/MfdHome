@@ -10,7 +10,7 @@ import pytest
 from aiohttp.test_utils import TestServer
 from PIL import Image
 
-from mfdhome.cli import fetch_states, load_dotenv, main, scrub
+from mfdhome.cli import SUPERVISOR_WEBSOCKET, fetch_states, ha_credentials, load_dotenv, main, scrub
 from mfdhome.config import load_config
 from mfdhome.config.inventory import entity_uses
 from tests.fake_ha import TOKEN, FakeHA
@@ -102,6 +102,37 @@ def test_dotenv_does_not_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert os.environ["MFD_TEST_A"] == "from file"
     assert os.environ["MFD_TEST_B"] == "from env"
     monkeypatch.delenv("MFD_TEST_A")
+
+
+class TestCredentials:
+    """HA_URL and HA_TOKEN when set; in an add-on, the Supervisor's proxy and token."""
+
+    @pytest.fixture(autouse=True)
+    def clean(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.chdir(tmp_path)  # no .env here
+        for name in ("HA_URL", "HA_TOKEN", "SUPERVISOR_TOKEN"):
+            monkeypatch.delenv(name, raising=False)
+
+    def test_explicit_url_and_token_win(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("HA_URL", "http://ha.local:8123")
+        monkeypatch.setenv("HA_TOKEN", "long-lived")
+        monkeypatch.setenv("SUPERVISOR_TOKEN", "supervisor")
+        assert ha_credentials() == ("http://ha.local:8123", "long-lived")
+
+    def test_add_on_uses_the_supervisor(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("SUPERVISOR_TOKEN", "supervisor")
+        assert ha_credentials() == (SUPERVISOR_WEBSOCKET, "supervisor")
+        assert SUPERVISOR_WEBSOCKET == "ws://supervisor/core/websocket"
+
+    def test_half_set_is_an_error_not_a_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("HA_URL", "http://ha.local:8123")
+        monkeypatch.setenv("SUPERVISOR_TOKEN", "supervisor")
+        with pytest.raises(SystemExit, match="set HA_URL and HA_TOKEN"):
+            ha_credentials()
+
+    def test_nothing_set(self) -> None:
+        with pytest.raises(SystemExit, match="or run as an add-on"):
+            ha_credentials()
 
 
 async def test_fetch_states(aiohttp_server: ServerFactory, monkeypatch: pytest.MonkeyPatch) -> None:

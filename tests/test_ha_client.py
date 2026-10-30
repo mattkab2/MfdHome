@@ -22,6 +22,8 @@ type ServerFactory = Callable[[Any], Awaitable[TestServer]]
 def test_websocket_url() -> None:
     assert websocket_url("http://ha.local:8123/") == "ws://ha.local:8123/api/websocket"
     assert websocket_url("https://ha.example") == "wss://ha.example/api/websocket"
+    supervisor = "ws://supervisor/core/websocket"
+    assert websocket_url(supervisor) == supervisor  # a websocket URL is used as is
 
 
 class Recorder:

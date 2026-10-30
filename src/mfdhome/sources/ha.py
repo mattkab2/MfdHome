@@ -35,8 +35,11 @@ class ProtocolError(Exception):
 
 
 def websocket_url(base_url: str) -> str:
-    """``http://host:8123`` -> ``ws://host:8123/api/websocket`` (https -> wss)."""
+    """``http://host:8123`` -> ``ws://host:8123/api/websocket`` (https -> wss). A
+    websocket URL (``ws://supervisor/core/websocket`` in an add-on) is used as is."""
     base = base_url.rstrip("/")
+    if base.startswith(("ws://", "wss://")):
+        return base
     if base.startswith("https://"):
         base = "wss://" + base.removeprefix("https://")
     elif base.startswith("http://"):

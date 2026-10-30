@@ -65,13 +65,22 @@ def load_dotenv(path: Path = Path(".env")) -> None:
             os.environ.setdefault(key.strip(), value.strip().strip("'\""))
 
 
+#: Home Assistant's websocket API through the Supervisor, for an add-on.
+SUPERVISOR_WEBSOCKET = "ws://supervisor/core/websocket"
+
+
 def ha_credentials() -> tuple[str, str]:
-    """``HA_URL`` and ``HA_TOKEN`` from the environment (or ``.env``)."""
+    """Where and how to reach Home Assistant: ``HA_URL`` and ``HA_TOKEN`` from the
+    environment (or ``.env``) or, in a Home Assistant add-on with neither set,
+    the Supervisor's proxy and the ``SUPERVISOR_TOKEN`` it provides."""
     load_dotenv()
     url, token = os.environ.get("HA_URL"), os.environ.get("HA_TOKEN")
-    if not url or not token:
-        raise SystemExit("set HA_URL and HA_TOKEN (environment or .env)")
-    return url, token
+    if url and token:
+        return url, token
+    supervisor = os.environ.get("SUPERVISOR_TOKEN")
+    if supervisor and not url and not token:
+        return SUPERVISOR_WEBSOCKET, supervisor
+    raise SystemExit("set HA_URL and HA_TOKEN (environment or .env), or run as an add-on")
 
 
 async def fetch_states() -> list[dict[str, Any]]:
