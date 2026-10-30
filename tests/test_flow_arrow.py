@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 
 from mfdhome.conditions import AnyOf, Condition, Op
-from mfdhome.config import ConfigError, Defs, load_page
+from mfdhome.config import ConfigError, Defs, load_config, load_page
+from mfdhome.config.inventory import entity_uses
 from mfdhome.layout import Anchor
 from mfdhome.model import (
     EntityRef,
@@ -175,6 +176,69 @@ def test_condition_flow_config(tmp_path: Path) -> None:
     page.write_text(body.replace("reverse: true", "threshold: 5"))
     with pytest.raises(ConfigError, match="flow from a condition has no 'from' or 'threshold'"):
         load_page(page, Defs())
+
+
+class TestGate:
+    """A gate stops flow from a rate while it fails: a feeder with its relay open
+    shows no flow, whatever an averaged or lagging reading says."""
+
+    def feeder(self, rate: str, grid: str) -> str:
+        connected = AnyOf.single(Condition(EntityRef("sensor.grid_status"), Op.EQ, "NORMAL"))
+        element = LineElement(
+            "grid",
+            ((0.0, 0.0), (200.0, 0.0)),
+            bind={"rate": EntityRef("sensor.grid_power")},
+            flow=FlowSpec(threshold=10, gate=connected),
+        )
+        state = snapshot_from_ha_states(
+            [ha_state("sensor.grid_power", rate), ha_state("sensor.grid_status", grid)]
+        )
+        return render_element(element, state, LCD)
+
+    def test_flows_from_its_rate_while_the_gate_holds(self) -> None:
+        assert "<polygon" in self.feeder("250", "NORMAL")
+        assert "<polygon" not in self.feeder("5", "NORMAL")  # under the threshold
+        backward, forward = (
+            points(self.feeder("-250", "NORMAL")),
+            points(self.feeder("250", "NORMAL")),
+        )
+        assert (forward[0][0] > forward[1][0]) != (backward[0][0] > backward[1][0])
+
+    def test_no_flow_while_the_gate_fails(self) -> None:
+        shut = self.feeder("250", "OFF")
+        assert "<polygon" not in shut
+        assert f'stroke="{LCD.color(Status.ACTIVE)}"' not in shut  # no solid core either
+        assert "<polygon" not in self.feeder("250", "unavailable")
+
+    def test_config(self, tmp_path: Path) -> None:
+        page = tmp_path / "p.yaml"
+        body = textwrap.dedent(
+            """\
+            page: p
+            title: P
+            canvas: {width: 100, height: 100}
+            elements:
+              - id: grid
+                type: line
+                from: [0, 0]
+                to: [10, 0]
+                bind: {rate: sensor.grid_power}
+                flow:
+                  threshold: 10
+                  while: [{entity: sensor.grid_status, eq: NORMAL}]
+            """
+        )
+        page.write_text(body)
+        [grid] = load_page(page, Defs()).elements
+        assert isinstance(grid, LineElement) and grid.flow is not None
+        assert grid.flow.gate is not None and grid.flow.when is None
+        (tmp_path / "pages").mkdir()
+        (tmp_path / "pages" / "p.yaml").write_text(body)
+        uses = entity_uses(load_config(tmp_path))  # 'mfdhome check' sees the gate's entity
+        assert uses["sensor.grid_status"] == ["p:grid"]
+        page.write_text(body.replace("threshold: 10", "when: [{entity: sensor.a, eq: 'on'}]"))
+        with pytest.raises(ConfigError, match="'while' gates flow from a rate"):
+            load_page(page, Defs())
 
 
 class TestTwoWay:

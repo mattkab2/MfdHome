@@ -101,7 +101,8 @@ class FlowSpec:
     (``channel`` along the points, ``back`` against them), each with its own
     arrow. From a condition: while ``when`` holds (a thermostat's action, a
     valve's state), for lines with no rate to read. ``reverse`` flips the
-    direction either way.
+    direction either way. ``gate`` stops flow from a rate while it fails
+    (a feeder with its relay open), whatever the rate reads.
     """
 
     channel: str = "rate"
@@ -109,6 +110,7 @@ class FlowSpec:
     when: AnyOf | None = None
     reverse: bool = False
     back: str | None = None
+    gate: AnyOf | None = None
 
 
 @dataclass(frozen=True)

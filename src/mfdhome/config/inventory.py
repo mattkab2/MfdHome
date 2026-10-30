@@ -29,8 +29,10 @@ def _in_element(element: Element) -> Iterator[str]:
         yield from (ref.entity_id for ref in element.bind.values() if isinstance(ref, EntityRef))
     if isinstance(element, (SymbolElement, LineElement, GroupElement)):
         yield from _in_rules(element.status.rules)
-    if isinstance(element, LineElement) and element.flow and element.flow.when:
-        yield from _in_expr(element.flow.when)
+    if isinstance(element, LineElement) and element.flow:
+        for expr in (element.flow.when, element.flow.gate):
+            if expr is not None:
+                yield from _in_expr(expr)
     if isinstance(element, GroupElement):
         for item in element.items:
             yield from _in_element(item)

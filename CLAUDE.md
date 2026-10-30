@@ -224,7 +224,9 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   core**, using the same threshold as its flow arrow; a blank (hollow) core
   means no flow. **Flow can also come from a condition** (`flow: {when:
   ...}`) for lines with nothing to measure, such as ducts driven by a
-  thermostat's action. **The flow arrow is a harpoon beside the line**, set off
+  thermostat's action, and **flow from a rate can be gated** (`flow:
+  {while: ...}`), so a feeder shows none while its relay is open, whatever
+  an averaged reading says. **The flow arrow is a harpoon beside the line**, set off
   from its edge (never over the core), level with the first readout on the
   opposite side, never wrapping a bend. **Two-way lines** (`rate_back`:
   upload beside download, export beside import) get one harpoon per

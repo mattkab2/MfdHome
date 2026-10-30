@@ -220,15 +220,18 @@ class FlowModel(Strict):
     """Flow arrow rule; ``flow: true`` is shorthand for the defaults.
 
     Flow comes from a rate (``from``, ``threshold``) or, with ``when``/``any``
-    (the same forms as status rules), from a condition. On a two-way line
-    (``rate_back`` bound) the threshold applies to both directions, and a
-    condition isn't allowed. ``reverse`` flips the direction.
+    (the same forms as status rules), from a condition. ``while`` (a
+    ``when``-style list) gates flow from a rate: none while it fails, such as
+    a feeder with its relay open. On a two-way line (``rate_back`` bound) the
+    threshold applies to both directions, and a condition isn't allowed.
+    ``reverse`` flips the direction.
     """
 
     from_: str = Field(default="rate", alias="from")
     threshold: Annotated[float, Field(ge=0.0)] = 0.0
     any_: list[TermModel] | None = Field(default=None, alias="any")
     when: list[TermModel] | None = None
+    while_: list[TermModel] | None = Field(default=None, alias="while")
     reverse: bool = False
 
     @model_validator(mode="after")
@@ -239,6 +242,10 @@ class FlowModel(Strict):
             {"from_", "threshold"} & self.model_fields_set
         ):
             raise ValueError("flow from a condition has no 'from' or 'threshold'")
+        if self.while_ is not None and (self.any_ is not None or self.when is not None):
+            raise ValueError(
+                "'while' gates flow from a rate; flow from a condition takes only 'when' or 'any'"
+            )
         return self
 
 

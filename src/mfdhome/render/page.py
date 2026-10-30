@@ -168,7 +168,8 @@ def _flow(
     element: LineElement, values: Mapping[str, Value], c: _Ctx
 ) -> tuple[Flow | None, Flow | None]:
     """Which way the line flows now, and a two-way line's flow the other way: from
-    its condition, from its rate's sign, or from each direction's rate."""
+    its condition, from its rate's sign, or from each direction's rate (none at
+    all while its gate fails)."""
     spec = element.flow
     if spec is None:
         return None, None
@@ -182,6 +183,8 @@ def _flow(
 
     if spec.when is not None:
         return (forward if holds(spec.when, c.resolver.context(element.bind)) else None), None
+    if spec.gate is not None and not holds(spec.gate, c.resolver.context(element.bind)):
+        return None, None
     rate = flowing(spec.channel)
     if spec.back is not None:
         back = flowing(spec.back)

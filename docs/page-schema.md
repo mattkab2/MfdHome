@@ -273,6 +273,22 @@ There's no rate, so there's nothing to read out.
     when: [{entity: climate.main, attribute: hvac_action, in: [heating, cooling, fan]}]
 ```
 
+A line that physically can't carry anything at times (a feeder whose relay
+is open) can gate flow from its rate with `while`, written like `when`: no
+flow while it fails, whatever the rate reads. The rate still sets direction
+and readouts. This matters on averaging displays, where a reading taken just
+before a grid outage can keep the 5-minute average above the threshold after
+the relay has opened. The condition is judged on live states.
+
+```yaml
+- id: grid
+  type: line
+  bind: {rate: sensor.grid_power}
+  flow:
+    threshold: 10
+    while: [{entity: binary_sensor.grid_connected, eq: "on"}]
+```
+
 `rate_back` (numeric) makes a line two-way, for links that report each
 direction separately: a network port's download and upload, or a grid feed's
 import and export as two positive sensors. Each rate is then a magnitude in

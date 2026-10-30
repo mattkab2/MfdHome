@@ -17,7 +17,9 @@ elements:
     from: [70, 260]
     to: main_breaker.in
     bind: {rate: sensor.grid_power}
-    flow: {threshold: 10}             # W: ignore sensor noise near zero
+    flow:                             # W: ignore sensor noise near zero; none while
+      threshold: 10                   # the ATS is open, whatever an average says
+      while: [{entity: binary_sensor.grid_connected, eq: "on"}]
     status: {systems: [GRID]}       # hatched red while the grid is lost
     name: {text: GRID, along: 0, anchor: left}
     readouts: [{value: rate, format: power, abs: true, along: 0.4}]
@@ -36,7 +38,9 @@ elements:
     from: main_breaker.out
     to: ats.grid
     bind: {rate: sensor.grid_power}
-    flow: {threshold: 10}             # W: ignore sensor noise near zero
+    flow:                             # W: ignore sensor noise near zero; none while
+      threshold: 10                   # the ATS is open, whatever an average says
+      while: [{entity: binary_sensor.grid_connected, eq: "on"}]
     status: {systems: [GRID]}
 
   - id: ats
@@ -62,7 +66,9 @@ elements:
     from: ats.load
     to: bus
     bind: {rate: sensor.grid_power}
-    flow: {threshold: 10}             # W: ignore sensor noise near zero
+    flow:                             # W: ignore sensor noise near zero; none while
+      threshold: 10                   # the ATS is open, whatever an average says
+      while: [{entity: binary_sensor.grid_connected, eq: "on"}]
 
   # The backup bus: everything on the house side meets here.
   - {id: bus, type: node, at: [640, 260]}

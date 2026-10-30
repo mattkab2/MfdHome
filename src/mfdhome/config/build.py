@@ -458,7 +458,12 @@ class _ElementBuilder:
                 when = self.exprs.expr(expr, (*loc, "flow"), bound)
             else:
                 self.bound_channel(f.from_, bound, (*loc, "flow", "from"))
-            flow = FlowSpec(f.from_, f.threshold, when, f.reverse, back)
+            gate = (
+                None
+                if f.while_ is None
+                else self.exprs.conjunction(f.while_, (*loc, "flow", "while"), bound)
+            )
+            flow = FlowSpec(f.from_, f.threshold, when, f.reverse, back, gate)
         self.pending.append(
             _PendingLine(
                 model.id,
