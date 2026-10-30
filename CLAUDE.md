@@ -61,15 +61,21 @@ src/mfdhome/
                # selection, log paging) and
                # the aiohttp display server (HTML shell + WebSocket frames,
                # static/client.js), and PNG snapshots + key presses for e-paper
-               # displays (images.py).
+               # displays (images.py). addon.py runs it as a Home Assistant
+               # add-on: options, the house config from git, data in /data.
   fonts/       # Bundled DejaVu Sans Mono (with its license), used by rasterization
-  cli.py       # `mfdhome check | dump-states | render | serve` (see docs/running.md)
+  cli.py       # `mfdhome check | dump-states | render | serve | addon`
+               # (see docs/running.md)
   config/      # Loading + validating page definition files (YAML, see
                # docs/page-schema.md). pydantic stays inside this package.
 tests/
   fixtures/    # Recorded and synthetic HA state snapshots (JSON) and a test
                # config/ directory
   snapshots/   # Expected SVG/PNG output for snapshot tests
+addon/         # The Home Assistant add-on (manifest, Dockerfile building the
+               # v<version> tag on the device, DOCS.md); repository.yaml at the
+               # root makes this repo its add-on repository. The root Dockerfile
+               # (and docker/install.sh, shared) builds a standalone image.
 examples/
   config/      # Example config: defs, alerts, displays, pages (status,
                # electrical, water, hvac, security, network, log). Do not
@@ -310,6 +316,17 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
   days by default. **Alerts are frozen while Home Assistant is
   disconnected.** Alerts may have a **`for:` hold time** (must hold that
   long to raise, and stop holding that long to clear).
+- **Add-on:** this repository is its own add-on repository (public on
+  GitHub; the house config stays in its private repo). The Supervisor builds
+  `addon/Dockerfile` on the device from the release tagged `v<version>`
+  (bump `addon/config.yaml` and tag together), on HA's Python 3.14 Alpine
+  base. `mfdhome addon` clones or resets the config repo into
+  `/config/house` with a read-only deploy key on every start (a failed
+  update serves the last copy), and keeps the board and history in `/data`
+  (in HA backups). It connects through the Supervisor (`SUPERVISOR_TOKEN`,
+  `ws://supervisor/core/websocket`); explicit `HA_URL`/`HA_TOKEN` win. The
+  command runs under `with-contenv`: the base image's s6 init hides the
+  container's environment otherwise.
 - **Offline development:** `serve --states FILE` and `serve --scenario FILE`
   run everything without Home Assistant; synthetic fixtures follow
   `docs/entities.md` until the real-house check.
@@ -353,23 +370,13 @@ Before considering a task done: tests pass, ruff is clean, mypy is clean.
    HVAC and Security pages against it (in the private config repo). The
    roadmap that built these pages on synthetic fixtures (`docs/roadmap.md`)
    is complete.
-2. **Home Assistant add-on (app):** run the server as an add-on on the
-   owner's HA OS (a Raspberry Pi 5, so the image must build for aarch64).
-   - A Dockerfile for a container that also runs outside HA (HA in plain
-     Docker, or a separate host).
-   - Supervisor mode in `sources/ha.py`: use `SUPERVISOR_TOKEN` and the
-     Supervisor's core websocket, so no long-lived token or `HA_URL` is
-     needed; `HA_URL`/`HA_TOKEN` keep working outside an add-on.
-   - The add-on wrapper (manifest, the display port exposed directly, since
-     HA ingress needs an HA login kiosks and ESP32s can't do) and an add-on
-     repository to install it from. Config in the add-on's config folder
-     (the private config repo, git-pulled); board and history in its data
-     folder, so HA backups include them. `MFD_DISPLAY_TOKEN` as an add-on
-     option.
+2. **Home Assistant add-on (app):** built (image, Supervisor mode, add-on
+   wrapper, `mfdhome addon`, docs); the standalone image is checked against
+   the live HA. Left: publish the GitHub repo (`mattkab2/MfdHome`, private
+   until the owner makes it public; HA can only add a public repository),
+   push the `v0.1.0` tag the add-on builds from, and install on the Pi.
    - Follow-ons: reloading the config without a restart, and an example
      ESPHome device YAML for the e-paper display (PNG fetch + key route).
-   Independent of the real-house check except the final install on the Pi,
-   so it can be built first.
 
 ## Future work (not yet scheduled)
 
