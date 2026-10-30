@@ -587,11 +587,11 @@ ordinary elements: each is placed with its own `at` and keeps its own
 connections, which cross the frame.
 
 ```yaml
-- id: agate
+- id: gateway
   type: enclosure
   contains: [grid_relay, ac_main, ac_aux]   # top-level symbols, groups, tiles or nodes
   padding: 12                               # frame to the members' boxes (default 12)
-  name: AGATE                               # above the frame by default
+  name: GATEWAY                             # above the frame by default
 ```
 
 - The frame is sized at load time to its members' boxes plus `padding`.

@@ -20,7 +20,7 @@ CABINET = """\
 - {id: other, type: breaker, at: [100, 160], bind: {state: switch.b},
    status: {map: {"on": normal}, default: caution}}
 - {id: feed, type: line, from: [0, 100], to: relay.in, bind: {state: switch.a}}
-- {id: agate, type: enclosure, contains: [relay, other], padding: 10, name: AGATE}
+- {id: gateway, type: enclosure, contains: [relay, other], padding: 10, name: GATEWAY}
 """
 
 
@@ -47,7 +47,7 @@ def render(loaded: Page, a: str | None, b: str | None) -> str:
 
 
 def frame(svg: str) -> str:
-    start = svg.index('<g id="agate">')
+    start = svg.index('<g id="gateway">')
     return svg[start : svg.index("</g>", start)]
 
 
@@ -68,7 +68,7 @@ def test_frame_wraps_the_members_plus_padding(tmp_path: Path) -> None:
 def test_status_is_the_members_worst(tmp_path: Path) -> None:
     loaded = load_page(page(tmp_path, CABINET))
     calm = frame(render(loaded, "on", "on"))
-    assert f'stroke="{LCD.structure_color}"' in calm and ">AGATE<" in calm
+    assert f'stroke="{LCD.structure_color}"' in calm and ">GATEWAY<" in calm
     assert f'stroke="{LCD.color(Status.CAUTION)}"' in frame(render(loaded, "on", "off"))
     # unavailable only when every member is
     assert "stroke-dasharray" not in frame(render(loaded, None, "on"))
@@ -78,13 +78,13 @@ def test_status_is_the_members_worst(tmp_path: Path) -> None:
 
 def test_frame_is_drawn_beneath_the_pipes(tmp_path: Path) -> None:
     svg = render(load_page(page(tmp_path, CABINET)), "on", "on")
-    assert svg.index('<g id="agate">') < svg.index('<g id="casings">')
+    assert svg.index('<g id="gateway">') < svg.index('<g id="casings">')
 
 
 def test_members_must_be_boxed_top_level_elements(tmp_path: Path) -> None:
-    outer = "- {id: outer, type: enclosure, contains: [agate, feed, nowhere]}\n"
+    outer = "- {id: outer, type: enclosure, contains: [gateway, feed, nowhere]}\n"
     assert errors(page(tmp_path, CABINET + outer)) == [
-        "elements[4].contains[0]: 'agate' can't be enclosed: enclose symbols, groups, tiles "
+        "elements[4].contains[0]: 'gateway' can't be enclosed: enclose symbols, groups, tiles "
         "or nodes",
         "elements[4].contains[1]: 'feed' can't be enclosed: enclose symbols, groups, tiles "
         "or nodes",
@@ -93,7 +93,7 @@ def test_members_must_be_boxed_top_level_elements(tmp_path: Path) -> None:
 
 
 def test_lines_attach_to_members_not_the_enclosure(tmp_path: Path) -> None:
-    path = page(tmp_path, CABINET + "- {id: stray, type: line, from: [0, 300], to: agate.left}\n")
+    path = page(tmp_path, CABINET + "- {id: stray, type: line, from: [0, 300], to: gateway.left}\n")
     assert errors(path) == [
-        "elements[4].to: enclosure 'agate' has no ports; connect to the elements inside it"
+        "elements[4].to: enclosure 'gateway' has no ports; connect to the elements inside it"
     ]
