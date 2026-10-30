@@ -143,6 +143,8 @@ class OpeningKind(StrEnum):
 JAMB = 5.0
 #: Half the spacing of a window's double line.
 WINDOW_GAP = 2.5
+#: How far an open window's brackets return along the wall into the gap.
+BRACKET = 3.0
 #: An opening's leaf, relative to the theme's symbol stroke width.
 LEAF_WEIGHT = 1.5
 #: How far an open overhead door's lifted panel reaches into the room, seen from above.
@@ -223,8 +225,8 @@ def opening(
     The wall is erased under the opening and its ends marked with jambs (in
     the structure color). A closed door is a leaf across the gap; an open one
     swings 90 degrees toward ``swing`` around its hinge, with the swing arc.
-    A closed window is a double line; an open one shows the gap with one
-    sash slid aside. A closed overhead door is a panel across the gap; an open
+    A closed window is a double line; an open one leaves the gap bare between
+    brackets at its jambs. A closed overhead door is a panel across the gap; an open
     one leaves the gap clear and shows its panel lifted overhead on the
     ``swing`` side, seen from above as a box reaching into the room.
     """
@@ -249,8 +251,17 @@ def opening(
         seg(at(half, -JAMB), at(half, JAMB), jamb),
     ]
     if kind is OpeningKind.WINDOW:
-        if is_open:  # one sash, slid aside: the gap shows, and so does the status
-            parts += [seg(at(-half, -WINDOW_GAP), at(0, -WINDOW_GAP), leaf)]
+        if is_open:  # a bare gap; the brackets carry the status
+            for end, inward in ((-half, BRACKET), (half, -BRACKET)):
+                bracket = [
+                    at(end + inward, -JAMB),
+                    at(end, -JAMB),
+                    at(end, JAMB),
+                    at(end + inward, JAMB),
+                ]
+                parts.append(
+                    svg.polyline(bracket, {"fill": "none", "stroke-linejoin": "miter", **leaf})
+                )
         else:
             parts += [seg(at(-half, -WINDOW_GAP), at(half, -WINDOW_GAP), leaf)]
             parts += [seg(at(-half, WINDOW_GAP), at(half, WINDOW_GAP), leaf)]

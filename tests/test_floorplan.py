@@ -112,12 +112,14 @@ class TestOpenings:
         vertical = draw(opening("on", {"swing": "right"}, vertical=True), "on")
         assert '<line x1="100" y1="82" x2="136" y2="82"' in vertical
 
-    def test_window_double_line_closed_and_a_slid_sash_open(self) -> None:
+    def test_window_double_line_closed_and_a_bracketed_gap_open(self) -> None:
         params = {"kind": "window", "length": 40}
         closed = draw(opening("off", params), "off")
         assert closed.count(f'stroke="{LCD.color(Status.NORMAL)}"') == 2
         opened = draw(opening("on", params), "on")
-        assert '<line x1="80" y1="97.5" x2="100" y2="97.5"' in opened  # half, aside
+        assert opened.count("<line") == 3  # the wall cut and the jambs: no sash in the gap
+        assert '<polyline points="83,95 80,95 80,105 83,105"' in opened
+        assert '<polyline points="117,95 120,95 120,105 117,105"' in opened
 
     def test_wall_is_cut_under_the_opening(self) -> None:
         assert f'stroke="{LCD.background}" stroke-width="7"' in draw(opening("off"), "off")
