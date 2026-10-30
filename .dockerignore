@@ -1,0 +1,9 @@
+# Only the package source goes into the image.
+*
+!pyproject.toml
+!poetry.lock
+!README.md
+!LICENSE
+!src/
+!docker/install.sh
+**/__pycache__
