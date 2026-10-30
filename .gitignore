@@ -4,3 +4,4 @@ __pycache__/
 *.png
 var/
 !tests/snapshots/**/*.png
+!addon/*.png

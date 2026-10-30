@@ -38,7 +38,7 @@ no Home Assistant needed.
 - [docs/running.md](docs/running.md): the commands, connecting to Home Assistant, and serving displays
 - [docs/page-schema.md](docs/page-schema.md): the page, alert and display file formats
 - [docs/entities.md](docs/entities.md): the Home Assistant entities the examples expect
-- [docs/addon.md](docs/addon.md): installing as a Home Assistant add-on
+- [addon/DOCS.md](addon/DOCS.md): installing as a Home Assistant add-on; the [Dockerfile](Dockerfile) header covers running the image on its own
 
 Keep your own house's configuration in a separate repository; `examples/` is a
 generic starting point.

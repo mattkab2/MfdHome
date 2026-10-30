@@ -16,7 +16,7 @@ HA_TOKEN=...
 
 `.env` is gitignored, and variables already set in the environment win. As a
 Home Assistant add-on, set neither: mfdhome then connects through the
-Supervisor with the token it provides (see [addon.md](addon.md)). The
+Supervisor with the token it provides (see [addon/DOCS.md](../addon/DOCS.md)). The
 token is only ever sent to Home Assistant: it's never logged, never shown, and
 never reaches a display's browser.
 

@@ -1,0 +1,27 @@
+configuration:
+  config_repo:
+    name: Config repository
+    description: >-
+      Git URL of your house config (for GitHub over SSH:
+      git@github.com:you/your-house-config.git). Leave empty to put the config
+      in the add-on's config folder by hand instead.
+  config_branch:
+    name: Branch
+    description: The branch to serve; it's fetched again every time the add-on starts.
+  config_path:
+    name: Config folder in the repository
+    description: >-
+      The folder holding defs.yaml, alerts.yaml, displays.yaml and pages/.
+      Empty if they're at the top of the repository.
+  deploy_key:
+    name: Deploy key
+    description: >-
+      A read-only deploy key for the repository: the private key, one line per
+      entry, from -----BEGIN to -----END. Not needed for a public repository.
+  display_token:
+    name: Display token
+    description: >-
+      Optional. When set, every display URL needs ?token=<this value>; put it in
+      each kiosk's URL and the e-paper device's fetch URL.
+network:
+  8099/tcp: Display pages (kiosk browsers and e-paper panels)

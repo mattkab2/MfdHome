@@ -1,0 +1,35 @@
+# Home Assistant add-on manifest. The Supervisor builds addon/Dockerfile on the
+# device; 'version' is also the git tag (v<version>) the image is built from.
+name: MFD Home
+version: "0.1.0"
+slug: mfdhome
+description: House status pages drawn as multifunction-display schematics
+url: https://github.com/mattkab2/MfdHome
+arch:
+  - aarch64
+  - amd64
+init: false
+homeassistant_api: true
+# Displays (kiosk browsers, e-paper panels) connect to this port directly:
+# Home Assistant's ingress would need a Home Assistant login they can't do.
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: Display pages (kiosk browsers and e-paper panels)
+map:
+  - type: app_config
+    read_only: false
+watchdog: tcp://[HOST]:[PORT:8099]
+options:
+  config_repo: ""
+  config_branch: main
+  config_path: config
+  deploy_key: []
+  display_token: ""
+schema:
+  config_repo: str?
+  config_branch: str
+  config_path: str?
+  deploy_key:
+    - str
+  display_token: password?
